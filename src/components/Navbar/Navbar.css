@@ -1,0 +1,37 @@
+.Navbar {
+  width: 100%;
+  height: 70px;
+  background: lightblue;
+}
+
+.container {
+}
+
+.top {
+  display: inline-block;
+}
+
+.loginform {
+  display: flex;
+  flex-flow: column;
+  float: right;
+  text-align: right;
+  margin-right: 25px;
+  margin-top: 10px;
+}
+.smashtitle {
+  left: 46%;
+  text-align: center;
+  position: relative;
+  font-weight: 400;
+  font-size: 35px;
+}
+label {
+  margin-top: 10px;
+}
+.linebreak {
+  height: 5px;
+  background-color: red;
+  display: flex;
+  margin-top: 15px;
+}
