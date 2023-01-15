@@ -1,7 +1,7 @@
 $primary: #393933;
 $success: #388FD6;
 $secondary: #FFD443;
-$info: #7C7700;
+$info: #D3D3D3;
 $warning: #e39647;
 $danger: #7B0E0F;
 $light: #fff;
@@ -129,5 +129,15 @@ $spacers: map-merge(
   ),
   $spacers
 );
+
+.Container-footer {
+    margin-top: auto;
+}
+
+.Container-home {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
 
 @import "~bootstrap/scss/bootstrap";
