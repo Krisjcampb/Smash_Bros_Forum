@@ -28,7 +28,7 @@ export default function App() {
                             <Nav.Link href='/register'>Register</Nav.Link>
                         </Nav.Item>
                         <Nav.Item as='li'>
-                            <Nav.Link href='/about'>Copyright</Nav.Link>
+                            <Nav.Link href='/userlist'>User List</Nav.Link>
                         </Nav.Item>
                     </Col>
                     <Col>

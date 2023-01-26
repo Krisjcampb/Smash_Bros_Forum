@@ -4,7 +4,7 @@ import Form from 'react-bootstrap/Form'
 import { Container } from 'react-bootstrap'
 
 function BasicExample() {
-    const [description, setDescription] = useState('')
+    const [email, setEmail] = useState('')
     const [username, setUserName] = useState('')
     const [password, setPassword] = useState('')
     const [confirmpass, setConfirmPass] = useState('')
@@ -14,8 +14,8 @@ function BasicExample() {
         e.preventDefault()
         if(password === confirmpass && !!password){
             try {
-              const body = { description, password }
-              const response = await fetch('http://localhost:5000/todos', {
+              const body = { email, username, password }
+              const response = await fetch('http://localhost:5000/forumusers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -33,7 +33,7 @@ function BasicExample() {
     }
   return (
     <Container>
-        <div className='text-center h5 mt-120'>Create Your Account</div>
+        <div className='text-center h5 mt-96'>Create Your Account</div>
         <Container className='d-inline-flex justify-content-center'>
             <Form noValidate validated={validated} className='rounded bg-info p-80' onSubmit={onSubmitForm}>
                 <Form.Group className='mb-3'>
@@ -41,15 +41,27 @@ function BasicExample() {
                     <Form.Control
                     type='email'
                     placeholder='Enter email'
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     />
                     <Form.Text className='text-muted'>
                     We'll never share your email with anyone else.
                     </Form.Text>
                 </Form.Group>
-
+                <Form.Group className='mb-3'>
+                    <Form.Label>Username</Form.Label>
+                    <Form.Control
+                    type='text'
+                    placeholder='Enter username'
+                    value={username}
+                    onChange={(e) => setUserName(e.target.value)}
+                    required
+                    />
+                    <Form.Text className='text-muted'>
+                    This will be your display name.
+                    </Form.Text>
+                </Form.Group>
                 <Form.Group>
                     <Form.Label>Password</Form.Label>
                     <Form.Control
@@ -59,7 +71,7 @@ function BasicExample() {
                     required
                     />
                 </Form.Group>
-                <Form.Group as="confirmpass" controlId="validationCustom05">
+                <Form.Group>
                     <Form.Label>Confirm Password</Form.Label>
                     <Form.Control 
                     type="password"  

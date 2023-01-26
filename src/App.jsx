@@ -6,6 +6,8 @@ import Contact from './pages/contact'
 import SignIn from './pages/signin'
 import Homepage from './pages/homepage'
 import Register from './pages/register'
+import Userlist from './pages/userlist'
+import Userdetails from './pages/userdetails'
 //import MediaPosts from './components/Media Posts/Media Posts'
 import './App.css'
 import { Container} from 'react-bootstrap'
@@ -25,6 +27,8 @@ export default function App() {
               <Route path='/contact' element={<Contact />} />
               <Route path='/signup' element={<SignIn />} />
               <Route path='/register' element={<Register />} />
+              <Route path='/userlist' element={<Userlist />} />
+              <Route path='/userdetails' element={<Userdetails />} />
             </Routes>
           </Router>
         </Container>

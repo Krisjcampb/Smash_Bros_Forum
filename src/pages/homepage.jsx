@@ -1,78 +1,80 @@
-import { Container, Row, Col } from 'react-bootstrap'
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
+import { Container } from 'react-bootstrap'
 import Button from 'react-bootstrap/Button'
 import Modal from 'react-bootstrap/Modal'
 import Form from 'react-bootstrap/Form'
-import Card from 'react-bootstrap/Card'
-import Footer from '../components/Footer/Footer'
-
+import ListContent from '../components/Search Bar/ListContent'
 function Homepage() {
-  const [newTitle, setNewTitle] = useState([])
-  const [newDescription, setNewDescription] = useState([])
-  const [newImage, setNewImage] = useState([])
-  const [show, setShow] = useState(false)
-  const title = useRef()
-  const description = useRef()
-  const image = useRef()
-  const changeOpen = () => setShow(true)
-  const changeClose = () => setShow(false)
+    const [title, setTitle] = useState('')
+    const [content, setContent] = useState('')
+    const [img, setImg] = useState('')
+    const [show, setShow] = useState(false)
+    const changeOpen = () => setShow(true)
+    const changeClose = () => setShow(false)
 
-  var addToList = (e) => {
-    e.preventDefault()
-    setNewTitle([...newTitle, title.current.value])
-    setNewDescription([...newDescription, description.current.value])
-    setNewImage([...newImage, image.current.value])
-  }
+    const onSubmitForm = async (e) => {
+        e.preventDefault()
+        try {
+            const body = { title, content, img }
+            const response = await fetch('http://localhost:5000/forumcontent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            })
 
-  return (
-    <>
-      <div>Homepage</div>
-      <Button onClick={changeOpen}>Add to the List</Button>
-      <Modal show={show} onHide={changeClose}>
-        <Modal.Header closeButton>
-          <Modal.Title>Creating a Thread</Modal.Title>
-        </Modal.Header>
-        <form onSubmit={addToList}>
-          <Modal.Body>
-            <Form.Group>
-              <Form.Label>Title</Form.Label>
-              <br />
-              <Form.Control type='text' ref={title} placeholder='Title' />
-              <Form.Label>Thread Content</Form.Label>
-              <br />
-              <Form.Control
-                type='text'
-                ref={description}
-                placeholder='Content'
-              />
-              <Form.Label>File Upload</Form.Label>
-              <br />
-              <Form.Control type='file' ref={image} placeholder='Image' />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button type='sumbit' onClick={changeClose}>
-              Add to List
-            </Button>
-          </Modal.Footer>
-        </form>
-      </Modal>
-
-      <div
-        style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}
-      >
-        {newTitle.map((item, index) => (
-          <Card style={{ width: '15rem' }}>
-            <Card.Img variant='top' src='images/004.jpg' />
-            <Card.Body>
-              <Card.Title>{item}</Card.Title>
-              <Card.Text>{newDescription[index]}</Card.Text>
-              <Button variant='primary'>Go somewhere</Button>
-            </Card.Body>
-          </Card>
-        ))}
-      </div>
-    </>
-  )
-}
-export default Homepage
+        console.log(response)
+        } catch (err) {
+            console.log(err.message)
+        }
+    }
+    return (
+      <>
+        <div>Homepage</div>
+        <Button onClick={changeOpen}>Add to the List</Button>
+        <Modal show={show} onHide={changeClose}>
+          <Modal.Header closeButton>
+            <Modal.Title>Creating a Thread</Modal.Title>
+          </Modal.Header>
+          <Form onSubmit={onSubmitForm}>
+            <Modal.Body>
+              <Form.Group>
+                <Form.Label>Title</Form.Label>
+                <br />
+                <Form.Control
+                  type='text'
+                  value={title}
+                  placeholder='Title'
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+                <Form.Label>Thread Content</Form.Label>
+                <br />
+                <Form.Control
+                  type='text'
+                  value={content}
+                  placeholder='Content'
+                  onChange={(e) => setContent(e.target.value)}
+                />
+                <Form.Label>File Upload</Form.Label>
+                <br />
+                <Form.Control
+                  type='file'
+                  value={img}
+                  placeholder='Image'
+                  onChange={(e) => setImg(e.target.value)}
+                />
+              </Form.Group>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button type='sumbit' onClick={changeClose}>
+                Add to List
+              </Button>
+            </Modal.Footer>
+          </Form>
+        </Modal>
+        <Container>
+            <ListContent />
+        </Container>
+      </>
+    )
+    }
+    export default Homepage
