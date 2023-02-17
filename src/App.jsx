@@ -8,27 +8,28 @@ import Homepage from './pages/homepage'
 import Register from './pages/register'
 import Userlist from './pages/userlist'
 import Userdetails from './pages/userdetails'
-//import MediaPosts from './components/Media Posts/Media Posts'
+import Threads from './pages/threads'
 import './App.css'
 import { Container} from 'react-bootstrap'
 //import React, { useState } from 'react'
-import { BrowserRouter as Router, Routes, Route} from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 
 export default function App() {
   return (
     <>
       <Container fluid className='p-0 row-flex'>
         <Container fluid className='p-0 row-flex Container-home'>
-          <Header />
           <Router>
+            <Header />
             <Routes>
               <Route path='/' element={<Homepage />} />
               <Route path='/about' element={<About />} />
               <Route path='/contact' element={<Contact />} />
-              <Route path='/signup' element={<SignIn />} />
+              <Route path='/signin' element={<SignIn />} />
               <Route path='/register' element={<Register />} />
               <Route path='/userlist' element={<Userlist />} />
               <Route path='/userdetails' element={<Userdetails />} />
+              <Route path='/threads/:threadId' element={<Threads />} />
             </Routes>
           </Router>
         </Container>

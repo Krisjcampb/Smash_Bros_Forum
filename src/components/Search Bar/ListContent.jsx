@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Card from 'react-bootstrap/Card'
 import Button from 'react-bootstrap/Button'
+import { NavLink, useLocation } from 'react-router-dom'
 
 const ListContent = () => {
     const [list, setList] = useState([])
@@ -19,22 +20,23 @@ const ListContent = () => {
         getList()
     }, [])
 
-    console.log(list)
+    const location = useLocation()
+    console.log(location)
 
     return (
-        <div
-        style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}
-        >
-                    {list.map(e => (
-                    <Card style={{ width: '15rem' }}>
-                        <Card.Img variant='top' src='Images/004.JPG' />
-                        <Card.Body>
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+            {list.map(e => (
+                <Card style={{ width: '15rem' }}>
+                    <Card.Img variant='top' src='Images/004.JPG' />
+                    <Card.Body>
                         <Card.Title>{e.title}</Card.Title>
                         <Card.Text>{e.content}</Card.Text>
-                        <Button variant='primary'>Go somewhere</Button>
-                        </Card.Body>
-                    </Card>
-                    ))}
+                        <NavLink to= {`/threads/${e.thread_id}`} state ={e}>                         
+                            <Button variant='primary'>Go somewhere</Button>
+                        </NavLink>
+                    </Card.Body>
+                </Card>
+            ))}
         </div>
     )
 }

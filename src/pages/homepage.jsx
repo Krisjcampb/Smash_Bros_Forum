@@ -4,6 +4,7 @@ import Button from 'react-bootstrap/Button'
 import Modal from 'react-bootstrap/Modal'
 import Form from 'react-bootstrap/Form'
 import ListContent from '../components/Search Bar/ListContent'
+
 function Homepage() {
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
@@ -11,7 +12,6 @@ function Homepage() {
     const [show, setShow] = useState(false)
     const changeOpen = () => setShow(true)
     const changeClose = () => setShow(false)
-
     const onSubmitForm = async (e) => {
         e.preventDefault()
         try {
@@ -27,6 +27,7 @@ function Homepage() {
             console.log(err.message)
         }
     }
+
     return (
       <>
         <div>Homepage</div>

@@ -16,3 +16,10 @@ CREATE TABLE forumcontent(
     username VARCHAR(255),
     img BYTEA
 );
+
+CREATE TABLE forumcomments(
+    thread_id INTEGER,
+    comment VARCHAR(8000),
+    username VARCHAR(16),
+    timeposted TIMESTAMP
+);

@@ -104,7 +104,7 @@ app.get('/forumcontent', async (req, res) => {
 })
 //get a forum thread
 
-app.get('/forumcontent/:id', async (req, res) => {
+app.get('/forumcontent/:thread_id', async (req, res) => {
   try {
     const { id } = req.params
     const forumcontent = await pool.query(
@@ -117,6 +117,7 @@ app.get('/forumcontent/:id', async (req, res) => {
     console.error(err.message)
   }
 })
+
 //update a forum thread
 
 app.put('/forumcontent/:id', async (req, res) => {
@@ -148,6 +149,36 @@ app.delete('/forumcontent/:id', async (req, res) => {
   }
 })
 
+//////////////////////////////// FORUM COMMENTS ////////////////////////////////////////
+
+app.post('/forumcomments', async (req, res) => {
+  try {
+    const { thread_id, comment, username, timeposted } = req.body
+    const newForumcomment = await pool.query(
+      'INSERT INTO forumcomments (thread_id,comment, username, timeposted) VALUES($1, $2, $3, $4) RETURNING *',
+      [thread_id, comment, username, timeposted]
+    )
+
+    res.json(newForumcomment.rows[0])
+  } catch (err) {
+    console.error(err.message)
+  }
+})
+
+//get forumcomments
+app.get('/forumcomments/:thread_id', async (req, res) => {
+  try {
+    const { thread_id } = req.params
+    const forumcomments = await pool.query(
+      'SELECT * FROM forumcomments WHERE thread_id = $1',
+      [thread_id]
+    )
+
+    res.json(forumcomments.rows)
+  } catch (err) {
+    console.error(err.message)
+  }
+})
 
 app.listen(5000, () => {
     console.log("server has started on port 5000");
