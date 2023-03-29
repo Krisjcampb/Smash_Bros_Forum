@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Container } from 'react-bootstrap'
+import bcrypt from 'bcryptjs'
 
 function BasicExample() {
     const [email, setEmail] = useState('')
@@ -14,16 +15,17 @@ function BasicExample() {
         e.preventDefault()
         if(password === confirmpass && !!password){
             try {
-              const body = { email, username, password }
-              const response = await fetch('http://localhost:5000/forumusers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-              })
+                const hashedpassword = bcrypt.hashSync(password, 10)
+                const body = { email, username, hashedpassword}
+                const response = await fetch('http://localhost:5000/forumusers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                })
 
-              console.log(response)
-            } catch (err) {
-              console.log(err.message)
+                console.log(response)
+            } catch(err) {
+                console.log(err.message)
             }
         }
         else{

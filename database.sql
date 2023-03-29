@@ -14,7 +14,12 @@ CREATE TABLE forumcontent(
     likes INTEGER,
     comments INTEGER,
     username VARCHAR(255),
-    img BYTEA
+    postdate TIMESTAMP
+);
+
+CREATE TABLE forumimages(
+    image_id SERIAL PRIMARY KEY,
+    filepath TEXT NOT NULL
 );
 
 CREATE TABLE forumcomments(

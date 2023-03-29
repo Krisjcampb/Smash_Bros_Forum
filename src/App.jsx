@@ -9,6 +9,7 @@ import Register from './pages/register'
 import Userlist from './pages/userlist'
 import Userdetails from './pages/userdetails'
 import Threads from './pages/threads'
+import ForgotPassword from './pages/forgotpassword'
 import './App.css'
 import { Container} from 'react-bootstrap'
 //import React, { useState } from 'react'
@@ -30,6 +31,7 @@ export default function App() {
               <Route path='/userlist' element={<Userlist />} />
               <Route path='/userdetails' element={<Userdetails />} />
               <Route path='/threads/:threadId' element={<Threads />} />
+              <Route path='/forgotpassword' element={<ForgotPassword />} />
             </Routes>
           </Router>
         </Container>

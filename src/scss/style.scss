@@ -3,7 +3,7 @@ $success: #388FD6;
 $secondary: #FFD443;
 $info: #D3D3D3;
 $warning: #e39647;
-$danger: #7B0E0F;
+$danger: #d00000b3;
 $light: #fff;
 $dark: #000;
 
@@ -140,4 +140,10 @@ $spacers: map-merge(
     flex-direction: column;
 }
 
+.text-truncate-container {
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
 @import "~bootstrap/scss/bootstrap";

@@ -19,7 +19,7 @@ const Header = (props) => {
                     alt='Logo'
                     src={Logo}
                     />
-                    <Navbar.Brand href='#home'>Navbar</Navbar.Brand>
+                    <Navbar.Brand href='/'>Navbar</Navbar.Brand>
                     <Nav className='container-fluid'>
                         <Nav.Item>
                             <Nav.Link href='/'>Home</Nav.Link>
