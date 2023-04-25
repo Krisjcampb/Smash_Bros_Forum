@@ -243,10 +243,6 @@ app.post('/passwordreset', async (req, res) => {
     const { email } = req.body;
     const result = await pool.query('SELECT * FROM forumusers WHERE email = $1', [email]);
     const user = result.rows[0];
-    // console.log(user)
-    // if (!user) {
-    //     return res.status(404).json({ message: 'User not found'})
-    // }
 
     const generateRandomCode = () => {
       const buffer = crypto.randomBytes(3);
@@ -256,8 +252,7 @@ app.post('/passwordreset', async (req, res) => {
     const randomcode = generateRandomCode()
 
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000)
-    // const token = jwt.sign({userId: user.users_id}, process.env.JWT_SECRET, { expiresIn: '1h'});
-    
+
     await pool.query('INSERT INTO passwordreset (email, reset_code, expires_at, used) VALUES ($1, $2, $3, $4)',[user.email, randomcode, expires_at, false])
 
     const transporter = nodemailer.createTransport({
@@ -272,11 +267,11 @@ app.post('/passwordreset', async (req, res) => {
     
     const mailOptions = {
         from: 'pnwsmashhub@gmail.com',
-        to: 'pnwsmashhub@gmail.com',
+        to: email,
         subject: 'Reset your password',
-        text: `Your password reset code is: ${randomcode}. This code is valid for 15 minutes.`,
+        text: `Your password reset code is: ${randomcode}. This code is valid for 24 hours.`,
     }
-
+    console.log(email)
     transporter.sendMail(mailOptions, function (err, info){
         if(err){
             console.log(err);
@@ -284,8 +279,6 @@ app.post('/passwordreset', async (req, res) => {
             console.log('Sent: ' + info.response)
         }
     });
-
-//     res.status(200).json({ message: 'Password reset link sent' });
   })
 
 
