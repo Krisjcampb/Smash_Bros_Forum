@@ -66,6 +66,9 @@ $spacers: () !default;
 $spacers: map-merge(
   (
     0: 0,
+    4: (
+      $spacer * 0.25,
+    ),
     8: (
       $spacer * 0.5,
     ),

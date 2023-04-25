@@ -25,7 +25,7 @@ const Header = (props) => {
                             <Nav.Link href='/'>Home</Nav.Link>
                         </Nav.Item>
                         <Nav.Item>
-                            <Nav.Link href='#features'>Features</Nav.Link>
+                            <Nav.Link href='/resetpassword'>Features</Nav.Link>
                         </Nav.Item>
                         <Nav.Item>
                             <Nav.Link href='#pricing'>Pricing</Nav.Link>

@@ -1,8 +1,13 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const pool = require("./db")
-const multer = require('multer')
+const pool = require("./db");
+const multer = require('multer');
+const nodemailer = require("nodemailer");
+const jwt = require('jsonwebtoken');
+const dotenv = require("dotenv")
+const crypto = require("crypto")
+dotenv.config();
 
 //storage
 const Storage = multer.diskStorage({
@@ -40,8 +45,8 @@ app.post("/forumusers", async(req, res) => {
         console.error(err.message);
     }
 })
-//get all forum users
 
+//get all forum users
 app.get("/forumusers", async(req, res) => {
     try{
         const allUsers = await pool.query("SELECT * FROM forumusers")
@@ -52,8 +57,8 @@ app.get("/forumusers", async(req, res) => {
     }
 })
 
-//get a forum user
 
+//get a forum user
 app.get("/forumusers/:id", async(req, res) => {
     try {
         const { id } = req.params;
@@ -64,14 +69,14 @@ app.get("/forumusers/:id", async(req, res) => {
         console.error(err.message)
     }
 })
-//update a forum thread
 
-app.put("/forumusers/:id", async (req, res) => {
+
+//update a forum user
+app.put("/forumusers", async (req, res) => {
     try {
-        const {id} = req.params;
-        const {email} = req.body;
-        const updateForumusers = await pool.query("UPDATE forumusers SET email = $1 WHERE users_id = $2",
-        [email, id]
+        const {hashedpassword, email} = req.body;
+        const updateForumusers = await pool.query("UPDATE forumusers SET password = $1 WHERE email = $2",
+        [hashedpassword, email]
         );
 
         res.json("Forumusers was updated!");
@@ -79,8 +84,9 @@ app.put("/forumusers/:id", async (req, res) => {
         console.error(err.message)
     }
 }) 
-//delete a forum thread
 
+
+//delete a forum thread
 app.delete("/forumusers/:id", async (req, res) =>{
     try {
         const { id } = req.params;
@@ -230,3 +236,85 @@ app.listen(5000, () => {
     console.log("server has started on port 5000");
 
 });
+
+//////////////////////////////// RESET PASSWORD //////////////////////////////////////
+
+app.post('/passwordreset', async (req, res) => {
+    const { email } = req.body;
+    const result = await pool.query('SELECT * FROM forumusers WHERE email = $1', [email]);
+    const user = result.rows[0];
+    // console.log(user)
+    // if (!user) {
+    //     return res.status(404).json({ message: 'User not found'})
+    // }
+
+    const generateRandomCode = () => {
+      const buffer = crypto.randomBytes(3);
+      const code = buffer.readUIntBE(0, 3);
+      return code % 1000000;
+    }
+    const randomcode = generateRandomCode()
+
+    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    // const token = jwt.sign({userId: user.users_id}, process.env.JWT_SECRET, { expiresIn: '1h'});
+    
+    await pool.query('INSERT INTO passwordreset (email, reset_code, expires_at, used) VALUES ($1, $2, $3, $4)',[user.email, randomcode, expires_at, false])
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        host: 'smtp.gmail.com',
+        secure: false,
+        auth: {
+            user: "pnwsmashhub@gmail.com",
+            pass: process.env.EMAIL_APP_PASS
+        },
+    })
+    
+    const mailOptions = {
+        from: 'pnwsmashhub@gmail.com',
+        to: 'pnwsmashhub@gmail.com',
+        subject: 'Reset your password',
+        text: `Your password reset code is: ${randomcode}. This code is valid for 15 minutes.`,
+    }
+
+    transporter.sendMail(mailOptions, function (err, info){
+        if(err){
+            console.log(err);
+        } else{
+            console.log('Sent: ' + info.response)
+        }
+    });
+
+//     res.status(200).json({ message: 'Password reset link sent' });
+  })
+
+
+app.post('/passwordverify', async (req, res) => {
+    const verificationcode = req.body.code
+    try {    
+        const getcode = await pool.query(
+          'SELECT reset_code, expires_at, used FROM passwordreset WHERE reset_code = $1',
+          [verificationcode]
+        )
+        if (getcode.rows.length > 0) {
+            const codeRow = getcode.rows[0]
+            if (codeRow.used) {
+                console.log('Code has already been used.')
+            } else if (codeRow.expires_at < new Date()) {
+                console.log('Code is expired.')
+            } else {
+                console.log('Code is valid.')
+                
+                //Update the usage status of the code in the database
+                await pool.query('UPDATE passwordreset SET used = true WHERE reset_code = $1',[verificationcode])
+
+                console.log('Code usage status updated in the database.')
+            }
+        } else {
+            console.log('Code is invalid.')
+        }
+    } catch (error) {
+        console.log(verificationcode)
+    }
+    res.json(verificationcode)
+})

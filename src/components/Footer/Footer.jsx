@@ -4,7 +4,7 @@ import Logo from '../Images/pnw-smash-hub-high-resolution-logo-color-on-transpar
 
 export default function App() {
   return (
-    <Container fluid variant="footer" className='bg-primary pt-32 d-flex'>
+    <Container fluid variant="footer" className='bg-primary pt-32 d-flex w-100'>
         <Navbar className='d-flex'>
             <img src={Logo} className='img-fixed' alt='Logo' width={"300"} />
         </Navbar>

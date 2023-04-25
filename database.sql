@@ -28,3 +28,11 @@ CREATE TABLE forumcomments(
     username VARCHAR(16),
     timeposted TIMESTAMP
 );
+
+CREATE TABLE passwordreset (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(50) NOT NULL,
+  reset_code VARCHAR(6) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used BOOLEAN DEFAULT false
+);

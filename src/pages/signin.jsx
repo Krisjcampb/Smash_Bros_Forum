@@ -42,7 +42,7 @@ function BasicExample() {
         if(usercheck === undefined){
             return console.log("Incorrect email or password")
         }
-        const getHashedPassword = bcrypt.compare(password, usercheck.password , function(err, isMatch){
+        bcrypt.compare(password, usercheck.password , function(err, isMatch){
             if(err){
                 throw err;
             
