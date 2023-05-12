@@ -19,13 +19,7 @@ export default function App() {
                             <Nav.Link href='/about'>About Us</Nav.Link>
                         </Nav.Item>
                         <Nav.Item as='li'>
-                            <Nav.Link href='/signin'>Sign In</Nav.Link>
-                        </Nav.Item>
-                        <Nav.Item as='li'>
                             <Nav.Link href='/'>Home</Nav.Link>
-                        </Nav.Item>
-                        <Nav.Item as='li'>
-                            <Nav.Link href='/register'>Register</Nav.Link>
                         </Nav.Item>
                         <Nav.Item as='li'>
                             <Nav.Link href='/userlist'>User List</Nav.Link>

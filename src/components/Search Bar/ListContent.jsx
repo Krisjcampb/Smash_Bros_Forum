@@ -7,27 +7,27 @@ const ListContent = () => {
     const [list, setList] = useState([])
     const [image, setImage] = useState([])
 
-    const getList = async () => {
-        try {
+    useEffect(() => {
+        const getList = async () => {
+          try {
             const response = await fetch('http://localhost:5000/forumcontent')
             const jsonData = await response.json()
 
             setList(jsonData)
-        } catch (err) {
+          } catch (err) {
             console.error(err.message)
+          }
         }
-    };
 
-    const getImages = async () => {
-        try {
+        const getImages = async () => {
+          try {
             const response = await fetch('http://localhost:5000/forumimages')
             const jsonData = await response.json()
             setImage(jsonData)
-        } catch (err) {
+          } catch (err) {
             console.error(err.message)
+          }
         }
-    }
-    useEffect(() => {
         getImages()
         getList()
     }, [])

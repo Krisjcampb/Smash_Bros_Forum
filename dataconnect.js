@@ -7,6 +7,7 @@ const nodemailer = require("nodemailer");
 const jwt = require('jsonwebtoken');
 const dotenv = require("dotenv")
 const crypto = require("crypto")
+const bcrypt = require("bcrypt")
 dotenv.config();
 
 //storage
@@ -27,6 +28,24 @@ app.use(cors());
 app.use(express.json()); //req.body
 app.use('/public/uploads', express.static('public/uploads'))
 
+
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token == null) {
+        return res.sendStatus(401);
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            console.error(err)
+            return res.sendStatus(403)
+        }
+        req.user = user
+        next();
+    })
+
+}
 //ROUTES//
 
 //USERS ACCOUNT
@@ -40,10 +59,55 @@ app.post("/forumusers", async(req, res) => {
         );
 
         res.json(newForumusers.rows[0])
-
     }catch (err){
         console.error(err.message);
     }
+})
+
+//user sign in
+app.post('/userlogin', async (req, res) => {
+    const {email, password} = req.body;
+    try{
+        const user = await pool.query('SELECT * FROM forumusers WHERE email = $1', [email])
+        if(!user || user.rows[0] === undefined) 
+        {
+            return res.json({ success: false })
+        }
+        else{
+            bcrypt.compare(password, user.rows[0].password, function(err, response) {
+            if(err){
+                console.log(err)
+            }
+            else if(response){
+                console.log(response)
+                const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username}, process.env.JWT_SECRET)
+                res.json({ success: true, token: token });
+            }
+            else{
+                res.json({success: false})
+            }
+        })
+        }
+
+    }catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+})
+
+//user authentication
+app.get('/userauthenticate', authenticateToken, (req, res) => {
+    pool.query('SELECT username FROM forumusers WHERE users_id = $1', [req.user.users_id], (err, result) =>{
+        if (err) {
+            console.error(err)
+            res.sendStatus(500);
+        } else if (result.rows.length === 0) {
+            console.log(req.user.user_id)
+            res.sendStatus(404);
+        } else {
+            res.json(req.user.username);
+        }
+    })
 })
 
 //get all forum users
@@ -56,7 +120,6 @@ app.get("/forumusers", async(req, res) => {
         console.error(err.message)
     }
 })
-
 
 //get a forum user
 app.get("/forumusers/:id", async(req, res) => {
@@ -100,8 +163,7 @@ app.delete("/forumusers/:id", async (req, res) =>{
 /////////////////////////////////// FORUM IMAGES //////////////////////////////////////
 
 app.post('/forumimages', upload.single('image'), (req, res) => {
-    const {path} = req.file;
-    console.log(req.file)
+    const {path} = req.files;
     pool.query(
       'INSERT INTO forumimages (filepath) VALUES ($1)',
       [path.replaceAll('\\', '/')],
