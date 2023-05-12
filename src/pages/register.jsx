@@ -3,6 +3,7 @@ import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Container, Alert } from 'react-bootstrap'
 import bcrypt from 'bcryptjs'
+import { useNavigate } from 'react-router-dom'
 
 function BasicExample() {
     const [email, setEmail] = useState('')
@@ -13,7 +14,10 @@ function BasicExample() {
     const [userData, setUserData] = useState([])
     const [emailError, setEmailError] = useState('')
     const [showError, setShowError] = useState(false);
-
+    const navigate = useNavigate();
+    const re =
+      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+    
     const getUserDetails = async () => {
       try {
         const response = await fetch('http://localhost:5000/forumusers')
@@ -54,9 +58,7 @@ function BasicExample() {
             try {
             const hashedpassword = bcrypt.hashSync(password, 10)
             const body = { email, username, hashedpassword }
-            const response = await fetch(
-                'http://localhost:5000/forumusers',
-                {
+            const response = await fetch('http://localhost:5000/forumusers',{
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
@@ -67,6 +69,7 @@ function BasicExample() {
             } catch (err) {
             console.log(err.message)
             }
+            navigate('/')
         } else {
             console.log('error')
             setValidated(true)
