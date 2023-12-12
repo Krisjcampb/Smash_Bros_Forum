@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Container } from 'react-bootstrap'
+import { Container, Row, Col } from 'react-bootstrap'
 
 function UserComments(){
     const [comments, setComments] = useState([])
     const location = useLocation()
-
     const updatedNums = (time) => {
         const timedisplayed = new Date(time.replace(' ', 'T'))
         return timedisplayed.toString().substring(4, 25)
@@ -32,12 +31,16 @@ function UserComments(){
           style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}
         >
           {comments.map((e) => (
-            <Container className='square bg-secondary rounded ps-32 pb-64 pt-32 m-32'>
-                <span className='fw-bold'>{e.username}</span>
-                <span> {updatedNums(e.timeposted)}</span>
-                <div className='mt-16'>{e.comment}</div>
+            <Container className='square bg-secondary rounded ps-40 pb-32 pt-16 m-24 ms-128 me-128'>
+              <Row>
+                <Col className='fw-bold top-left'>{e.username}</Col>
+                <Col className='top-right text-end pe-24'>{updatedNums(e.timeposted)}</Col>
+              </Row>
+              <Row>
+                <Col className='pt-8'>{e.comment}</Col>
+              </Row>
             </Container>
-            ))}
+          ))}
         </div>
       </>
     )

@@ -149,4 +149,8 @@ $spacers: map-merge(
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+.nav-link {
+    text-decoration: none;
+}
 @import "~bootstrap/scss/bootstrap";

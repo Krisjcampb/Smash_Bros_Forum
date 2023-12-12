@@ -163,7 +163,8 @@ app.delete("/forumusers/:id", async (req, res) =>{
 /////////////////////////////////// FORUM IMAGES //////////////////////////////////////
 
 app.post('/forumimages', upload.single('image'), (req, res) => {
-    const {path} = req.files;
+    const {path} = req.file;
+    console.log(req.file)
     pool.query(
       'INSERT INTO forumimages (filepath) VALUES ($1)',
       [path.replaceAll('\\', '/')],
@@ -267,10 +268,10 @@ app.delete('/forumcontent/:id', async (req, res) => {
 
 app.post('/forumcomments', async (req, res) => {
   try {
-    const { thread_id, comment, username, timeposted } = req.body
+    const { thread_id, comment, user, timeposted } = req.body
     const newForumcomment = await pool.query(
-      'INSERT INTO forumcomments (thread_id,comment, username, timeposted) VALUES($1, $2, $3, $4) RETURNING *',
-      [thread_id, comment, username, timeposted]
+      'INSERT INTO forumcomments (thread_id, comment, username, timeposted) VALUES($1, $2, $3, $4) RETURNING *',
+      [thread_id, comment, user, timeposted]
     )
 
     res.json(newForumcomment.rows[0])

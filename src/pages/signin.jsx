@@ -19,8 +19,7 @@ function SignIn() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             })
-            .then(response => response.json())
-            .then(data => {
+            const data = await response.json();
                 if(data.success) {
                     localStorage.setItem('token', data.token)
                     navigate('/')
@@ -29,11 +28,10 @@ function SignIn() {
                 else{
                     setErrorMessage('Invalid username or password')
                 }
-            })
-        } catch (err) {
+            } catch (err) {
             console.log(err.message)
         }
-    }
+    };
 
     return (
         <Container>
@@ -63,12 +61,17 @@ function SignIn() {
                             onChange={e => setPassword(e.target.value)}
                         />
                     </Form.Group>
+                    <div>
                         <NavLink to={`/forgotpassword`}>Forgot Password?</NavLink>
-                    <Container>
-                        <NavLink onClick={userLogin}>                         
-                            <Button variant='primary'>Submit</Button>
-                        </NavLink>
-                    </Container>
+                        <Container className='mt-8'>
+                            <NavLink onClick={userLogin}>                         
+                                <Button variant='primary'>Log In</Button>
+                            </NavLink>
+                        </Container>
+                        <div className='mt-32'>
+                            <NavLink to={`/register`} className='mt-24'>Create Account</NavLink>
+                        </div>
+                    </div>
                 </Form>
             </Container>
         </Container>
