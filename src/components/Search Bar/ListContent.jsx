@@ -74,7 +74,7 @@ const ListContent = () => {
           style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}
         >
           {list.map((e, index) => (
-            <Card style={{ width: '25rem', height: '25rem' }} key={index}>
+            <Card style={{ width: '25rem', height: '25rem', transition: 'transform 0.2s' }} key={index} className="hover-card">
               <NavLink
                 to={`/threads/${e.thread_id}`}
                 className='nav-link'
@@ -87,7 +87,7 @@ const ListContent = () => {
                     {e.content}
                   </Card.Text>
                   <div className='position-absolute left-0 bottom-0 pb-4' style={{fontWeight: 'bold'}}>
-                    Posted by <NavLink to={`/userprofile/${e.username}`}>{e.username}</NavLink>
+                    Posted by <NavLink to={`/userdetails/${e.username}`}>{e.username}</NavLink>
                   </div>
                 </Card.Body>
               </NavLink>

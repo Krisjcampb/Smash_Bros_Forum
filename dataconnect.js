@@ -97,15 +97,15 @@ app.post('/userlogin', async (req, res) => {
 
 //user authentication
 app.get('/userauthenticate', authenticateToken, (req, res) => {
-    pool.query('SELECT username FROM forumusers WHERE users_id = $1', [req.user.users_id], (err, result) =>{
+    pool.query('SELECT username, users_id FROM forumusers WHERE users_id = $1', [req.user.users_id], (err, result) =>{
         if (err) {
             console.error(err)
             res.sendStatus(500);
         } else if (result.rows.length === 0) {
-            console.log(req.user.user_id)
+            console.log(req.user.users_id)
             res.sendStatus(404);
         } else {
-            res.json(req.user.username);
+            res.json({name: req.user.username, id: req.user.users_id});
         }
     })
 })
@@ -374,3 +374,123 @@ app.post('/passwordverify', async (req, res) => {
     }
     res.json(verificationcode)
 })
+
+//////////////////////////////// FRIENDS LIST //////////////////////////////////////
+
+//Add friend
+app.post('/add-friend/:usersid/:friendsid', async (req, res) => {
+    const users_id = parseInt(req.params.usersid, 10)
+    const friends_id = parseInt(req.params.friendsid, 10)
+
+    try {
+        const { isRequest } = req.body;
+
+        const currentStatusQuery = `
+            SELECT status
+            FROM friendships
+            WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1);
+        `
+
+        const currentStatusResult = await pool.query(currentStatusQuery, [users_id, friends_id]);
+        const currentStatus = currentStatusResult.rows.length > 0 ? currentStatusResult.rows[0].status : null;
+
+        let newStatus;
+        if (currentStatus) {
+            // Friendship is already pending, update to accepted
+            console.log(currentStatus)
+            newStatus = 'accepted';
+            const updateStatusQuery = `
+                UPDATE friendships
+                SET status = 'accepted'
+                WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)
+            `;
+            await pool.query(updateStatusQuery, [users_id, friends_id]);
+        } else {
+            // Friendship is not pending, set to pending or accepted based on isRequest
+            newStatus = isRequest ? 'pending' : 'accepted';
+            const addFriendQuery = `
+                INSERT INTO friendships (user_id1, user_id2, status)
+                VALUES ($1, $2, 'pending');
+            `
+            await pool.query(addFriendQuery, [users_id, friends_id])
+        }
+
+        // Update the friendship status
+        res.json({ success: true, newStatus });
+    } catch (error) {
+        console.error('Error updating friend status:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+//Remove friend
+app.post('/remove-friend/:usersid/:friendsid', async (req, res) =>{
+    const users_id = parseInt(req.params.usersid, 10);
+    const friends_id = parseInt(req.params.friendsid, 10);
+
+    try {
+        const removeFriendQuery = `
+        DELETE FROM friendships
+        WHERE (
+        (user_id1 = $1 AND user_id2 = $2) OR
+        (user_id1 = $2 AND user_id2 = $1)
+        )
+        AND status = 'accepted';
+        `;
+
+        await pool.query(removeFriendQuery, [userID, friendId]);
+
+        res.json({success: true});
+    } catch (error) {
+        console.error('Error removing friend:', error);
+        res.status(500).json({error: 'Internal Server Error'});
+    }
+    
+})
+
+//Get all friends
+app.get('/all-friends/:users_id', async (req, res) => {
+    const users_id = parseInt(req.params.users_id, 10)
+    
+    try {
+        const allFriendsQuery = `
+        SELECT u.username
+        FROM Friendships f
+        JOIN forumusers fu ON (f.user_id1 = fu.users_id OR f.user_id2 = fu.users_id)
+        WHERE (f.user_id1 = $1 OR f.user_id2 = $1)
+        AND f.status = 'accepted';
+        `
+
+       const friends = await pool.query(allFriendsQuery, [users_id])
+
+        res.json(friends.rows)
+    } catch (error) {
+        console.error('Error retrieving friends:', error)
+        res.status(500).json({ error: 'Internal Server Error' })
+     }
+})
+
+app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
+    
+    const {userid, friendid} = req.params;
+    try {
+        const query = `
+            SELECT user_id1, user_id2, status
+            FROM friendships
+            WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1);
+        `;
+
+        const result = await pool.query(query, [userid, friendid]);
+
+        if(result.rows.length === 0) {
+            res.json({status: 'not_friends', userid});
+        } else {
+            res.json({status: result.rows[0]});
+        }
+    } catch (error) {
+        console.error('Error fetching friendship status:', error);
+        res.status(500).json({ error: 'Internal server error'});
+    }
+});
+  

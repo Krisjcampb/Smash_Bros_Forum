@@ -11,7 +11,9 @@ const Logout = () => {
 
 function Header(){
     const [user, setUser] = useState("")
+    const [userid, setUserId] = useState("")
     const [loginstate, setLoginState] = useState(false)
+    const userprofile = `/userprofile/${user}/${userid}`;
     useEffect(() => {
         const token = localStorage.getItem('token');
         if(token) {
@@ -23,11 +25,13 @@ function Header(){
               },
             })
             .then(response => response.json())
-            .then(data => setUser(data))
+            .then(data => {
+                const { id, name } = data;
+                setUser(name);
+                setUserId(id)
+            })
             .then(setLoginState(true))
         }
-        console.log(user)
-    
     }, [user])
 
     return (
@@ -53,7 +57,7 @@ function Header(){
               )}
               {loginstate === true && (
                 <NavDropdown title={user} align='end'>
-                  <NavDropdown.Item href='/'>Profile</NavDropdown.Item>
+                  <NavDropdown.Item href={userprofile}>Profile</NavDropdown.Item>
                   <NavDropdown.Item href='/'>User Settings</NavDropdown.Item>
                   <NavDropdown.Item onClick={Logout}>Log Out</NavDropdown.Item>
                 </NavDropdown>

@@ -153,4 +153,16 @@ $spacers: map-merge(
 .nav-link {
     text-decoration: none;
 }
+
+.hover-card {
+    transition: transform 0.2s;
+    position: relative;
+    z-index: 1;
+}
+
+.hover-card:hover {
+  transform: scale(1.05); // Increase the scale on hover
+  z-index: 2;
+}
+
 @import "~bootstrap/scss/bootstrap";

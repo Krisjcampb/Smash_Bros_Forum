@@ -36,3 +36,27 @@ CREATE TABLE passwordreset (
   expires_at TIMESTAMP NOT NULL,
   used BOOLEAN DEFAULT false
 );
+
+CREATE TABLE messages (
+    message_id SERIAL PRIMARY KEY,
+    sender_id INT REFERENCES forumusers(users_id) NOT NULL,
+    receiver_id INT REFERENCES forumusers(users_id) NOT NULL,
+    message_text TEXT NOT NULL,
+    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+)
+
+CREATE TABLE friendships (
+    friendship_id SERIAL PRIMARY KEY,
+    user_id1 INT REFERENCES forumusers(users_id),
+    user_id2 INT REFERENCES forumusers(users_id),
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE userprofiles (
+    post_id SERIAL PRIMARY KEY,
+    users_id INT REFERENCES forumusers(users_id),
+    post_content TEXT,
+    profile_image_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
