@@ -32,7 +32,7 @@ export default function App() {
                         <Route path='/userprofile/:username/:friendid' element={<Userprofile />} />
                         <Route path='/threads/:threadId' element={<Threads />} />
                         <Route path='/forgotpassword' element={<ForgotPassword />} />
-                        <Route path='/messaging' element={<Messaging/>}/>
+                        <Route path='/messaging/:user/:userid' element={<Messaging/>}/>
                         </Routes>
                     </Router>
                 </Container>

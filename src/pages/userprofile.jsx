@@ -1,7 +1,8 @@
 import React, {useState, useEffect} from 'react'
 import Button from 'react-bootstrap/Button'
-import { Container} from 'react-bootstrap'
-import { useParams } from 'react-router-dom';
+import { Container, Image, Tabs, Tab } from 'react-bootstrap'
+import { useParams, useNavigate } from 'react-router-dom';
+import FriendOptionsDropdown from '../components/Friend Dropdown/Friend_Dropdown'
 
 function Userprofile() {
     const [initiatedByCurrentUser, setInitiatedByCurrentUser] = useState(false)
@@ -9,7 +10,15 @@ function Userprofile() {
     const [userid, setUserId] = useState('')
     const [friendshipStatus, setFriendshipStatus] = useState(null)
     const { friendid } = useParams();
+    const [posts, setPosts] = useState([]);
+    const [comments, setComments] = useState([]);
+    const [likes, setLikes] = useState([]);
     const token = localStorage.getItem('token')
+    const navigate = useNavigate()
+
+    const currentuserstatus = () => {
+        console.log(initiatedByCurrentUser)
+    }
 
     const handleFriendAction = async () => {
         try {
@@ -33,8 +42,29 @@ function Userprofile() {
             }
         } catch (error) {
             console.error('Error handling friend action:', error);
+        }
+    };
+
+    const handleRemoveFriend = async () => {
+        try {
+            await fetch(`http://localhost:5000/remove-friend/${userid}/${friendid}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+        } catch (error) {
+            console.error('Error handling friend action:', error);
+        }
+        setFriendshipStatus(null)
+        setInitiatedByCurrentUser(true)
     }
-};
+    const handleDirectMessage = () => {
+        navigate(`/messaging/${user}/${userid}`)
+    }
+    const handleBlockFriend = () => {
+
+    }
 
     useEffect(() => {
         if(token) {
@@ -79,22 +109,64 @@ function Userprofile() {
     return (
       <Container>
         {friendshipStatus === 'pending' && (
-            <div>
-                {initiatedByCurrentUser ? (
-                    <p>Friend Request Pending</p>
-                ) : (
-                    <Button onClick={handleFriendAction}>Accept Friend Request</Button>
-                )}
-            </div>
+          <div>
+            {initiatedByCurrentUser ? (
+              <p>Friend Request Pending</p>
+            ) : (
+              <Button onClick={handleFriendAction}>
+                Accept Friend Request
+              </Button>
+            )}
+          </div>
         )}
         {friendshipStatus !== 'pending' && (
-            <div>
-                <Button onClick={handleFriendAction}>
-                    {friendshipStatus === 'accepted' ? 'Friend' : 'Add Friend'}
-                </Button>
-            </div>
+          <div>
+            {friendshipStatus === 'accepted' ? (
+              <FriendOptionsDropdown
+                onRemoveFriend={handleRemoveFriend}
+                onDirectMessage={handleDirectMessage}
+                onBlockFriend={handleBlockFriend}
+              />
+            ) : (
+              <Button onClick={handleFriendAction}>Add Friend</Button>
+            )}
+          </div>
         )}
         <div>{friendid}</div>
+        <Button onClick={currentuserstatus}>User Status</Button>
+        <div className="profile-header">
+            <Image src={user.profileImage} alt="User Profile" roundedCircle />
+            <h2>{user.username}</h2>
+            <p>{user.description}</p>
+        </div>
+
+      <Tabs defaultActiveKey="posts" id="user-profile-tabs">
+        <Tab eventKey="posts" title="Posts">
+          {/* Display user's posts */}
+          {posts.map(post => (
+            <div key={post.id}>
+              <h3>{post.title}</h3>
+              <p>{post.content}</p>
+            </div>
+          ))}
+        </Tab>
+        <Tab eventKey="comments" title="Comments">
+          {/* Display user's comments */}
+          {comments.map(comment => (
+            <div key={comment.id}>
+              <p>{comment.text}</p>
+            </div>
+          ))}
+        </Tab>
+        <Tab eventKey="likes" title="Likes">
+          {/* Display user's liked posts */}
+          {likes.map(like => (
+            <div key={like.postId}>
+              <p>Liked post: {like.postTitle}</p>
+            </div>
+          ))}
+        </Tab>
+      </Tabs>
       </Container>
     )
 }

@@ -397,7 +397,6 @@ app.post('/add-friend/:usersid/:friendsid', async (req, res) => {
         let newStatus;
         if (currentStatus) {
             // Friendship is already pending, update to accepted
-            console.log(currentStatus)
             newStatus = 'accepted';
             const updateStatusQuery = `
                 UPDATE friendships
@@ -425,29 +424,28 @@ app.post('/add-friend/:usersid/:friendsid', async (req, res) => {
 
 
 //Remove friend
-app.post('/remove-friend/:usersid/:friendsid', async (req, res) =>{
-    const users_id = parseInt(req.params.usersid, 10);
-    const friends_id = parseInt(req.params.friendsid, 10);
+app.post('/remove-friend/:usersid/:friendsid', async (req, res) => {
+  const users_id = parseInt(req.params.usersid, 10);
+  const friends_id = parseInt(req.params.friendsid, 10);
 
-    try {
-        const removeFriendQuery = `
-        DELETE FROM friendships
-        WHERE (
+  try {
+    const removeFriendQuery = `
+      DELETE FROM friendships
+      WHERE (
         (user_id1 = $1 AND user_id2 = $2) OR
         (user_id1 = $2 AND user_id2 = $1)
-        )
-        AND status = 'accepted';
-        `;
+      )
+      AND status = 'accepted';
+    `;
 
-        await pool.query(removeFriendQuery, [userID, friendId]);
+    await pool.query(removeFriendQuery, [users_id, friends_id]);
 
-        res.json({success: true});
-    } catch (error) {
-        console.error('Error removing friend:', error);
-        res.status(500).json({error: 'Internal Server Error'});
-    }
-    
-})
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing friend:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 //Get all friends
 app.get('/all-friends/:users_id', async (req, res) => {
