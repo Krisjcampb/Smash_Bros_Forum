@@ -448,24 +448,32 @@ app.post('/remove-friend/:usersid/:friendsid', async (req, res) => {
 });
 
 //Get all friends
-app.get('/all-friends/:users_id', async (req, res) => {
-    const users_id = parseInt(req.params.users_id, 10)
+app.get('/all-friends/:userid', async (req, res) => {
+    const users_id = parseInt(req.params.userid, 10)
     
     try {
         const allFriendsQuery = `
-        SELECT u.username
-        FROM Friendships f
-        JOIN forumusers fu ON (f.user_id1 = fu.users_id OR f.user_id2 = fu.users_id)
-        WHERE (f.user_id1 = $1 OR f.user_id2 = $1)
-        AND f.status = 'accepted';
+        SELECT
+            CASE
+                WHEN user_id1 = $1 THEN user_id2
+                ELSE user_id1
+            END AS friend_id,
+            forumusers.username
+        FROM friendships
+        JOIN forumusers ON friendships.user_id1 = forumusers.users_id OR friendships.user_id2 = forumusers.users_id
+        WHERE (($1 IN (user_id1, user_id2)) AND status = 'accepted') AND forumusers.users_id != $1;
         `
 
        const friends = await pool.query(allFriendsQuery, [users_id])
 
-        res.json(friends.rows)
+        if(friends.rows.length === 0) {
+            res.json({ friends: 'no_friends', users_id })
+        } else {
+            res.json(friends.rows)
+        }
     } catch (error) {
         console.error('Error retrieving friends:', error)
-        res.status(500).json({ error: 'Internal Server Error' })
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
      }
 })
 
