@@ -1,5 +1,5 @@
 // src/components/MessagingPage.js
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
     Container,
     Row,
@@ -18,6 +18,7 @@ const Messaging = () => {
     const [userid, setUserId] = useState('')
     const [listfriends, setListFriends] = useState([])
     const token = localStorage.getItem('token')
+    const messagesRef = useRef(messages)
 
     const handleUserSelection = (user) => {
         setSelectedUser(user)
@@ -46,22 +47,40 @@ const Messaging = () => {
 
     const handleSendMessage2 = useCallback(async () => {
         if(userid !== null && Number.isInteger(userid)){
-            console.log(userid)
             try {
-                const response = await fetch(`http://localhost:5000/all-friends/${userid}`)
-                const data = await response.json()
-                console.log(data)
-                if(Array.isArray(data)){
-                    const fetchedUsers = data.map(friend => ({id: friend.friend_id, name: friend.username}))
-                    console.log(fetchedUsers)
-                    setListFriends(fetchedUsers)
-                }
+              const response = await fetch(
+                `http://localhost:5000/all-friends/${userid}`
+              )
+              const data = await response.json()
+
+              const fetchedUsers = data.map((friend) => ({
+                id: friend.friend_id,
+                name: friend.username,
+              }))
+              setListFriends(fetchedUsers)
+
+              const messagesSorted = data.map(async (friend) => {
+                const friendId = friend.friend_id
+                const msgresponse = await fetch(
+                  `http://localhost:5000/retrieve-messages/${userid}/${friendId}`
+                )
+                const datamsg = await msgresponse.json()
+                return { friendId, messages: datamsg }
+              })
+
+              const allMessages = await Promise.allSettled(messagesSorted)
+              const orderedMessages = allMessages
+                .filter(({ status }) => status === 'fulfilled')
+                .map(({ value }) => value)
+
+              console.log(orderedMessages)
+              setMessages(orderedMessages)
             } catch (error) {
                 console.error('Error fetching friendship status:', error)
                 console.log(error.message)
             }
         }
-    }, [userid])
+    }, [userid, setMessages])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -72,12 +91,43 @@ const Messaging = () => {
     }, [userid, handleSendMessage2, authenticateUser])
 
     const handleSendMessage = () => {
-        if (selectedUser && messageInput.trim() !== '') {
-        setMessages((prevMessages) => [
-            ...prevMessages,
-            { sender: 'You', text: messageInput },
-        ])
-        setMessageInput('')
+        if (selectedUser && messageInput.trim() !== '') 
+        {
+            const newMessage = {
+                friendId: selectedUser.id,
+                messages: [
+                    {
+                    sender_id: userid,
+                    message_text: messageInput,
+                    },
+                ],
+            }
+            console.log('Before update:', messages);
+            setMessages((prevMessages) => [...prevMessages, newMessage])
+            setMessageInput('')
+            console.log('After update:', messages);
+            
+            const sendMessageToBackend = async () => {
+                try {
+                    const response = await fetch('http://localhost:5000/send-message',{
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            sender_id: {userid},
+                            receiver_id: {selectedUser},
+                            message_text: {messageInput},
+                        }),
+                    });
+                    console.log(response)
+                }
+                catch (error) {
+                    console.error('Error sending message to the backend:', error);
+                }
+            }
+            sendMessageToBackend();
+            handleSendMessage2();
         }
     }
 
@@ -105,9 +155,9 @@ const Messaging = () => {
                 <Card.Header>{selectedUser.name}</Card.Header>
                 <Card.Body>
                   <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    {messages.map((msg, index) => (
+                    {messages.find((friendMessages) => friendMessages.friendId === selectedUser.id)?.messages.map((msg, index) => (
                       <p key={index}>
-                        <strong>{msg.sender}:</strong> {msg.text}
+                        <strong>{msg.sender_id === userid ? 'You' : selectedUser.name}:</strong> {msg.message_text}
                       </p>
                     ))}
                   </div>

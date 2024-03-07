@@ -97,7 +97,8 @@ app.post('/userlogin', async (req, res) => {
 
 //user authentication
 app.get('/userauthenticate', authenticateToken, (req, res) => {
-    pool.query('SELECT username, users_id FROM forumusers WHERE users_id = $1', [req.user.users_id], (err, result) =>{
+    pool.query(`UPDATE forumusers SET last_online = NOW() WHERE users_id = $1`, [req.user.users_id]);
+    pool.query('SELECT username, users_id, role FROM forumusers WHERE users_id = $1', [req.user.users_id], (err, result) =>{
         if (err) {
             console.error(err)
             res.sendStatus(500);
@@ -105,7 +106,7 @@ app.get('/userauthenticate', authenticateToken, (req, res) => {
             console.log(req.user.users_id)
             res.sendStatus(404);
         } else {
-            res.json({name: req.user.username, id: req.user.users_id});
+            res.json({name: result.rows[0].username, id: result.rows[0].users_id, role: result.rows[0].role});
         }
     })
 })
@@ -147,6 +148,18 @@ app.put("/forumusers", async (req, res) => {
         console.error(err.message)
     }
 }) 
+
+app.put("/forumrole", async (req, res) => {
+    try{
+        const {selectedRole, selectedId} = req.body;
+        console.log(selectedRole, selectedId)
+        await pool.query(`UPDATE forumusers SET role = $1 WHERE users_id = $2`, [selectedRole, selectedId]);
+        
+        res.json("Forum role was updated!");   
+    } catch (err) {
+        console.error(err.message)
+    }
+})
 
 
 //delete a forum thread
@@ -264,14 +277,120 @@ app.delete('/forumcontent/:id', async (req, res) => {
   }
 })
 
+app.post('/forumlikes', async (req, res) => {
+    const {userid, thread_id} = req.body
+
+    try {
+        //Check if like exists
+        const like = await pool.query('SELECT * FROM likes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
+
+        if (like.rows.length > 0) {
+            await pool.query(`DELETE FROM likes WHERE user_id = $1 AND post_id = $2`, [userid, thread_id])
+            return res.status(200).send('Like removed');
+        }
+
+        //Check if dislike exists
+        const dislike = await pool.query('SELECT * FROM dislikes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
+
+        if (dislike.rows.length > 0) {
+            await pool.query(`DELETE FROM dislikes WHERE user_id = $1 AND post_id = $2`, [userid, thread_id])
+        }
+
+        await pool.query('INSERT INTO likes (user_id, post_id) VALUES ($1, $2)', [userid, thread_id]);
+        res.status(200).json({ message: 'Post liked successfully.' });
+    }
+    catch (error) {
+        console.error('Error liking post:', error);
+        res.status(500).json({ error: 'An error occurred while liking the post.' });
+    }
+})
+
+app.post('/forumdislikes', async (req, res) => {
+    const { userid, thread_id} = req.body;
+
+    try {
+        //Check if dislike exists
+        const dislike = await pool.query('SELECT * FROM dislikes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
+
+        if (dislike.rows.length > 0) {
+            await pool.query(`DELETE FROM dislikes WHERE user_id = $1 AND post_id = $2`, [userid, thread_id])
+            return res.status(200).send('Dislike removed');
+        }
+
+        //Check if like exists
+        const like = await pool.query('SELECT * FROM likes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
+
+        if (like.rows.length > 0) {
+            await pool.query(`DELETE FROM likes WHERE user_id = $1 AND post_id = $2`, [userid, thread_id])
+        }
+
+        await pool.query('INSERT INTO dislikes (user_id, post_id) VALUES ($1, $2)', [userid, thread_id]);
+
+        res.status(200).json({ message: 'Post disliked successfully.' });
+    } catch (error) {
+        console.error('Error disliking post:', error);
+        res.status(500).json({ error: 'An error occurred while disliking the post.' });
+    }
+
+})
+
+app.get('/forumlikes', async (req, res) => {
+    try {
+        const likes = await pool.query(
+        `SELECT post_id, COUNT(*) AS like_count
+        FROM likes
+        GROUP BY post_id;
+        `)
+        const result = likes.rows;
+
+        res.json(result)
+
+    } catch (err) {
+        console.error(err.message)
+    }
+})
+
+app.get('/forumdislikes', async (req, res) => {
+    try {
+        const dislikes = await pool.query(
+        `SELECT post_id, COUNT(*) AS dislike_count
+        FROM dislikes
+        GROUP BY post_id;
+        `)
+        const result = dislikes.rows;
+
+        res.json(result)
+
+    } catch (err) {
+        console.error(err.message)
+    }
+})
+
+app.get('/userlikesdislikes', async (req, res) => {
+
+    const userid = req.query.userid;
+    try {
+        const likes = await pool.query(`SELECT post_id FROM likes WHERE user_id = $1`, [userid])
+        const dislikes = await pool.query(`SELECT post_id FROM dislikes WHERE user_id = $1`, [userid])
+
+        const result = [
+            ...likes.rows.map(like => ({ post_id: like.post_id, type: 'like' })),
+            ...dislikes.rows.map(dislike => ({ post_id: dislike.post_id, type: 'dislike' }))
+        ];
+        res.json(result)
+    } catch (err) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+})
 //////////////////////////////// FORUM COMMENTS ////////////////////////////////////////
 
 app.post('/forumcomments', async (req, res) => {
   try {
-    const { thread_id, comment, user, timeposted } = req.body
+    const { thread_id, comment, user, timeposted, userid } = req.body
+    console.log(userid)
     const newForumcomment = await pool.query(
-      'INSERT INTO forumcomments (thread_id, comment, username, timeposted) VALUES($1, $2, $3, $4) RETURNING *',
-      [thread_id, comment, user, timeposted]
+      'INSERT INTO forumcomments (thread_id, comment, username, timeposted, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *',
+      [thread_id, comment, user, timeposted, userid]
     )
 
     res.json(newForumcomment.rows[0])
@@ -293,6 +412,18 @@ app.get('/forumcomments/:thread_id', async (req, res) => {
   } catch (err) {
     console.error(err.message)
   }
+})
+
+app.get('/usercomments/:userid', async (req, res) => {
+    try {
+        const {userid} = req.params
+        const usercomments = await pool.query(
+          `SELECT * FROM forumcomments WHERE users_id = $1 ORDER BY timeposted DESC`, [userid]
+        )
+        res.json(usercomments.rows)
+    } catch (err) {
+        console.error(err.message)
+    }
 })
 
 app.listen(5000, () => {
@@ -500,3 +631,35 @@ app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
     }
 });
   
+app.post('/send-message', async (req, res) => {
+    try {
+        const {sender_id, receiver_id, message_text } = req.body
+        const newMessage = await pool.query(
+      'INSERT INTO messages ( sender_id, receiver_id, message_text) VALUES($1, $2, $3) RETURNING *',
+      [sender_id.userid, receiver_id.selectedUser.id, message_text.messageInput]
+    )
+        console.log(sender_id.userid, receiver_id.selectedUser.id, message_text.messageInput)
+        res.json(newMessage.rows[0])
+    } catch (err) {
+    console.error(err.message)
+  }
+})
+
+app.get('/retrieve-messages/:userid/:friendid', async (req, res) => {
+    const userId = parseInt(req.params.userid, 10)
+    const friendId = parseInt(req.params.friendid, 10)
+    try {
+        const result = await pool.query(`
+      SELECT sender_id, receiver_id, message_text
+      FROM messages
+      WHERE (sender_id = $1 AND receiver_id = $2)
+         OR (sender_id = $2 AND receiver_id = $1)
+      ORDER BY timestamp;  -- Assuming you have a timestamp column
+    `, [userId, friendId]);
+        res.json(result.rows);
+        console.log(result.rows)
+    } catch (error) {
+        console.error('Error fetching messages:', error);
+        res.status(500).json({ error: 'Internal server error'});
+    }
+})

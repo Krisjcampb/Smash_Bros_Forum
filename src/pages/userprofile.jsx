@@ -1,8 +1,10 @@
 import React, {useState, useEffect} from 'react'
 import Button from 'react-bootstrap/Button'
+import ListGroup from 'react-bootstrap/ListGroup';
 import { Container, Image, Tabs, Tab } from 'react-bootstrap'
 import { useParams, useNavigate } from 'react-router-dom';
 import FriendOptionsDropdown from '../components/Friend Dropdown/Friend_Dropdown'
+import { NavLink } from 'react-router-dom'
 
 function Userprofile() {
     const [initiatedByCurrentUser, setInitiatedByCurrentUser] = useState(false)
@@ -104,6 +106,19 @@ function Userprofile() {
             };
             fetchFriendshipStatus();
         }
+        if(userid) {
+            const fetchUserComments = async () => {
+                try {
+                    const response = await fetch(`http://localhost:5000/usercomments/${userid}`)
+                    const data = await response.json()
+                    setComments(data)
+                    console.log(comments)
+                }catch (error) {
+                    console.error("Error fetching user comments:", error);
+                }
+            }
+            fetchUserComments();
+        }
     }, [userid, friendid, initiatedByCurrentUser]);
 
     return (
@@ -151,12 +166,18 @@ function Userprofile() {
           ))}
         </Tab>
         <Tab eventKey="comments" title="Comments">
-          {/* Display user's comments */}
-          {comments.map(comment => (
-            <div key={comment.id}>
-              <p>{comment.text}</p>
-            </div>
-          ))}
+            <ListGroup>
+            {comments.map(comment => (
+                <NavLink to={`/threads/${comment.thread_id}`} className='nav-link' state={comment}>
+                    <ListGroup.Item key={comment.id}>
+                        <div>
+                            <p><strong>{comment.thread_id}</strong></p>
+                            <p><strong>{comment.username}:</strong> {comment.comment}</p>
+                        </div>
+                    </ListGroup.Item>
+                </NavLink>
+            ))}
+            </ListGroup>
         </Tab>
         <Tab eventKey="likes" title="Likes">
           {/* Display user's liked posts */}

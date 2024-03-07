@@ -14,6 +14,7 @@ function Header(){
     const [userid, setUserId] = useState("")
     const [loginstate, setLoginState] = useState(false)
     const userprofile = `/userprofile/${user}/${userid}`;
+    const directmessage = `/messaging/${user}/${userid}`;
     useEffect(() => {
         const token = localStorage.getItem('token');
         if(token) {
@@ -58,7 +59,7 @@ function Header(){
               {loginstate === true && (
                 <NavDropdown title={user} align='end'>
                   <NavDropdown.Item href={userprofile}>Profile</NavDropdown.Item>
-                  <NavDropdown.Item href='/'>User Settings</NavDropdown.Item>
+                  <NavDropdown.Item href={directmessage}>Direct Messages</NavDropdown.Item>
                   <NavDropdown.Item onClick={Logout}>Log Out</NavDropdown.Item>
                 </NavDropdown>
               )}

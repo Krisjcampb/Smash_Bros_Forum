@@ -165,4 +165,25 @@ $spacers: map-merge(
   z-index: 2;
 }
 
+.number-with-arrows {
+  display: flex;
+  align-items: center;
+}
+
+.arrow-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.number {
+  margin: 0 10px;
+  font-size: 20px;
+}
+
+.highlighted-button {
+    background-color: #007bff;
+    color: #FFD443;
+    border-color: #007bff;
+}
+
 @import "~bootstrap/scss/bootstrap";

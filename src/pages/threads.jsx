@@ -11,6 +11,8 @@ function Threads() {
     const [comment, setComment] = useState("")
     const location = useLocation()
     const [user, setUser] = useState("")
+    const [userid, setUserId] = useState("")
+    const [userrole, setUserRole] = useState("")
     const thread_id = location.state.thread_id
 
     const onSubmitForm = async (e) => {
@@ -18,11 +20,12 @@ function Threads() {
         try {
             const timeposted = new Date()
             console.log(timeposted)
-            const body = { thread_id, comment, user, timeposted }
+            const body = { thread_id, comment, user, timeposted, userid }
+            console.log(body)
             const response = await fetch('http://localhost:5000/forumcomments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
             })
         console.log(response)
         } catch (err) {
@@ -30,18 +33,26 @@ function Threads() {
         }
     }
     useEffect(() => {
-      const token = localStorage.getItem('token')
-      if (token) {
-        fetch('http://localhost:5000/userauthenticate', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer ' + token,
-          },
-        })
-          .then((response) => response.json())
-          .then((data) => setUser(data))
-      }
+        const token = localStorage.getItem('token')
+        if(token) {
+            fetch('http://localhost:5000/userauthenticate', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              },
+            })
+            .then(response => response.json())
+            .then(data => {
+                const { id, name, role } = data;
+                setUser(name);
+                setUserId(id)
+                setUserRole(role)
+            })
+            .catch(error => {
+                console.error('Error fetching user role:', error);
+            })
+        }
     }, [])
     return (
         <Container>

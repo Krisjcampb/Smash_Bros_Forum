@@ -31,9 +31,9 @@ function Homepage() {
               },
             })
             .then(response => response.json())
-            .then(data => setUsername(data))
+            .then(data => setUsername(data.name))
         }   
-    }, [username, token])
+    }, [token])
 
     const onSubmitForm = async (e) => {
         e.preventDefault()

@@ -60,3 +60,17 @@ CREATE TABLE userprofiles (
     profile_image_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE likes (
+    likes_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES forumusers(users_id),
+    post_id INTEGER REFERENCES forumcontent(thread_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE dislikes (
+    dislikes_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES forumusers(users_id),
+    post_id INTEGER REFERENCES forumcontent(thread_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
