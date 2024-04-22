@@ -74,3 +74,11 @@ CREATE TABLE dislikes (
     post_id INTEGER REFERENCES forumcontent(thread_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE emailverify (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES forumusers(users_id),
+    verification_code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    verified BOOLEAN DEFAULT false
+);

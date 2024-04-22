@@ -161,7 +161,7 @@ $spacers: map-merge(
 }
 
 .hover-card:hover {
-  transform: scale(1.05); // Increase the scale on hover
+  transform: scale(1.05);
   z-index: 2;
 }
 

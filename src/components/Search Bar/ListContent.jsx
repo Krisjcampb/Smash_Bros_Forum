@@ -37,6 +37,7 @@ const ListContent = () => {
         } else {
             const data = await response.json();
             console.error('Error liking post:', data.error);
+            console.log(likedStatus)
         }
         } catch (error) {
             console.error('Error liking post:', error);
@@ -61,6 +62,7 @@ const ListContent = () => {
         } else {
             const data = await response.json();
             console.error('Error disliking post:', data.error);
+            console.log(dislikedStatus)
         }
         } catch (error) {
         console.error('Error disliking post:', error);
@@ -83,25 +85,23 @@ const ListContent = () => {
     const sortByOldest = (a, b) => new Date(a.postdate) - new Date(b.postdate);
 
     const sortByPopularityAndRecency = (a, b) => {
-        // Calculate popularity score based on likes and dislikes
-        const popularityA = a.likes - a.dislikes;
-        const popularityB = b.likes - b.dislikes;
+        const popularityA = a.likes;
+        const popularityB = b.likes;
 
-        // Calculate recency score based on post dates
-        const recencyA = new Date() - new Date(a.postdate);
-        const recencyB = new Date() - new Date(b.postdate);
+        const recencyA = (new Date() - new Date(a.postdate)) / (1000 * 60 * 60 * 24);
+        const recencyB = (new Date() - new Date(b.postdate)) / (1000 * 60 * 60 * 24);
 
-        // Weight factors for popularity and recency
-        const popularityWeight = 0.7; // Adjust this value based on your preference
-        const recencyWeight = 0.3; // Adjust this value based on your preference
+        const popularityWeight = 1;
+        const recencyWeight = 0.05;
 
-        // Combine popularity and recency scores
-        const combinedScoreA = (popularityA * popularityWeight) + (recencyA * recencyWeight);
-        const combinedScoreB = (popularityB * popularityWeight) + (recencyB * recencyWeight);
+        const combinedScoreA = (popularityA * popularityWeight) - (recencyA * recencyWeight);
+        const combinedScoreB = (popularityB * popularityWeight) - (recencyB * recencyWeight);
+        console.log(combinedScoreA, combinedScoreB)
 
-        // Sort posts based on combined score
-        return combinedScoreB - combinedScoreA; // Sort in descending order
+        return combinedScoreB - combinedScoreA;
     };
+
+    const sortByTop = (a, b) => b.likes - a.likes
 
     const handleSortChange = (e) => {
         setSortBy(e.target.value);
@@ -110,13 +110,17 @@ const ListContent = () => {
     useEffect(() => {
         let sortedList = [...list];
         if (sortBy === 'newest') {
+            console.log('newest')
             sortedList.sort(sortByNewest);
         } else if (sortBy === 'oldest') {
             sortedList.sort(sortByOldest);
         } else if (sortBy === 'mostPopular') {
             sortedList.sort(sortByPopularityAndRecency);
+        } else if (sortBy === 'Top') {
+            sortedList.sort(sortByTop)
         }
         setList(sortedList);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sortBy]);
 
     const formatPostDate = (timestamp) => {
@@ -150,37 +154,6 @@ const ListContent = () => {
             })
         }
     }, [user])
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [listResponse, imageResponse] = await Promise.all([
-                  fetch('http://localhost:5000/forumcontent'),
-                  fetch('http://localhost:5000/forumimages'),
-                ])
-                const listData = await listResponse.json();
-                const imageData = await imageResponse.json();
-
-                // Associate each post with its corresponding image data
-                const postsWithData = listData.map((data, index) => {
-                    const data2 = imageData[index];
-                    return {
-                        ...data,
-                        ...data2
-                    };
-                });
-                console.log("postData:", postsWithData)
-                setOriginalList(postsWithData)
-                setList(postsWithData)
-            } catch (err) {
-                console.error(err.message)
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchData();
-    }, [])
     
     useEffect(() => {
         const fetchData = async () => {
@@ -195,7 +168,7 @@ const ListContent = () => {
                 const netLikesToDislikes = likedata.map((like) => ({
                     post_id: like.post_id,
                     like_count: like.like_count,
-                    dislike_count: 0, // Initialize dislike count to 0
+                    dislike_count: 0,
                 }));
                 dislikedata.forEach((dislike) => {
                     const index = netLikesToDislikes.findIndex((item) => item.post_id === dislike.post_id);
@@ -220,7 +193,50 @@ const ListContent = () => {
             }
         }
         fetchData();
+
     }, [])
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [listResponse, imageResponse] = await Promise.all([
+                  fetch('http://localhost:5000/forumcontent'),
+                  fetch('http://localhost:5000/forumimages'),
+                ])
+                const listData = await listResponse.json();
+                const imageData = await imageResponse.json();
+
+                // Associate each post with its corresponding image data
+                const postsWithData = listData.map((data, index) => {
+                    const data2 = imageData[index];
+                    return {
+                        ...data,
+                        ...data2
+                    };
+                });
+
+                if(likesdislikes.length > 0){           
+                    Object.keys(postsWithData).forEach(key => {
+                        const threadId = postsWithData[key].thread_id
+
+                        Object.keys(likesdislikes).forEach(key2 => {
+                            if (threadId === likesdislikes[key2].post_id) {
+                                postsWithData[key].likes = likesdislikes[key2].net_likes
+                            }
+                        })
+                    })
+                    setOriginalList(postsWithData)
+                    setList(postsWithData)
+                }
+            } catch (err) {
+                console.error(err.message)
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchData();
+    }, [likesdislikes])
 
     useEffect(() => {
         const initialLikedStatus = list.reduce((acc, post) => {
@@ -230,7 +246,7 @@ const ListContent = () => {
 
         const fetchdata2 = async () => {
         try {
-            setLoading(true); // Set loading state to true before fetching
+            setLoading(true);
             const response = await fetch(`http://localhost:5000/userlikesdislikes?userid=${userid}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
@@ -244,13 +260,14 @@ const ListContent = () => {
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
-            setLoading(false); // Set loading state to false after fetching
+            setLoading(false);
         }
     };
     if(userid){
         fetchdata2();
     }
-}, [list, userid]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [userid]);
 
 
     if (loading) {
@@ -273,6 +290,7 @@ const ListContent = () => {
                 <option value='newest'>Sort by Newest</option>
                 <option value='oldest'>Sort by Oldest</option>
                 <option value='mostPopular'>Sort by Most Popular</option>
+                <option value='Top'>Sort by Top Liked</option>
             </Form.Select>
         </Col>
     </Row>

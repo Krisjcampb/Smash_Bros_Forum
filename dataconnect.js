@@ -1,14 +1,14 @@
 const express = require("express");
 const app = express();
+const dotenv = require("dotenv")
+dotenv.config();
 const cors = require("cors");
 const pool = require("./db");
 const multer = require('multer');
 const nodemailer = require("nodemailer");
 const jwt = require('jsonwebtoken');
-const dotenv = require("dotenv")
 const crypto = require("crypto")
 const bcrypt = require("bcrypt")
-dotenv.config();
 
 //storage
 const Storage = multer.diskStorage({
@@ -58,7 +58,44 @@ app.post("/forumusers", async(req, res) => {
             [username, email, hashedpassword]
         );
 
+        const userId = newForumusers.rows[0].users_id
         res.json(newForumusers.rows[0])
+
+        const generateRandomCode = () => {
+        const buffer = crypto.randomBytes(3);
+        const code = buffer.readUIntBE(0, 3);
+        return code % 1000000;
+        }
+        const randomcode = generateRandomCode()
+
+        const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+        await pool.query('INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)',[userId, randomcode, expires_at, false])
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            secure: false,
+            auth: {
+                user: "pnwsmashhub@gmail.com",
+                pass: process.env.EMAIL_APP_PASS
+            },
+        })
+        
+        const mailOptions = {
+            from: 'pnwsmashhub@gmail.com',
+            to: email,
+            subject: 'Verify your email address',
+            text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
+        }
+
+        transporter.sendMail(mailOptions, function (err, info){
+            if(err){
+                console.log(err);
+            } else{
+                console.log('Sent: ' + info.response)
+            }
+        });
     }catch (err){
         console.error(err.message);
     }
@@ -134,6 +171,61 @@ app.get("/forumusers/:id", async(req, res) => {
     }
 })
 
+//updating email code
+app.put("/resendcode", async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const userQuery = 'SELECT users_id FROM forumusers WHERE email = $1';
+        const userResult = await pool.query(userQuery, [email]);
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const generateRandomCode = () => {
+        const buffer = crypto.randomBytes(3);
+        const code = buffer.readUIntBE(0, 3);
+        return code % 1000000;
+        }
+        const userId = userResult.rows[0].users_id;
+
+        const randomcode = generateRandomCode();
+        const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        const updateQuery = `
+            UPDATE emailverify
+            SET verification_code = $1, expires_at = $2
+            WHERE user_id = $3;
+        `;
+        await pool.query(updateQuery, [randomcode, expires_at, userId]);
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            secure: false,
+            auth: {
+                user: "pnwsmashhub@gmail.com",
+                pass: process.env.EMAIL_APP_PASS
+            },
+        });
+        
+        const mailOptions = {
+            from: 'pnwsmashhub@gmail.com',
+            to: email,
+            subject: 'Verify your email address',
+            text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent:', info.response);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating verification code:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 //update a forum user
 app.put("/forumusers", async (req, res) => {
@@ -492,7 +584,6 @@ app.post('/passwordverify', async (req, res) => {
             } else {
                 console.log('Code is valid.')
                 
-                //Update the usage status of the code in the database
                 await pool.query('UPDATE passwordreset SET used = true WHERE reset_code = $1',[verificationcode])
 
                 console.log('Code usage status updated in the database.')
@@ -505,6 +596,31 @@ app.post('/passwordverify', async (req, res) => {
     }
     res.json(verificationcode)
 })
+
+//////////////////////////////// VERIFY EMAIL //////////////////////////////////////
+
+app.post('/emailverify', async (req, res) => {
+    try {
+        const { emailCode, email } = req.body;
+        const query = `
+            SELECT COUNT(*) AS count
+            FROM emailverify e
+            JOIN forumusers u ON e.user_id = u.users_id
+            WHERE e.verification_code = $1 AND u.email = $2;
+        `;
+        const { rows } = await pool.query(query, [emailCode, email]);
+        const count = parseInt(rows[0].count, 10);
+        if (count > 0) {
+            res.json(true);
+        } else {
+            res.json(false);
+        }
+    } catch (error) {
+        console.error('Error verifying email:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 
 //////////////////////////////// FRIENDS LIST //////////////////////////////////////
 
@@ -527,7 +643,6 @@ app.post('/add-friend/:usersid/:friendsid', async (req, res) => {
 
         let newStatus;
         if (currentStatus) {
-            // Friendship is already pending, update to accepted
             newStatus = 'accepted';
             const updateStatusQuery = `
                 UPDATE friendships
@@ -536,7 +651,6 @@ app.post('/add-friend/:usersid/:friendsid', async (req, res) => {
             `;
             await pool.query(updateStatusQuery, [users_id, friends_id]);
         } else {
-            // Friendship is not pending, set to pending or accepted based on isRequest
             newStatus = isRequest ? 'pending' : 'accepted';
             const addFriendQuery = `
                 INSERT INTO friendships (user_id1, user_id2, status)
@@ -544,8 +658,7 @@ app.post('/add-friend/:usersid/:friendsid', async (req, res) => {
             `
             await pool.query(addFriendQuery, [users_id, friends_id])
         }
-
-        // Update the friendship status
+        
         res.json({ success: true, newStatus });
     } catch (error) {
         console.error('Error updating friend status:', error);
