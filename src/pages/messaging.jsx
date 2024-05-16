@@ -9,6 +9,7 @@ import {
     Form,
     Button,
 } from 'react-bootstrap'
+import { Link } from 'react-router-dom'
 
 const Messaging = () => {
     const [selectedUser, setSelectedUser] = useState(null)
@@ -19,7 +20,7 @@ const Messaging = () => {
     const [listfriends, setListFriends] = useState([])
     const token = localStorage.getItem('token')
     const messagesRef = useRef(messages)
-
+    const userprofile = `/userprofile/${user}/${userid}`;
     const handleUserSelection = (user) => {
         setSelectedUser(user)
     }
@@ -152,7 +153,10 @@ const Messaging = () => {
           <Col sm={8}>
             {selectedUser ? (
               <Card>
-                <Card.Header>{selectedUser.name}</Card.Header>
+                <Card.Header>
+                    <Link to={`/userprofile/${selectedUser.name}/${selectedUser.id}`} className="text-decoration-none text-dark">{selectedUser.name}
+                    </Link>
+                    </Card.Header>
                 <Card.Body>
                   <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                     {messages.find((friendMessages) => friendMessages.friendId === selectedUser.id)?.messages.map((msg, index) => (

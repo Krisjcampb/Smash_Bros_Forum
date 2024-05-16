@@ -63,7 +63,7 @@ const ListUsers = () => {
             });
             
             if (response.ok) {
-                console.log('User role assigned successfully');
+                console.log('User role assigned successfully', user, userId);
                 return true;
             } else {
                 console.error('Failed to assign user role');
@@ -82,24 +82,20 @@ const ListUsers = () => {
 
     const handleEditUser = async (userId, updatedUserData) => {
         try {
-            // Make a PUT request to your backend API to update the user's information
             const response = await fetch(`http://localhost:5000/forumusers/${userId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(updatedUserData), // Provide the updated user data
+                body: JSON.stringify(updatedUserData),
             });
             
             if (response.ok) {
-                // Handle success, e.g., show a success message
                 console.log('User information updated successfully');
             } else {
-                // Handle failure, e.g., show an error message
                 console.error('Failed to update user information');
             }
         } catch (error) {
-            // Handle network errors or other errors
             console.error('Error updating user information:', error);
         }
     };

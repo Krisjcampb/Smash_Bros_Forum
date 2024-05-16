@@ -5,6 +5,7 @@ import { Container, Alert } from 'react-bootstrap'
 import bcrypt from 'bcryptjs'
 import { useNavigate } from 'react-router-dom'
 import { BsX } from 'react-icons/bs'
+import Filter from 'bad-words';
 
 function BasicExample() {
     const [email, setEmail] = useState('')
@@ -16,11 +17,13 @@ function BasicExample() {
     const [emailError, setEmailError] = useState('')
     const [emailCode, setEmailCode] = useState('')
     const [showError, setShowError] = useState(false);
+    const [nameError, setNameError] = useState('');
     const [validCode, setValidCode] = useState(true)
     const [step, setStep] = useState(1);
     const [resendCount, setResendCount] = useState(1);
     const [secondsRemaining, setSecondsRemaining] = useState(3)
     const navigate = useNavigate();
+    const profanityFilter = new Filter();
     const re =
       /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
     
@@ -116,28 +119,47 @@ function BasicExample() {
             }
         }
     }
-
     const onSubmitForm = async (e) => {
-        e.preventDefault()
-        if (password === confirmpass && !!password) {
-            try {
-            const hashedpassword = bcrypt.hashSync(password, 10)
-            const body = { email, username, hashedpassword }
-            await fetch('http://localhost:5000/forumusers',{
+        e.preventDefault();
+        setNameError('');
+
+        if (profanityFilter.isProfane(username)) {
+            setNameError('Username cannot contain profanity');
+            setValidated(true);
+            return;
+        }
+
+        if (!password || password !== confirmpass || !username.trim()) {
+            setValidated(true);
+            return;
+        }
+
+        try {
+            const hashedpassword = bcrypt.hashSync(password, 10);
+            const body = { email, username, hashedpassword };
+            const response = await fetch('http://localhost:5000/forumusers',{
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
-                }
-            )
-            setStep(2);
-            } catch (err) {
-            console.log(err.message)
+            });
+
+            if (response.ok) {
+                setStep(2);
+            } else {
+                console.error('Failed to submit form');
             }
-        } else {
-            console.log('error')
-            setValidated(true)
+        } catch (err) {
+            console.error(err.message);
         }
+    };
+
+    const handleUsernameChange = (e) => {
+        const { value } = e.target;
+        if (value.length <= 20) {
+            setUserName(value);
+        } 
     }
+
     return (
         <Container>
             {step === 1 && (
@@ -167,9 +189,10 @@ function BasicExample() {
                             type='text'
                             placeholder='Enter username'
                             value={username}
-                            onChange={(e) => setUserName(e.target.value)}
+                            onChange={handleUsernameChange}
                             required
                         />
+                        {nameError && <Alert variant="danger">{nameError}</Alert>}
                         <Form.Text className='text-muted'>
                             This will be your display name.
                         </Form.Text>
@@ -212,7 +235,7 @@ function BasicExample() {
                         className='rounded bg-info p-80'
                         onSubmit={onVerifyEmail}
                     >
-                        <div className='mt-2' style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={onResendCode}>
+                        <div className='mt-2' style={{ textDecoration: 'underline', cursor: 'pointer' }} olnClick={onResendCode}>
                             Resend Code
                         </div>
                         { !validCode && (

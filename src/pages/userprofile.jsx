@@ -135,17 +135,19 @@ function Userprofile() {
           </div>
         )}
         {friendshipStatus !== 'pending' && (
-          <div>
+        <div>
             {friendshipStatus === 'accepted' ? (
-              <FriendOptionsDropdown
+            <FriendOptionsDropdown
                 onRemoveFriend={handleRemoveFriend}
                 onDirectMessage={handleDirectMessage}
                 onBlockFriend={handleBlockFriend}
-              />
+            />
             ) : (
-              <Button onClick={handleFriendAction}>Add Friend</Button>
+            String(userid) !== friendid && (
+                <Button onClick={handleFriendAction}>Add Friend</Button>
+            )
             )}
-          </div>
+        </div>
         )}
         <div>{friendid}</div>
         <Button onClick={currentuserstatus}>User Status</Button>

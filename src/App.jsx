@@ -10,6 +10,7 @@ import Userprofile from './pages/userprofile'
 import Threads from './pages/threads'
 import ForgotPassword from './pages/forgotpassword'
 import Messaging from './pages/messaging'
+import Calendar from './pages/calendar'
 import './App.css'
 import { Container } from 'react-bootstrap'
 //import React, { useState } from 'react'
@@ -33,6 +34,7 @@ export default function App() {
                         <Route path='/threads/:threadId' element={<Threads />} />
                         <Route path='/forgotpassword' element={<ForgotPassword />} />
                         <Route path='/messaging/:user/:userid' element={<Messaging/>}/>
+                        <Route path='/calendar' element={<Calendar/>}/>
                         </Routes>
                     </Router>
                 </Container>

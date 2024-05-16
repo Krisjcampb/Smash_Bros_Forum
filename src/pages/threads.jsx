@@ -79,7 +79,7 @@ function Threads() {
                 </Form>
             </Row>
             <Container>
-                <UserComments />
+                <UserComments userRole={userrole} userId={userid}/>
             </Container>
         </Container>
 

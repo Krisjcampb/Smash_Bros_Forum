@@ -61,11 +61,9 @@ function Homepage() {
             headers: { 'Content-Type': 'multipart/form-data' },
         })
             .then(function (response) {
-                //handle success
                 console.log(response);
             })
             .catch(function (response) {
-                //handle error
                 console.log(response);
             });
     }

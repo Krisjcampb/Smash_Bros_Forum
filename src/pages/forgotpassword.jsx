@@ -50,8 +50,6 @@ function ForgotPassword() {
             }
         }
     }
-
-
     const handleEmailSubmit = async (e) => {
         e.preventDefault()
         if(re.test(email)){

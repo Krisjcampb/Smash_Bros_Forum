@@ -518,6 +518,21 @@ app.get('/usercomments/:userid', async (req, res) => {
     }
 })
 
+app.put('/forumcomments/:commentId', async (req, res) => {
+  try {
+    const { commentId } = req.params
+    const { content } = req.body
+    const updateForumucontent = await pool.query(
+      'UPDATE forumcomments SET comment = $1 WHERE comment_id = $2',
+      [content, commentId]
+    )
+
+    res.json('forumcomments was updated!')
+  } catch (err) {
+    console.error(err.message)
+  }
+})
+
 app.listen(5000, () => {
     console.log("server has started on port 5000");
 
