@@ -12,9 +12,9 @@ function Userprofile() {
     const [userid, setUserId] = useState('')
     const [friendshipStatus, setFriendshipStatus] = useState(null)
     const { friendid } = useParams();
-    const [posts, setPosts] = useState([]);
+    // const [posts, setPosts] = useState([]);
     const [comments, setComments] = useState([]);
-    const [likes, setLikes] = useState([]);
+    // const [likes, setLikes] = useState([]);
     const token = localStorage.getItem('token')
     const navigate = useNavigate()
 
@@ -112,7 +112,6 @@ function Userprofile() {
                     const response = await fetch(`http://localhost:5000/usercomments/${userid}`)
                     const data = await response.json()
                     setComments(data)
-                    console.log(comments)
                 }catch (error) {
                     console.error("Error fetching user comments:", error);
                 }
@@ -160,12 +159,12 @@ function Userprofile() {
       <Tabs defaultActiveKey="posts" id="user-profile-tabs">
         <Tab eventKey="posts" title="Posts">
           {/* Display user's posts */}
-          {posts.map(post => (
+          {/* {posts.map(post => (
             <div key={post.id}>
               <h3>{post.title}</h3>
               <p>{post.content}</p>
             </div>
-          ))}
+          ))} */}
         </Tab>
         <Tab eventKey="comments" title="Comments">
             <ListGroup>
@@ -183,11 +182,11 @@ function Userprofile() {
         </Tab>
         <Tab eventKey="likes" title="Likes">
           {/* Display user's liked posts */}
-          {likes.map(like => (
+          {/* {likes.map(like => (
             <div key={like.postId}>
               <p>Liked post: {like.postTitle}</p>
             </div>
-          ))}
+          ))} */}
         </Tab>
       </Tabs>
       </Container>

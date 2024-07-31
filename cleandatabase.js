@@ -14,6 +14,24 @@ async function cleanupExpiredRows() {
     }
 }
 
+async function unbanExpiredUsers() {
+    try {
+        const result = await pool.query(`
+            UPDATE forumusers
+            SET is_banned = FALSE
+            FROM ban_log
+            WHERE forumusers.user_id = ban_log.user_id
+              AND ban_log.expires_at IS NOT NULL
+              AND ban_log.expires_at < NOW()
+              AND forumusers.is_banned = TRUE
+        `);
+        console.log('Users unbanned successfully:', result.rowCount, 'users unbanned');
+    } catch (error) {
+        console.error('Error unbanning users:', error.message);
+    }
+}
+
 cron.schedule('0 0 * * *', () => {
     cleanupExpiredRows();
+    unbanExpiredUsers();
 })

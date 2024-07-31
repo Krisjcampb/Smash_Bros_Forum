@@ -9,6 +9,7 @@ function Calendar() {
     useEffect(() => {
         if (calendarRef.current) {
             const calendarApi = calendarRef.current.getApi();
+            console.log(calendarApi)
         }
     }, []);
 

@@ -50,56 +50,83 @@ function authenticateToken(req, res, next) {
 
 //USERS ACCOUNT
 //create a user
-app.post("/forumusers", async(req, res) => {
-    try{
-        const {username, email, hashedpassword} = req.body;
+app.post('/forumusers', async (req, res) => {
+    try {
+        const { username, email, hashedpassword, publicKey } = req.body;
+
+        // Insert user into forumusers table
         const newForumusers = await pool.query(
-            "INSERT INTO forumusers (username, email, password) VALUES($1, $2, $3) RETURNING *", 
+            "INSERT INTO forumusers (username, email, password) VALUES ($1, $2, $3) RETURNING *", 
             [username, email, hashedpassword]
         );
 
-        const userId = newForumusers.rows[0].users_id
-        res.json(newForumusers.rows[0])
+        const userId = newForumusers.rows[0].users_id;
 
+        // Generate a random verification code
         const generateRandomCode = () => {
-        const buffer = crypto.randomBytes(3);
-        const code = buffer.readUIntBE(0, 3);
-        return code % 1000000;
-        }
-        const randomcode = generateRandomCode()
+            const buffer = crypto.randomBytes(3);
+            const code = buffer.readUIntBE(0, 3);
+            return code % 1000000;
+        };
+        const randomcode = generateRandomCode();
 
-        const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000)
+        // Set expiration time for the verification code
+        const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-        await pool.query('INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)',[userId, randomcode, expires_at, false])
+        // Insert verification code into emailverify table
+        await pool.query('INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)', [userId, randomcode, expires_at, false]);
 
+        // Send verification email
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             host: 'smtp.gmail.com',
             secure: false,
             auth: {
-                user: "pnwsmashhub@gmail.com",
-                pass: process.env.EMAIL_APP_PASS
+                user: 'pnwsmashhub@gmail.com',
+                pass: process.env.EMAIL_APP_PASS,
             },
-        })
-        
+        });
+
         const mailOptions = {
             from: 'pnwsmashhub@gmail.com',
             to: email,
             subject: 'Verify your email address',
             text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
-        }
+        };
 
-        transporter.sendMail(mailOptions, function (err, info){
-            if(err){
-                console.log(err);
-            } else{
-                console.log('Sent: ' + info.response)
+        transporter.sendMail(mailOptions, function (err, info) {
+            if (err) {
+                console.error('Error sending email:', err);
+            } else {
+                console.log('Email sent:', info.response);
             }
         });
-    }catch (err){
-        console.error(err.message);
+
+        res.status(201).json({ user: newForumusers.rows[0], message: 'User registered successfully' });
+
+    } catch (err) {
+        console.error('Error in /forumusers endpoint:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
-})
+});
+
+app.post("/forumusers/savePublicKey", async (req, res) => {
+    try {
+        const { email, publicKey } = req.body;
+        const userQuery = await pool.query("SELECT users_id FROM forumusers WHERE email = $1", [email]);
+        const userId = userQuery.rows[0].users_id;
+
+        const keyQuery = `
+            INSERT INTO forumuser_public_keys (users_id, public_key)
+            VALUES ($1, $2);`;
+
+        await pool.query(keyQuery, [userId, publicKey]);
+        res.status(201).send("Public key saved successfully");
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
+});
 
 //user sign in
 app.post('/userlogin', async (req, res) => {
@@ -254,12 +281,23 @@ app.put("/forumrole", async (req, res) => {
 })
 
 
-//delete a forum thread
-app.delete("/forumusers/:id", async (req, res) =>{
+//ban a user
+app.delete("/forumusers/:userId", async (req, res) =>{
     try {
-        const { id } = req.params;
-        const deleteForumusers = await pool.query("DELETE FROM forumusers WHERE users_id = $1", [id]);
-        res.json("Forumusers was deleted!")
+        const { userId } = req.params;
+        const { banReason, commentId, banDuration } = req.body;
+
+        let unbanDate = null;
+
+        if (banDuration !== -1) {
+            const currentDate = new Date();
+            unbanDate = new Date(currentDate.setDate(currentDate.getDate() + parseInt(banDuration)));
+        }
+
+        const updateBanLog = await pool.query('INSERT INTO ban_log (users_id, banned_by, reason, expires_at) VALUES($1, $2, $3, $4)', [commentId, userId, banReason, unbanDate])
+
+        const banForumuser = await pool.query('UPDATE forumusers SET is_banned = $1 WHERE users_id = $2', [true, commentId]);
+        res.json('User has been banned successfully!');
     } catch (err) {
         console.log(err.message);
     }
@@ -299,10 +337,10 @@ app.get('/forumimages', async (req, res) => {
 
 app.post('/forumcontent', async (req, res) => {
   try {
-    const {title, content, likes, comments, username, postdate} = req.body
+    const {title, content, likes, comments, username, postdate, usersId} = req.body
     const newForumcontent = await pool.query(
-      "INSERT INTO forumcontent (title, content, likes, comments, username, postdate) VALUES($1, $2, $3, $4, $5, $6) RETURNING *",
-      [title, content, likes, comments, username, postdate]
+      "INSERT INTO forumcontent (title, content, likes, comments, username, postdate, users_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+      [title, content, likes, comments, username, postdate, usersId]
     );
 
     res.json(newForumcontent.rows[0])
@@ -313,25 +351,30 @@ app.post('/forumcontent', async (req, res) => {
 })
 
 //get all forum threads
-
 app.get('/forumcontent', async (req, res) => {
   try {
-    const allForumcontent = await pool.query('SELECT * FROM forumcontent')
-    res.json(allForumcontent.rows)
+    const allForumcontent = await pool.query(`
+      SELECT fc.*
+      FROM forumcontent fc
+      JOIN forumusers fu ON fc.users_id = fu.users_id
+      WHERE fu.is_banned = FALSE
+    `);
+    res.json(allForumcontent.rows);
   } catch (err) {
-    console.error(err.message)
+    console.error(err.message);
   }
-})
+});
+
 //get a forum thread
 
-app.get('/forumcontent/:thread_id', async (req, res) => {
+app.get('/forumcontent/:threadID', async (req, res) => {
   try {
-    const { id } = req.params
+    const { threadID } = req.params
+    console.log(threadID)
     const forumcontent = await pool.query(
       'SELECT * FROM forumcontent WHERE thread_id = $1',
-      [id]
+      [threadID]
     )
-
     res.json(forumcontent.rows[0])
   } catch (err) {
     console.error(err.message)
@@ -477,28 +520,82 @@ app.get('/userlikesdislikes', async (req, res) => {
 //////////////////////////////// FORUM COMMENTS ////////////////////////////////////////
 
 app.post('/forumcomments', async (req, res) => {
-  try {
-    const { thread_id, comment, user, timeposted, userid } = req.body
-    console.log(userid)
-    const newForumcomment = await pool.query(
-      'INSERT INTO forumcomments (thread_id, comment, username, timeposted, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *',
-      [thread_id, comment, user, timeposted, userid]
-    )
+    try {
+        const { thread_id, comment, user, timeposted, userid } = req.body;
+        console.log(userid);
+        const newForumcomment = await pool.query(
+        'INSERT INTO forumcomments (thread_id, comment, username, timeposted, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *',
+        [thread_id, comment, user, timeposted, userid]
+        );
 
-    res.json(newForumcomment.rows[0])
+        const commentId = newForumcomment.rows[0].comment_id;
+
+        const threadCreator = await pool.query('SELECT users_id FROM forumcontent WHERE thread_id = $1', [thread_id]);
+        const threadCreatorId = threadCreator.rows[0].users_id;
+        console.log(threadCreatorId, userid);
+
+
+        if (threadCreatorId !== userid) {
+            const threadUrl = `/threads/${thread_id}`;
+            // Fetch existing notification for this thread
+            const existingNotification = await pool.query(
+            'SELECT * FROM notifications WHERE users_id = $1 AND type = $2 AND entity_id = $3',
+            [threadCreatorId, 'comment', thread_id]
+        );
+
+        let notificationMessage;
+        let uniqueCommenters = [];
+
+        if (existingNotification.rows.length > 0) {
+            // Update existing notification
+            const notification = existingNotification.rows[0];
+            uniqueCommenters = JSON.parse(notification.unique_commenters || '[]');
+
+            if (!uniqueCommenters.includes(userid)) {
+                uniqueCommenters.push(userid);
+            }
+
+            const uniqueCommentersCount = uniqueCommenters.length - 1;
+
+            notificationMessage = uniqueCommentersCount > 0 
+            ? `${user} + ${uniqueCommentersCount} others have commented on your thread.` 
+            : `${user} commented on your thread.`;
+
+            await pool.query(
+            'UPDATE notifications SET latest_commenter = $1, unique_commenters = $2, message = $3, link = $4 WHERE notification_id = $4',
+            [user, JSON.stringify(uniqueCommenters), notificationMessage, threadUrl, notification.notification_id]
+            );
+        } else {
+            // Create new notification
+            uniqueCommenters.push(userid);
+            notificationMessage = `${user} commented on your thread.`;
+            await pool.query(
+            'INSERT INTO notifications (users_id, type, entity_id, message, latest_commenter, unique_commenters, link) VALUES($1, $2, $3, $4, $5, $6, $7)',
+            [threadCreatorId, 'comment', thread_id, notificationMessage, user, JSON.stringify(uniqueCommenters), threadUrl]
+            );
+        }
+    }
+
+    res.json(newForumcomment.rows[0]);
   } catch (err) {
-    console.error(err.message)
+    console.error(err.message);
+    res.status(500).send('Server error');
   }
-})
+});
 
 //get forumcomments
 app.get('/forumcomments/:thread_id', async (req, res) => {
   try {
     const { thread_id } = req.params
     const forumcomments = await pool.query(
-      'SELECT * FROM forumcomments WHERE thread_id = $1',
+      `SELECT fc.*
+       FROM forumcomments fc
+       JOIN forumusers fu ON fc.users_id = fu.users_id
+       WHERE fc.thread_id = $1
+         AND fc.is_deleted = FALSE
+         AND (fu.is_banned IS NULL OR fu.is_banned = FALSE)`,
       [thread_id]
-    )
+    );
 
     res.json(forumcomments.rows)
   } catch (err) {
@@ -510,7 +607,7 @@ app.get('/usercomments/:userid', async (req, res) => {
     try {
         const {userid} = req.params
         const usercomments = await pool.query(
-          `SELECT * FROM forumcomments WHERE users_id = $1 ORDER BY timeposted DESC`, [userid]
+          `SELECT * FROM forumcomments WHERE users_id = $1 AND is_deleted = FALSE ORDER BY timeposted DESC`, [userid]
         )
         res.json(usercomments.rows)
     } catch (err) {
@@ -520,19 +617,71 @@ app.get('/usercomments/:userid', async (req, res) => {
 
 app.put('/forumcomments/:commentId', async (req, res) => {
   try {
+    const { commentId } = req.params;
+    const { content, userId } = req.body; // Assuming userId is passed in the request body
+
+    // Start a transaction
+    await pool.query('BEGIN');
+
+    // Retrieve the old content of the comment
+    const getOldContentQuery = 'SELECT comment FROM forumcomments WHERE comment_id = $1';
+    const oldContentResult = await pool.query(getOldContentQuery, [commentId]);
+    const oldContent = oldContentResult.rows[0].comment;
+
+    // Insert the edit history
+    const insertEditHistoryQuery = `
+      INSERT INTO comment_edits (comment_id, old_content, new_content, edited_by)
+      VALUES ($1, $2, $3, $4)
+    `;
+    await pool.query(insertEditHistoryQuery, [commentId, oldContent, content, userId]);
+
+    // Update the comment in the forumcomments table
+    const updateCommentQuery = 'UPDATE forumcomments SET comment = $1 WHERE comment_id = $2';
+    await pool.query(updateCommentQuery, [content, commentId]);
+
+    // Commit the transaction
+    await pool.query('COMMIT');
+
+    res.json('Comment was updated and history recorded!');
+  } catch (err) {
+    // Rollback the transaction in case of an error
+    await pool.query('ROLLBACK');
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+app.delete('/forumcomments/:commentId', async (req, res) => {
+  try {
     const { commentId } = req.params
-    const { content } = req.body
-    const updateForumucontent = await pool.query(
-      'UPDATE forumcomments SET comment = $1 WHERE comment_id = $2',
-      [content, commentId]
+    const deleteForumucontent = await pool.query(
+      'UPDATE forumcomments SET is_deleted = True WHERE comment_id = $1',
+      [commentId]
     )
 
-    res.json('forumcomments was updated!')
+    res.json('Comment was deleted!')
   } catch (err) {
     console.error(err.message)
   }
 })
 
+app.get('/edithistory/:commentId', async(req, res) => {
+    try {
+        const { commentId } = req.params
+const edithistory = await pool.query(
+            `SELECT ce.old_content, ce.new_content, u.username AS edited_by, 
+                    TO_CHAR(ce.edited_at, 'YYYY-MM-DD HH24:MI:SS') AS edit_timestamp 
+             FROM comment_edits ce
+             JOIN forumusers u ON ce.edited_by = u.users_id
+             WHERE ce.comment_id = $1
+             ORDER BY ce.edited_at DESC`, [commentId]
+        );
+        console.log(edithistory)
+        res.json(edithistory.rows)
+    } catch(err){
+        console.error(err.message)
+    }
+})
 app.listen(5000, () => {
     console.log("server has started on port 5000");
 
@@ -617,6 +766,7 @@ app.post('/passwordverify', async (req, res) => {
 app.post('/emailverify', async (req, res) => {
     try {
         const { emailCode, email } = req.body;
+        console.log(emailCode, email)
         const query = `
             SELECT COUNT(*) AS count
             FROM emailverify e
@@ -759,35 +909,108 @@ app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
     }
 });
   
+const algorithm = process.env.ALGORITHM;
+const secretKey = process.env.SECRET_KEY;
+
+app.get('/config', authenticateToken, (req, res) => {
+    res.json({
+        algorithm: process.env.ALGORITHM,
+        secretKey: process.env.SECRET_KEY
+    });
+});
+
 app.post('/send-message', async (req, res) => {
-    try {
-        const {sender_id, receiver_id, message_text } = req.body
-        const newMessage = await pool.query(
-      'INSERT INTO messages ( sender_id, receiver_id, message_text) VALUES($1, $2, $3) RETURNING *',
-      [sender_id.userid, receiver_id.selectedUser.id, message_text.messageInput]
-    )
-        console.log(sender_id.userid, receiver_id.selectedUser.id, message_text.messageInput)
-        res.json(newMessage.rows[0])
-    } catch (err) {
-    console.error(err.message)
+  try {
+    const { sender_id, receiver_id, message_text, username } = req.body;
+    console.log("message: ", message_text)
+
+    const [iv, content] = message_text.split(':');
+    console.log("iv: ", iv, "content: ", content)
+    // Insert the new direct message
+    const newMessage = await pool.query(
+      'INSERT INTO messages (sender_id, receiver_id, message_text, iv) VALUES($1, $2, $3, $4) RETURNING *',
+      [sender_id, receiver_id, content, iv]
+    );
+
+    // Check for existing direct message notification from this sender
+    const existingNotification = await pool.query(
+      'SELECT * FROM notifications WHERE users_id = $1 AND type = $2 AND entity_id = $3',
+      [receiver_id, 'directmessage', sender_id]
+    );
+
+    let notificationMessage;
+
+    if (existingNotification.rows.length > 0) {
+      // Update existing notification
+      const notification = existingNotification.rows[0];
+      const newMessageCount = (notification.message_count || 1) + 1; // Increment message count
+      notificationMessage = `${username} sent you ${newMessageCount} direct messages.`;
+
+      await pool.query(
+        'UPDATE notifications SET message = $1, message_count = $2, created_at = NOW() WHERE notification_id = $3',
+        [notificationMessage, newMessageCount, notification.notification_id]
+      );
+    } else {
+      // Create new notification
+      notificationMessage = `${username} sent you a message.`;
+      await pool.query(
+        'INSERT INTO notifications (users_id, type, entity_id, message, message_count) VALUES($1, $2, $3, $4, $5)',
+        [receiver_id, 'directmessage', sender_id, notificationMessage, 1]
+      );
+    }
+
+    res.json(newMessage.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
   }
-})
+});
 
 app.get('/retrieve-messages/:userid/:friendid', async (req, res) => {
     const userId = parseInt(req.params.userid, 10)
     const friendId = parseInt(req.params.friendid, 10)
     try {
         const result = await pool.query(`
-      SELECT sender_id, receiver_id, message_text
+      SELECT sender_id, receiver_id, message_text, iv
       FROM messages
       WHERE (sender_id = $1 AND receiver_id = $2)
          OR (sender_id = $2 AND receiver_id = $1)
-      ORDER BY timestamp;  -- Assuming you have a timestamp column
+      ORDER BY timestamp;
     `, [userId, friendId]);
+    
         res.json(result.rows);
-        console.log(result.rows)
+        console.log("rows: ", result.rows)
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'Internal server error'});
     }
 })
+
+app.get('/notifications/:userid', async (req, res) => {
+    try {
+        const { userid } = req.params;
+        const notifications = await pool.query(
+            'SELECT * FROM notifications WHERE users_id = $1 ORDER BY created_at DESC', [userid]);
+        console.log(notifications.rows)
+        res.json(notifications.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
+app.post('/notifications/mark-read', async (req, res) => {
+    try {
+        const { id, userId } = req.body;
+        console.log("Id: $1, userId: $2", [id, userId])
+        await pool.query(
+            'UPDATE notifications SET is_read = TRUE WHERE notification_id = $1 AND users_id = $2',
+            [id, userId]
+        );
+        res.send('Notification marked as read');
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+

@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Container, Alert } from 'react-bootstrap'
+import { saveAs } from 'file-saver';
 import bcrypt from 'bcryptjs'
 import { useNavigate } from 'react-router-dom'
 import { BsX } from 'react-icons/bs'
 import Filter from 'bad-words';
+import forge from 'node-forge';
 
 function BasicExample() {
     const [email, setEmail] = useState('')
@@ -97,28 +99,50 @@ function BasicExample() {
     }
 
     const onVerifyEmail = async (e) => {
-        e.preventDefault()
-        if(re.test(email)){
+        e.preventDefault();
+        if (re.test(email)) {
             try {
                 const response = await fetch("http://localhost:5000/emailverify", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email }),
+                    body: JSON.stringify({ emailCode, email }),
                 });
                 const data = await response.json();
-                console.log(data)
-                if(data === true){
-                    setStep(3)
-                }
-                else{
-                    setValidCode(false)
+                console.log(data);
+                if (data === true) {
+
+                    // Generate RSA key pair
+                    const { publicKey, privateKey } = forge.pki.rsa.generateKeyPair(2048);
+
+                    const publicKeyPem = forge.pki.publicKeyToPem(publicKey);
+                    const privateKeyPem = forge.pki.privateKeytoPem(privateKey);
+
+                    const saveKeyResponse = await fetch('http://localhost:5000/forumusers/savePublicKey', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, publicKey: publicKeyPem }),
+                    });
+
+                    if (saveKeyResponse.ok) {
+                        localStorage.setItem('privateKey', privateKeyPem);
+
+                        // Offer user to download private key
+                        const blob = new Blob([privateKey], { type: 'text/plain;charset=utf-8' });
+                        saveAs(blob, 'privateKey.txt');
+
+                        setStep(3);
+                    } else {
+                        console.error('Failed to save public key');
+                    }
+                } else {
+                    setValidCode(false);
                     setEmailCode('');
                 }
             } catch (err) {
-                console.error(err)
+                console.error(err);
             }
         }
-    }
+    };
     const onSubmitForm = async (e) => {
         e.preventDefault();
         setNameError('');
@@ -137,14 +161,14 @@ function BasicExample() {
         try {
             const hashedpassword = bcrypt.hashSync(password, 10);
             const body = { email, username, hashedpassword };
-            const response = await fetch('http://localhost:5000/forumusers',{
+            const response = await fetch('http://localhost:5000/forumusers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
 
             if (response.ok) {
-                setStep(2);
+                setStep(2); // Proceed to email verification step
             } else {
                 console.error('Failed to submit form');
             }
@@ -235,7 +259,7 @@ function BasicExample() {
                         className='rounded bg-info p-80'
                         onSubmit={onVerifyEmail}
                     >
-                        <div className='mt-2' style={{ textDecoration: 'underline', cursor: 'pointer' }} olnClick={onResendCode}>
+                        <div className='mt-2' style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={onResendCode}>
                             Resend Code
                         </div>
                         { !validCode && (

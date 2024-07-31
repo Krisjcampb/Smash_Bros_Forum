@@ -186,4 +186,79 @@ $spacers: map-merge(
     border-color: #007bff;
 }
 
+.truncate-text {
+    max-width: 200px; /* Set width as needed */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+.expanded-text {
+    white-space: normal;
+    cursor: pointer;
+    width: 200px; /* Set width as needed */
+}
+
+.edit-timestamp {
+    width: 125px; /* Set width as needed */
+  }
+
+.edited-by {
+    width: 125px; /* Set width as needed */
+    max-width: 220px;
+}
+
+.highlight {
+    color: #ffc32d;
+;
+}
+
+.notification-dot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 9px;
+    width: 9px;
+    background-color: rgb(255, 0, 0);
+    border-radius: 50%;
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    background-color: #fff;
+    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+    border: 1px solid #ccc;
+    width: 300px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #ddd;
+}
+
+.notification-item:hover {
+    background-color: #f0f0f0;
+}
+
+.notification-item.read {
+    background-color: #f0f0f0;
+    font-style: italic;
+}
+
+.notification-item.unread {
+    font-weight: bold;
+}
+
+.empty-notification {
+    padding: 10px;
+    text-align: center;
+    font-style: italic;
+    color: #999;
+}
 @import "~bootstrap/scss/bootstrap";
