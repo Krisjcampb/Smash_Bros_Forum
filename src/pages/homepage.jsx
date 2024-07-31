@@ -14,6 +14,7 @@ function Homepage() {
     const [show, setShow] = useState(false)
     const token = localStorage.getItem('token')
     const [username, setUsername] = useState('')
+    const [usersId, setUsersId] = useState('')
     const changeOpen = () => setShow(true)
     const changeClose = () => setShow(false)
 
@@ -22,24 +23,28 @@ function Homepage() {
     }
 
     useEffect(() => {
-        if(token) {
+        if (token) {
             fetch('http://localhost:5000/userauthenticate', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-              },
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
             })
             .then(response => response.json())
-            .then(data => setUsername(data.name))
-        }   
-    }, [token])
+            .then(data => {
+                setUsername(data.name);
+                setUsersId(data.id);
+            })
+            .catch(err => console.error('Error fetching user data:', err));
+        }
+    }, [token]);
 
     const onSubmitForm = async (e) => {
         e.preventDefault()
         const postdate = new Date()
         try {
-            const body = { title, content, username, postdate }
+            const body = { title, content, username, postdate, usersId }
             const response = await fetch('http://localhost:5000/forumcontent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

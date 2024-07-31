@@ -298,7 +298,7 @@ const ListContent = () => {
       {list.map((e, index) => (
         <Card style={{ width: '25rem', height: '26rem', transition: 'transform 0.2s' }} key={index} className="hover-card">
           <Card.Body>
-            <NavLink to={`/threads/${e.thread_id}`} className='nav-link' state={e}>
+            <NavLink to={`/threads/${e.thread_id}`} className='nav-link' state={{ forumContent: e}}>
               <Card.Img height={250} src={e.filepath.slice(6)} />
               <Card.Title>{e.title}</Card.Title>
               <Card.Text className='text-truncate-container'>
