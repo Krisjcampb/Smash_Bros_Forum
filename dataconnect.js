@@ -49,6 +49,7 @@ function authenticateToken(req, res, next) {
 //ROUTES//
 
 //USERS ACCOUNT
+
 //create a user
 app.post('/forumusers', async (req, res) => {
     try {
@@ -110,6 +111,21 @@ app.post('/forumusers', async (req, res) => {
     }
 });
 
+app.put("/forumusers/updateVerified", async (req, res) => {
+    try{
+        const { email } = req.body;
+        const updateQuery = `
+            UPDATE forumusers
+            SET verified = TRUE
+            WHERE email = $1;
+        `;
+        await pool.query(updateQuery, [email]);
+        res.status(201).send("User email verified");
+    } catch {
+        console.error(err.message);
+        res.status(500).send("Internal server error");
+    }
+})
 app.post("/forumusers/savePublicKey", async (req, res) => {
     try {
         const { email, publicKey } = req.body;
@@ -307,10 +323,16 @@ app.delete("/forumusers/:userId", async (req, res) =>{
 
 app.post('/forumimages', upload.single('image'), (req, res) => {
     const {path} = req.file;
+    const {thread_id} = req.body;
+
+    if(!thread_id){
+        return res.status(400).send('thread_id is required');
+    }
+
     console.log(req.file)
     pool.query(
-      'INSERT INTO forumimages (filepath) VALUES ($1)',
-      [path.replaceAll('\\', '/')],
+      'INSERT INTO forumimages (filepath, thread_id) VALUES ($1, $2)',
+      [path.replaceAll('\\', '/'), thread_id],
       (error, results) => {
         if (error) {
           console.log(error)
@@ -333,6 +355,29 @@ app.get('/forumimages', async (req, res) => {
   }
 })
 
+app.get('/getProfilePictures', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+
+    const directoryPath = path.join(__dirname, 'path/to/your/images');
+    fs.readdir(directoryPath, (err, files) => {
+        if (err) {
+            return res.status(500).send('Unable to scan directory');
+        }
+        res.json(files);
+    });
+});
+
+app.post('/saveProfilePicture', (req, res) => {
+    const { userId, selectedImage } = req.body;
+
+    db.query('UPDATE users SET profile_picture = $1 WHERE id = $2', [selectedImage, userId], (error, results) => {
+        if (error) {
+            throw error;
+        }
+        res.status(200).send('Profile picture updated successfully');
+    });
+});
 /////////////////////////////////// FORUM CONTENT //////////////////////////////////////
 
 app.post('/forumcontent', async (req, res) => {
@@ -342,11 +387,12 @@ app.post('/forumcontent', async (req, res) => {
       "INSERT INTO forumcontent (title, content, likes, comments, username, postdate, users_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *",
       [title, content, likes, comments, username, postdate, usersId]
     );
-
+    console.log(newForumcontent.rows[0])
     res.json(newForumcontent.rows[0])
     
   } catch (err) {
     console.error(err.message)
+    res.status(500).send('Server error');
   }
 })
 
@@ -365,8 +411,31 @@ app.get('/forumcontent', async (req, res) => {
   }
 });
 
-//get a forum thread
+app.get('/forumcontent', async (req, res) => {
+  try {
+    const { page = 1, limit = 24 } = req.query;
 
+    const offset = (page - 1) * limit;
+
+    const paginatedQuery = `
+      SELECT fc.*
+      FROM forumcontent fc
+      JOIN forumusers fu ON fc.users_id = fu.users_id
+      WHERE fu.is_banned = FALSE
+      ORDER BY fc.postdate DESC
+      LIMIT $1 OFFSET $2
+    `;
+
+    const allForumcontent = await pool.query(paginatedQuery, [limit, offset]);
+
+    res.json(allForumcontent.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.sendStatus(500);
+  }
+});
+
+//get a forum thread
 app.get('/forumcontent/:threadID', async (req, res) => {
   try {
     const { threadID } = req.params
@@ -382,23 +451,53 @@ app.get('/forumcontent/:threadID', async (req, res) => {
 })
 
 //update a forum thread
+app.put('/forumcontent/:thread_id', async (req, res) => {
+    const client = await pool.connect();
 
-app.put('/forumcontent/:id', async (req, res) => {
-  try {
-    const { id } = req.params
-    const { title } = req.body
-    const updateForumucontent = await pool.query(
-      'UPDATE forumcontent SET title = $1 WHERE thread_id = $2',
-      [email, id]
-    )
+    try {
+        const { thread_id } = req.params;
+        const { content, title } = req.body;
 
-    res.json('Forumcontent was updated!')
-  } catch (err) {
-    console.error(err.message)
-  }
-})
+        threadQuery = await pool.query('SELECT * FROM forumcontent WHERE thread_id = $1', [thread_id])
+        const thread = threadQuery.rows[0];
+
+        const postdate = new Date(thread.postdate);
+        const currentTime = new Date();
+
+        const timeDiff = currentTime - postdate;
+        const timeDiffInHours = timeDiff / (1000 * 60 * 60);
+        console.log(thread.postdate, timeDiffInHours)
+        if (!content || !title || timeDiffInHours >= 1) {
+            return res.status(400).json({ error: 'Invalid thread to edit.' });
+        }
+
+        
+        console.log(`Updating thread ${thread_id} with title: ${title}`);
+
+        await client.query('BEGIN');
+
+        const updateForumContent = 'UPDATE forumcontent SET title = $1, content = $2 WHERE thread_id = $3';
+        await client.query(updateForumContent, [title, content, thread_id]);
+
+        await client.query('COMMIT');
+        
+        res.json('Forum content was updated!');
+    } catch (err) {
+        console.error('Error updating forum content:', err.message);
+
+        try {
+        await client.query('ROLLBACK');
+        } catch (rollbackError) {
+        console.error('Error rolling back transaction:', rollbackError.message);
+        }
+
+        res.status(500).send('Server error');
+    } finally {
+        client.release();
+    }
+});
+
 //delete a forum thread
-
 app.delete('/forumcontent/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -412,11 +511,25 @@ app.delete('/forumcontent/:id', async (req, res) => {
   }
 })
 
+app.get('/threadcontent/:userid', async (req, res) => {
+    try {
+        const { userid } = req.params
+        const getThreadcontent = await pool.query(`
+            SELECT fc.*
+            FROM forumcontent fc
+            INNER JOIN forumcomments fcm ON fc.thread_id = fcm.thread_id
+            WHERE fcm.users_id = $1;`, [userid]
+        )
+        res.json(getThreadcontent.rows)
+    } catch {
+        console.error('Error getting thread content:', error);
+        res.status(500).json({ error: 'An error occurred while getting the thread content.' });
+    }
+})
 app.post('/forumlikes', async (req, res) => {
     const {userid, thread_id} = req.body
 
     try {
-        //Check if like exists
         const like = await pool.query('SELECT * FROM likes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
 
         if (like.rows.length > 0) {
@@ -424,7 +537,6 @@ app.post('/forumlikes', async (req, res) => {
             return res.status(200).send('Like removed');
         }
 
-        //Check if dislike exists
         const dislike = await pool.query('SELECT * FROM dislikes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
 
         if (dislike.rows.length > 0) {
@@ -444,7 +556,6 @@ app.post('/forumdislikes', async (req, res) => {
     const { userid, thread_id} = req.body;
 
     try {
-        //Check if dislike exists
         const dislike = await pool.query('SELECT * FROM dislikes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
 
         if (dislike.rows.length > 0) {
@@ -452,7 +563,6 @@ app.post('/forumdislikes', async (req, res) => {
             return res.status(200).send('Dislike removed');
         }
 
-        //Check if like exists
         const like = await pool.query('SELECT * FROM likes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
 
         if (like.rows.length > 0) {
@@ -509,8 +619,8 @@ app.get('/userlikesdislikes', async (req, res) => {
         const dislikes = await pool.query(`SELECT post_id FROM dislikes WHERE user_id = $1`, [userid])
 
         const result = [
-            ...likes.rows.map(like => ({ post_id: like.post_id, type: 'like' })),
-            ...dislikes.rows.map(dislike => ({ post_id: dislike.post_id, type: 'dislike' }))
+            ...likes.rows.map(like => ({ thread_id: like.post_id, type: 'like' })),
+            ...dislikes.rows.map(dislike => ({ thread_id: dislike.post_id, type: 'dislike' }))
         ];
         res.json(result)
     } catch (err) {
@@ -522,13 +632,10 @@ app.get('/userlikesdislikes', async (req, res) => {
 app.post('/forumcomments', async (req, res) => {
     try {
         const { thread_id, comment, user, timeposted, userid } = req.body;
-        console.log(userid);
         const newForumcomment = await pool.query(
         'INSERT INTO forumcomments (thread_id, comment, username, timeposted, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *',
         [thread_id, comment, user, timeposted, userid]
         );
-
-        const commentId = newForumcomment.rows[0].comment_id;
 
         const threadCreator = await pool.query('SELECT users_id FROM forumcontent WHERE thread_id = $1', [thread_id]);
         const threadCreatorId = threadCreator.rows[0].users_id;
@@ -537,7 +644,6 @@ app.post('/forumcomments', async (req, res) => {
 
         if (threadCreatorId !== userid) {
             const threadUrl = `/threads/${thread_id}`;
-            // Fetch existing notification for this thread
             const existingNotification = await pool.query(
             'SELECT * FROM notifications WHERE users_id = $1 AND type = $2 AND entity_id = $3',
             [threadCreatorId, 'comment', thread_id]
@@ -547,7 +653,6 @@ app.post('/forumcomments', async (req, res) => {
         let uniqueCommenters = [];
 
         if (existingNotification.rows.length > 0) {
-            // Update existing notification
             const notification = existingNotification.rows[0];
             uniqueCommenters = JSON.parse(notification.unique_commenters || '[]');
 
@@ -562,16 +667,15 @@ app.post('/forumcomments', async (req, res) => {
             : `${user} commented on your thread.`;
 
             await pool.query(
-            'UPDATE notifications SET latest_commenter = $1, unique_commenters = $2, message = $3, link = $4 WHERE notification_id = $4',
-            [user, JSON.stringify(uniqueCommenters), notificationMessage, threadUrl, notification.notification_id]
+            'UPDATE notifications SET is_read = FALSE, latest_commenter = $1, unique_commenters = $2, message = $3 WHERE notification_id = $4',
+            [user, JSON.stringify(uniqueCommenters), notificationMessage, notification.notification_id]
             );
         } else {
-            // Create new notification
             uniqueCommenters.push(userid);
             notificationMessage = `${user} commented on your thread.`;
             await pool.query(
-            'INSERT INTO notifications (users_id, type, entity_id, message, latest_commenter, unique_commenters, link) VALUES($1, $2, $3, $4, $5, $6, $7)',
-            [threadCreatorId, 'comment', thread_id, notificationMessage, user, JSON.stringify(uniqueCommenters), threadUrl]
+            'INSERT INTO notifications (users_id, type, entity_id, message, latest_commenter, unique_commenters) VALUES($1, $2, $3, $4, $5, $6)',
+            [threadCreatorId, 'comment', thread_id, notificationMessage, user, JSON.stringify(uniqueCommenters)]
             );
         }
     }
@@ -588,7 +692,7 @@ app.get('/forumcomments/:thread_id', async (req, res) => {
   try {
     const { thread_id } = req.params
     const forumcomments = await pool.query(
-      `SELECT fc.*
+      `SELECT fc.*, fu.character_name, fu.selected_skin
        FROM forumcomments fc
        JOIN forumusers fu ON fc.users_id = fu.users_id
        WHERE fc.thread_id = $1
@@ -596,7 +700,7 @@ app.get('/forumcomments/:thread_id', async (req, res) => {
          AND (fu.is_banned IS NULL OR fu.is_banned = FALSE)`,
       [thread_id]
     );
-
+    console.log(forumcomments.rows)
     res.json(forumcomments.rows)
   } catch (err) {
     console.error(err.message)
@@ -618,33 +722,27 @@ app.get('/usercomments/:userid', async (req, res) => {
 app.put('/forumcomments/:commentId', async (req, res) => {
   try {
     const { commentId } = req.params;
-    const { content, userId } = req.body; // Assuming userId is passed in the request body
+    const { content, userId } = req.body;
 
-    // Start a transaction
     await pool.query('BEGIN');
 
-    // Retrieve the old content of the comment
     const getOldContentQuery = 'SELECT comment FROM forumcomments WHERE comment_id = $1';
     const oldContentResult = await pool.query(getOldContentQuery, [commentId]);
     const oldContent = oldContentResult.rows[0].comment;
 
-    // Insert the edit history
     const insertEditHistoryQuery = `
       INSERT INTO comment_edits (comment_id, old_content, new_content, edited_by)
       VALUES ($1, $2, $3, $4)
     `;
     await pool.query(insertEditHistoryQuery, [commentId, oldContent, content, userId]);
 
-    // Update the comment in the forumcomments table
     const updateCommentQuery = 'UPDATE forumcomments SET comment = $1 WHERE comment_id = $2';
     await pool.query(updateCommentQuery, [content, commentId]);
 
-    // Commit the transaction
     await pool.query('COMMIT');
 
     res.json('Comment was updated and history recorded!');
   } catch (err) {
-    // Rollback the transaction in case of an error
     await pool.query('ROLLBACK');
     console.error(err.message);
     res.status(500).send('Server error');
@@ -908,7 +1006,75 @@ app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
         res.status(500).json({ error: 'Internal server error'});
     }
 });
-  
+
+app.get('/get-pfp/:userid', async (req, res) => {
+    try {
+        const { userid } = req.params;
+        console.log(userid);
+        
+        const response = await pool.query(
+            `SELECT character_name, selected_skin 
+            FROM forumusers 
+            WHERE users_id = $1`,
+            [userid]
+        );
+        
+        console.log(response);
+
+        if (response.rows.length !== 0) {
+            res.json(response.rows[0]);
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (error) {
+        console.error('Error finding user profile picture.', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/change-pfp/:userid', async (req, res) => {
+    const {userid} = req.params;
+    const {clickedImage, character} = req.body;
+
+    const match = clickedImage.match(/_([0-9]+)\.png$/);
+    const numberStr = match[1];
+
+    const character_name = character;
+    const selected_skin = parseInt(numberStr, 10);
+    
+    console.log("Selected Image: ", clickedImage)
+    try {
+        const updatepfpimage = `
+        UPDATE forumusers SET character_name = $1, selected_skin = $2 WHERE users_id = $3
+        `;
+
+        await pool.query(updatepfpimage, [character_name, selected_skin, userid]);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error changing profile picture:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+})
+
+app.get('/retrieve-image/:userid', async (req, res) => {
+    const {userid} = req.params;
+
+    try {
+        const getpfpimage = `
+        SELECT character_name, selected_skin FROM forumusers WHERE users_id = $1
+        `;
+
+        const result = await pool.query(getpfpimage, [userid]);
+        console.log(result)
+        res.json( result.rows );
+    } catch (error) {
+        console.error('Error changing profile picture:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+})
+
+
 const algorithm = process.env.ALGORITHM;
 const secretKey = process.env.SECRET_KEY;
 
@@ -926,13 +1092,11 @@ app.post('/send-message', async (req, res) => {
 
     const [iv, content] = message_text.split(':');
     console.log("iv: ", iv, "content: ", content)
-    // Insert the new direct message
     const newMessage = await pool.query(
       'INSERT INTO messages (sender_id, receiver_id, message_text, iv) VALUES($1, $2, $3, $4) RETURNING *',
       [sender_id, receiver_id, content, iv]
     );
 
-    // Check for existing direct message notification from this sender
     const existingNotification = await pool.query(
       'SELECT * FROM notifications WHERE users_id = $1 AND type = $2 AND entity_id = $3',
       [receiver_id, 'directmessage', sender_id]
@@ -943,7 +1107,7 @@ app.post('/send-message', async (req, res) => {
     if (existingNotification.rows.length > 0) {
       // Update existing notification
       const notification = existingNotification.rows[0];
-      const newMessageCount = (notification.message_count || 1) + 1; // Increment message count
+      const newMessageCount = (notification.message_count || 1) + 1;
       notificationMessage = `${username} sent you ${newMessageCount} direct messages.`;
 
       await pool.query(
@@ -951,7 +1115,6 @@ app.post('/send-message', async (req, res) => {
         [notificationMessage, newMessageCount, notification.notification_id]
       );
     } else {
-      // Create new notification
       notificationMessage = `${username} sent you a message.`;
       await pool.query(
         'INSERT INTO notifications (users_id, type, entity_id, message, message_count) VALUES($1, $2, $3, $4, $5)',
@@ -979,7 +1142,7 @@ app.get('/retrieve-messages/:userid/:friendid', async (req, res) => {
     `, [userId, friendId]);
     
         res.json(result.rows);
-        console.log("rows: ", result.rows)
+
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'Internal server error'});
@@ -991,7 +1154,6 @@ app.get('/notifications/:userid', async (req, res) => {
         const { userid } = req.params;
         const notifications = await pool.query(
             'SELECT * FROM notifications WHERE users_id = $1 ORDER BY created_at DESC', [userid]);
-        console.log(notifications.rows)
         res.json(notifications.rows);
     } catch (err) {
         console.error(err.message);
@@ -999,13 +1161,13 @@ app.get('/notifications/:userid', async (req, res) => {
     }
 });
 
-app.post('/notifications/mark-read', async (req, res) => {
+app.post('/notifications/mark-read', authenticateToken, async (req, res) => {
     try {
-        const { id, userId } = req.body;
-        console.log("Id: $1, userId: $2", [id, userId])
+        const { userid } = req.body;
+        console.log(userid)
         await pool.query(
-            'UPDATE notifications SET is_read = TRUE WHERE notification_id = $1 AND users_id = $2',
-            [id, userId]
+            'UPDATE notifications SET is_read = TRUE WHERE users_id = $1',
+            [userid]
         );
         res.send('Notification marked as read');
     } catch (err) {

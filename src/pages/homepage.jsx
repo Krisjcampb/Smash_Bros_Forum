@@ -15,6 +15,9 @@ function Homepage() {
     const token = localStorage.getItem('token')
     const [username, setUsername] = useState('')
     const [usersId, setUsersId] = useState('')
+    const [userRole, setUserRole] = useState('')
+    const [refreshKey, setRefreshKey] = useState(0)
+
     const changeOpen = () => setShow(true)
     const changeClose = () => setShow(false)
 
@@ -35,104 +38,123 @@ function Homepage() {
             .then(data => {
                 setUsername(data.name);
                 setUsersId(data.id);
+                setUserRole(data.role)
             })
             .catch(err => console.error('Error fetching user data:', err));
         }
     }, [token]);
 
     const onSubmitForm = async (e) => {
-        e.preventDefault()
-        const postdate = new Date()
+        e.preventDefault();
+
+        const postdate = new Date().toLocaleString();
+
         try {
-            const body = { title, content, username, postdate, usersId }
+            // First, submit the forum content to get the `thread_id`
+            const body = { title, content, username, postdate, usersId };
             const response = await fetch('http://localhost:5000/forumcontent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            })
-
-        console.log(response)
-        } catch (err) {
-            console.log(err.message)
-        }
-
-        const formData = new FormData()
-        formData.append('image', file)
-        console.log(file)
-        axios({
-            method: 'POST',
-            url: 'http://localhost:5000/forumimages',
-            data: formData,
-            headers: { 'Content-Type': 'multipart/form-data' },
-        })
-            .then(function (response) {
-                console.log(response);
-            })
-            .catch(function (response) {
-                console.log(response);
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
             });
-    }
+
+            if (!response.ok) {
+                throw new Error('Failed to create forum content');
+            }
+
+            // Get the new `thread_id` from the response
+            const newThread = await response.json(); // Assuming the backend returns the created thread object with `thread_id`
+            const { thread_id } = newThread; // Extract the `thread_id`
+
+            // Refresh the list of posts
+            setRefreshKey(prevKey => prevKey + 1);
+
+            // Now, upload the image and associate it with the new `thread_id`
+            if (file) { // Ensure that a file has been selected
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('thread_id', thread_id); // Attach the `thread_id` to link the image to the content
+                
+                const imageUploadResponse = await axios({
+                    method: 'POST',
+                    url: 'http://localhost:5000/forumimages',
+                    data: formData,
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+
+                if (imageUploadResponse.status === 200) {
+                    console.log('Image uploaded successfully', imageUploadResponse);
+                } else {
+                    throw new Error('Failed to upload image');
+                }
+            }
+        } catch (err) {
+            console.log('Error:', err.message);
+        }
+    };
+
     return (
         <Container>
             <Container className='d-flex flex-column'>
                 <Row className='mt-24 ms-24 me-24 text-center'>
                     <Col>
                         {token ? (
-                        <Button variant='secondary' onClick={changeOpen} className='w-25'>
-                        Create A New Post
-                        </Button>
-                            ) :
-                        (
-                        <NavLink to='/signin'>
-                            <Button variant='secondary' className='w-25'>
-                            Sign In to Create a Post
+                            <Button variant='secondary' onClick={changeOpen} className='w-25'>
+                                Create A New Post
                             </Button>
-                        </NavLink>
+                        ) : (
+                            <NavLink to='/signin'>
+                                <Button variant='secondary' className='w-25'>
+                                    Sign In to Create a Post
+                                </Button>
+                            </NavLink>
                         )}
                     </Col>
                 </Row>
             </Container>
-        <Modal show={show} onHide={changeClose}>
-            <Modal.Header closeButton>
-                <Modal.Title>Creating a Thread</Modal.Title>
-            </Modal.Header>
-            <Form onSubmit={onSubmitForm}>
-                <Modal.Body>
-                    <Form.Group>
-                    <Form.Label>Title</Form.Label>
-                    <br />
-                    <Form.Control
-                        type='text'
-                        value={title}
-                        placeholder='Title'
-                        onChange={(e) => setTitle(e.target.value)}
-                    />
-                    <Form.Label>Thread Content</Form.Label>
-                    <br />
-                    <Form.Control
-                        type='text'
-                        value={content}
-                        placeholder='Content'
-                        onChange={(e) => setContent(e.target.value)}
-                    />
-                    <Form.Label>File Upload</Form.Label>
-                    <br />
-                    <Form.Control
-                        type='file'
-                        placeholder='Image'
-                        onChange={handleFileChange}
-                    />
-                    </Form.Group>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button type='sumbit' onClick={changeClose}>
-                        Add to List
-                    </Button>
-                </Modal.Footer>
-            </Form>
-        </Modal>
+            <Modal show={show} onHide={changeClose}>
+                <Modal.Header closeButton>
+                    <div className='w-100 text-center'>
+                        <Modal.Title className='text-dark' text-center>Creating a Thread</Modal.Title>
+                    </div>
+                </Modal.Header>
+                <Form onSubmit={onSubmitForm}>
+                    <Modal.Body>
+                        <Form.Group>
+                            <Form.Label>Title</Form.Label>
+                            <br />
+                            <Form.Control
+                                type='text'
+                                value={title}
+                                placeholder='Title'
+                                onChange={(e) => setTitle(e.target.value)}
+                            />
+                            <Form.Label>Thread Content</Form.Label>
+                            <br />
+                            <Form.Control
+                                type='text'
+                                value={content}
+                                placeholder='Content'
+                                onChange={(e) => setContent(e.target.value)}
+                            />
+                            <Form.Label>File Upload</Form.Label>
+                            <br />
+                            <Form.Control
+                                type='file'
+                                placeholder='Image'
+                                onChange={handleFileChange}
+                            />
+                        </Form.Group>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button type='submit' onClick={changeClose}>
+                            Add to List
+                        </Button>
+                    </Modal.Footer>
+                </Form>
+            </Modal>
             <Container>
-                <ListContent/>
+                <ListContent key={refreshKey} userRole={userRole} usersId={usersId}/>
             </Container>
         </Container>
     )

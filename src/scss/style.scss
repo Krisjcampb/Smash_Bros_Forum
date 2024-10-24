@@ -6,6 +6,7 @@ $warning: #e39647;
 $danger: #d00000b3;
 $light: #fff;
 $dark: #000;
+$delete: rgb(255, 46, 46);
 
 $enable-responsive-font-sizes:true;
 $small-font-size: 12px;
@@ -40,6 +41,7 @@ $theme-colors: (
   "danger":     $danger,
   "light":      $light,
   "dark":       $dark,
+  "delete":     $delete,
 );
 
 $grid-breakpoints: (
@@ -74,6 +76,9 @@ $spacers: map-merge(
     ),
     16: (
       $spacer,
+    ),
+    22: (
+      $spacer * 1.375,
     ),
     24: (
       $spacer * 1.5,
@@ -261,4 +266,92 @@ $spacers: map-merge(
     font-style: italic;
     color: #999;
 }
+
+.light-theme {
+  background-color: #ffffff;
+  color: #000000;
+
+  .container {
+    background-color: #f8f9fa;
+    color: #000000;
+    padding: 20px;
+    border-radius: 5px;
+  }
+}
+
+.dark-theme {
+  background-color: #222222;
+  color: #ffffff;
+
+  button {
+    background-color: #555555;
+    color: #ffffff;
+  }
+
+  .container {
+    background-color: #333333;
+    color: #ffffff;
+    padding: 20px;
+  }
+
+  .card {
+    background-color: #444444;
+    color: #ffffff;
+  }
+}
+
+.modal-header .btn-close {
+    margin-bottom:14px !important;
+    margin-right:2px !important;
+}
+
+.profile-container {
+  display: flex;
+  justify-content: left;
+}
+
+.profile-image {
+  display: block;
+  width: 20%;
+  height: auto;
+  max-width: 30%;
+  border: 4px solid #007bff;
+  border-radius: 8px;
+}
+
+.vertical-line {
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  width: 2px;
+  height: calc(100% - 100px);
+  background-color: black;
+}
+
+.ms-24 {
+    margin-left: 24px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.ms-24:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.no-caret-toggle {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.no-caret-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
 @import "~bootstrap/scss/bootstrap";

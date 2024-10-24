@@ -18,8 +18,9 @@ function Threads() {
   const onSubmitForm = async (e) => {
     e.preventDefault();
     try {
-      const timeposted = new Date();
+      const timeposted = new Date().toISOString();
       const body = { thread_id, comment, user, timeposted, userid };
+      console.log(timeposted)
       const response = await fetch('http://localhost:5000/forumcomments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,6 +53,7 @@ function Threads() {
           console.error('Error fetching user role:', error);
         });
     }
+    console.log(forumContent)
   }, []);
 
   return (

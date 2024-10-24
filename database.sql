@@ -4,7 +4,14 @@ CREATE TABLE forumusers(
     users_id SERIAL PRIMARY KEY,
     username VARCHAR(255),
     email VARCHAR(255),
-    password VARCHAR(255)
+    password VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'user' NOT NULL,
+    last_online TIMESTAMP DEFAULT NOW(),
+    is_banned BOOLEAN DEFAULT false,
+    verified BOOLEAN DEFAULT false,
+    character_name VARCHAR(100) DEFAULT 'Mario',
+    selected_skin INTEGER, 
+
 );
 
 CREATE TABLE forumcontent(
@@ -14,7 +21,7 @@ CREATE TABLE forumcontent(
     likes INTEGER,
     comments INTEGER,
     username VARCHAR(255),
-    postdate TIMESTAMP,
+    postdate TIMESTAMPTZ,
     users_id INT NOT NULL REFERENCES forumusers(users_id)
 );
 
@@ -27,7 +34,7 @@ CREATE TABLE forumcomments(
     thread_id INTEGER,
     comment VARCHAR(8000),
     username VARCHAR(16),
-    timeposted TIMESTAMP,
+    timeposted TIMESTAMPTZ,
     users_id INTEGER,
     comment_id INTEGER,
     is_deleted BOOLEAN

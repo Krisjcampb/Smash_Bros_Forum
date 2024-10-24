@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
-import { Container, Alert } from 'react-bootstrap'
-import { saveAs } from 'file-saver';
+import { Container, Alert, Modal } from 'react-bootstrap'
 import { saveAs } from 'file-saver';
 import bcrypt from 'bcryptjs'
 import { useNavigate } from 'react-router-dom'
@@ -25,6 +24,8 @@ function BasicExample() {
     const [step, setStep] = useState(1);
     const [resendCount, setResendCount] = useState(1);
     const [secondsRemaining, setSecondsRemaining] = useState(3)
+    const [showKeyModal, setShowKeyModal] = useState(false);
+    const [privateKey, setPrivateKey] = useState('');
     const navigate = useNavigate();
     const profanityFilter = new Filter();
     const re =
@@ -111,12 +112,21 @@ function BasicExample() {
                 const data = await response.json();
                 console.log(data);
                 if (data === true) {
+                    const updateResponse = await fetch('http://localhost:5000/forumusers/updateVerified', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email }),
+                    });
 
+                    if (!updateResponse.ok) {
+                        console.error('Failed to update user verification status');
+                    return;
+                    }
                     // Generate RSA key pair
                     const { publicKey, privateKey } = forge.pki.rsa.generateKeyPair(2048);
 
                     const publicKeyPem = forge.pki.publicKeyToPem(publicKey);
-                    const privateKeyPem = forge.pki.privateKeytoPem(privateKey);
+                    const privateKeyPem = forge.pki.privateKeyToPem(privateKey);
 
                     const saveKeyResponse = await fetch('http://localhost:5000/forumusers/savePublicKey', {
                         method: 'POST',
@@ -126,12 +136,9 @@ function BasicExample() {
 
                     if (saveKeyResponse.ok) {
                         localStorage.setItem('privateKey', privateKeyPem);
+                        setPrivateKey(privateKeyPem)
 
-                        // Offer user to download private key
-                        const blob = new Blob([privateKey], { type: 'text/plain;charset=utf-8' });
-                        saveAs(blob, 'privateKey.txt');
-
-                        setStep(3);
+                        setShowKeyModal(true);
                     } else {
                         console.error('Failed to save public key');
                     }
@@ -144,6 +151,19 @@ function BasicExample() {
             }
         }
     };
+
+    const handleDownloadPrivateKey = () => {
+        const blob = new Blob([privateKey], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, 'privateKey.txt');
+        setShowKeyModal(false);
+        setStep(3)
+    }
+
+    const handleSkipDownload = () => {
+        setShowKeyModal(false);
+        setStep(3)
+    }
+
     const onSubmitForm = async (e) => {
         e.preventDefault();
         setNameError('');
@@ -304,6 +324,27 @@ function BasicExample() {
                 <div className='text-center h5 mt-96'>Too many verification attempts. Please try again later.</div>
             </Container>
             )}
+
+            <Modal show={showKeyModal} onHide={handleSkipDownload}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Important: Download Your Private Key</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>
+                        Your private key is essential for providing account security. Please download it and keep it
+                        safe. If you lose your private key, you may lose access to certain features.
+                    </p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="primary" onClick={handleDownloadPrivateKey}>
+                        Download Now
+                    </Button>
+                    <Button variant="secondary" onClick={handleSkipDownload}>
+                        Skip
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
         </Container>
     )
 }

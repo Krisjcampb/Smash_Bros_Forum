@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Container, Row, Col, Button, Dropdown, Modal, Table } from 'react-bootstrap';
+import { Container, Row, Col, Button, Dropdown, Modal, Table, Image } from 'react-bootstrap';
 import { FaEdit, FaTrash, FaCog } from 'react-icons/fa';
 import Form from 'react-bootstrap/Form'
 
@@ -30,7 +30,6 @@ function UserComments(props) {
             throw new Error('Invalid date format');
         }
 
-        // Format the date to the user's local timezone
         return new Intl.DateTimeFormat('en-US', {
             year: '2-digit',
             month: '2-digit',
@@ -74,6 +73,7 @@ function UserComments(props) {
             const response = await fetch(`http://localhost:5000/forumcomments/${location.state.forumContent.thread_id}`);
             const jsonData = await response.json();
             setComments(jsonData);
+            console.log(comments);
         } catch (err) {
             console.error(err.message);
         }
@@ -151,6 +151,13 @@ function UserComments(props) {
         }
     };
 
+    const getProfileImageUrl = (characterName, selectedSkin) => {
+        if (!characterName) {
+            return '/path/to/default/profile_image.png';
+        }
+        return `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${characterName}/chara_0_${characterName.toLowerCase()}_0${selectedSkin}.png`;
+    };
+
     const handleEditComment = (commentId) => {
         setShowEditModal(true);
     };
@@ -192,42 +199,68 @@ function UserComments(props) {
         <>
             <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
                 {comments.sort((a, b) => a.comment_id - b.comment_id).map((e) => (
-                    <Container key={e.comment_id} className='square bg-secondary rounded ps-40 pb-4 pt-16 m-24 ms-128 me-128'>
-                        <Row>
-                            <Col className='fw-bold top-left'>
+                    <Container key={e.comment_id} className='square bg-secondary rounded ps-24 pb-8 pt-16 m-24 ms-128 me-128 border border-dark text-dark'>
+                        <Row className="align-items-start">
+                            {/* Profile image and username */}
+                            <Col xs={12} md={2} className="d-flex flex-column align-items-center text-center ">
                                 <Link to={`/userprofile/${e.username}/${e.users_id}`} className="text-decoration-none text-dark">
-                                    {e.username}
+                                    <strong>{e.username}</strong>
                                 </Link>
+                                <Image
+                                    src={getProfileImageUrl(e.character_name, e.selected_skin)}
+                                    alt="User Profile"
+                                    rounded
+                                    style={{ width: '80px', height: '80px' }}
+                                />
                             </Col>
-                            <Col className='top-right text-end pe-24'>{updatedNums(e.timeposted)}</Col>
+                            
+                            {/* Comment and time posted */}
+                            <Col xs={12} md={10} className="d-flex flex-column justify-content-between">
+                                <div className="d-flex justify-content-between">
+                                    <div></div>
+                                    <strong className="text-end">
+                                        {updatedNums(e.timeposted)}
+                                    </strong>
+                                </div>
+                                <div className="pt-8 p-4">
+                                    {e.comment}
+                                </div>
+                            </Col>
                         </Row>
-                        <Row>
-                            <Col className='pt-8'>{e.comment}</Col>
-                        </Row>
+
+                        {/* Row for buttons (Edit/Delete/Moderation) */}
                         <Row className="mt-3 pt-24">
                             <Col className="d-flex align-items-center">
-                                {UsersCommentCheck(e.users_id) === true && (
-                                <div>
-                                    <Button variant="link" className="btn-edit" onClick={() => handleEditComment(e.comment_id)}>
-                                        <FaEdit className="edit-icon" /> Edit
-                                    </Button>
-                                    <Button variant="link" className="btn-delete" onClick={() => handleDeleteComment(e.comment_id)}>
-                                        <FaTrash className="delete-icon" /> Delete
-                                    </Button>
-                                </div>
+                                {UsersCommentCheck(e.users_id) && (
+                                    <div>
+                                        <Button variant="link" className="btn-edit me-8" style={{ textDecoration: 'none' }} onClick={() => handleEditComment(e.comment_id)}>
+                                            <FaEdit className="edit-icon" /> Edit
+                                        </Button>
+                                        <Button variant="link" className="btn-delete me-8" style={{ textDecoration: 'none' }} onClick={() => handleDeleteComment(e.comment_id)}>
+                                            <FaTrash className="delete-icon" /> Delete
+                                        </Button>
+                                    </div>
                                 )}
-                                {UserPermissions(userRole) === true && (
-                                <Dropdown>
-                                    <Dropdown.Toggle variant="link" id="dropdown-moderation">
-                                        <FaCog className="moderation-icon" /> Moderation Tools
-                                    </Dropdown.Toggle>
-                                    <Dropdown.Menu>
-                                        <Dropdown.Item onClick={() => handleModerationOption('Option 1', e.comment_id, e.comment)}>View Edit History</Dropdown.Item>
-                                        <Dropdown.Item onClick={() => handleModerationOption('Option 2', e.comment_id, e.comment)}>Edit Comment</Dropdown.Item>
-                                        <Dropdown.Item onClick={() => handleModerationOption('Option 3', e.comment_id, e.comment)}>Delete Comment</Dropdown.Item>
-                                        <Dropdown.Item onClick={() => handleModerationOption('Option 4', e.users_id, e.username)}>Ban User</Dropdown.Item>
-                                    </Dropdown.Menu>
-                                </Dropdown>
+                                {UserPermissions(userRole) && (
+                                    <Dropdown >
+                                        <Dropdown.Toggle variant="link" id="dropdown-moderation" style={{ textDecoration: 'none' }}>
+                                            <FaCog className="moderation-icon" /> Moderation Tools
+                                        </Dropdown.Toggle>
+                                        <Dropdown.Menu>
+                                            <Dropdown.Item onClick={() => handleModerationOption('Option 1', e.comment_id, e.comment)}>
+                                                View Edit History
+                                            </Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleModerationOption('Option 2', e.comment_id, e.comment)}>
+                                                Edit Comment
+                                            </Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleModerationOption('Option 3', e.comment_id, e.comment)}>
+                                                Delete Comment
+                                            </Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleModerationOption('Option 4', e.users_id, e.username)}>
+                                                Ban User
+                                            </Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
                                 )}
                             </Col>
                         </Row>
