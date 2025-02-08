@@ -1,12 +1,12 @@
 import React from 'react'
 import { Container, Row, Col, Nav, Navbar } from 'react-bootstrap'
-import Logo from '../Images/pnw-smash-hub-high-resolution-logo-color-on-transparent-background.png'
+import Logo from '../Images/smash-point-high-resolution-logo.png'
 
 export default function App() {
   return (
     <Container fluid variant="footer" className='bg-primary pt-32 d-flex w-100'>
         <Navbar className='d-flex'>
-            <img src={Logo} className='img-fixed' alt='Logo' width={"300"} />
+            <img src={Logo} className='img-fixed' alt='Logo' width={"400"} />
         </Navbar>
         <Navbar className='mx-auto'>
             <Nav>
@@ -31,6 +31,14 @@ export default function App() {
                         <div className='pe-16'>Facebook</div>
                         <div className='pe-16'>Instagram</div>
                     </div>
+                    </Col>
+                    <Col>
+                        <Row>
+                            <div>Terms of Use</div>
+                        </Row>
+                        <Row>
+                            <div>Privacy Policy</div>
+                        </Row>
                     </Col>
                 </Row>
             </Nav>

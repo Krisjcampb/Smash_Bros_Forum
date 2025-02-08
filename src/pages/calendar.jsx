@@ -14,8 +14,24 @@ function Calendar() {
     }, []);
 
     return (
-        <div style={{ width: '85%', margin: '0 auto' }}>
-            <FullCalendar ref={calendarRef} plugins={[dayGridPlugin]} initialView="dayGridMonth"/>
+        <div 
+            style={{
+                width: '85vw',
+                height: '85vh',
+                maxWidth: '100vw',
+                maxHeight: '100vh',
+                margin: '0 auto',
+                boxSizing: 'border-box',
+                overflow: 'hidden'
+            }}
+        >
+            <FullCalendar
+                ref={calendarRef}
+                plugins={[dayGridPlugin]}
+                initialView="dayGridMonth"
+                contentHeight="auto"
+                aspectRatio={1.5}
+            />
         </div>
     )
 }

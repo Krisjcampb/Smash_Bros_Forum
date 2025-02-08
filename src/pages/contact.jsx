@@ -1,9 +1,10 @@
+import React from 'react'
 import { Container } from 'react-bootstrap'
 
 function Contact() {
   return (
     <Container>
-      <div className='text-primary'>contact us</div>
+        <div>contact us</div>
     </Container>
   )
 }

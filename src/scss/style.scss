@@ -283,10 +283,10 @@ $spacers: map-merge(
   background-color: #222222;
   color: #ffffff;
 
-  button {
-    background-color: #555555;
-    color: #ffffff;
-  }
+//   button {
+//     background-color: #555555;
+//     color: #ffffff;
+//   }
 
   .container {
     background-color: #333333;
@@ -312,11 +312,34 @@ $spacers: map-merge(
 
 .profile-image {
   display: block;
-  width: 20%;
-  height: auto;
-  max-width: 30%;
+  width: 300px;
+  height: 280px;
   border: 4px solid #007bff;
   border-radius: 8px;
+}
+
+.no-padding-dropdown .dropdown-menu {
+  padding-left: 0 !important;
+  
+}
+
+.no-padding-dropdown .dropdown-toggle {
+  padding-left: 0 !important;
+}
+
+.no-padding-dropdown .dropdown-toggle::after {
+  display: none;
+}
+
+.no-highlight {
+  background-color: transparent !important;
+  color: inherit !important;
+  cursor: default !important;
+}
+
+.no-highlight:hover {
+  background-color: transparent !important;
+  color: inherit !important;
 }
 
 .vertical-line {
@@ -352,6 +375,116 @@ $spacers: map-merge(
 
 .no-caret-toggle:hover {
     background-color: rgba(0, 0, 0, 0.1);
+}
+
+.rotating-banner {
+    width: 300px;
+    padding: 10px 20px;
+    background-color: #333;
+    color: white;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid $secondary;
+    text-overflow: ellipsis;
+}
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0; }
+    10%, 90% { opacity: 1; }
+}
+
+.centered-banner {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.profile-header-buttons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.messaging-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.friends-list {
+  background-color: #ffffff;
+  border-right: 1px solid #ddd;
+}
+
+.friend-item {
+  cursor: pointer;
+  padding: 10px 15px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.friend-item:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+.friend-item.active {
+  background-color: #007bff;
+  color: white;
+}
+
+.chat-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-card {
+  border: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chat-header {
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+.chat-body {
+    max-height: 70vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.messages-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.message {
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin: 5px;
+    max-width: 75%;
+    word-wrap: break-word;
+}
+
+.message.sent {
+  background-color: #007bff;
+  color: white;
+  align-self: flex-end;
+}
+
+.message.received {
+  background-color: #e9ecef;
+  align-self: flex-start;
+}
+
+.chat-footer {
+  background-color: white;
+  padding: 10px 15px;
+  border-top: 1px solid #ddd;
 }
 
 @import "~bootstrap/scss/bootstrap";

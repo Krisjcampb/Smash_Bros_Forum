@@ -18,26 +18,29 @@ function UserComments(props) {
     const [banReason, setBanReason] = useState('')
     const [banDuration, setBanDuration] = useState('');
     const [isPermanentBan, setIsPermanentBan] = useState(false);
-    const { userRole, userId } = props;
+    const { userRole, userId, forumContent } = props;
     const location = useLocation();
-    const contentInputRef = useRef(null)
-    
+    const contentInputRef = useRef(null);
+
+    const ForumContent = location.state?.forumContent || forumContent
+
+    //Converts date to legible format
     const updatedNums = (time) => {
-    try {
-        const parsedDate = new Date(time);
+        try {
+            const parsedDate = new Date(time);
 
-        if (isNaN(parsedDate)) {
-            throw new Error('Invalid date format');
-        }
-
-        return new Intl.DateTimeFormat('en-US', {
-            year: '2-digit',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        }).format(parsedDate);
+            if (isNaN(parsedDate)) {
+                throw new Error('Invalid date format');
+            }
+        
+            return new Intl.DateTimeFormat('en-US', {
+                year: '2-digit',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }).format(parsedDate);
         } catch (error) {
             console.error('Error formatting date:', error.message);
             return 'Invalid date';
@@ -51,6 +54,7 @@ function UserComments(props) {
         return false;
     }
 
+    //Checks if user id of comment matches user id of current user
     const UsersCommentCheck = (users_id) => {
         if(userId === users_id){
             return true;
@@ -70,14 +74,14 @@ function UserComments(props) {
     
     const getComments = useCallback(async () => {
         try {
-            const response = await fetch(`http://localhost:5000/forumcomments/${location.state.forumContent.thread_id}`);
+            const response = await fetch(`http://localhost:5000/forumcomments/${ForumContent.thread_id}`);
             const jsonData = await response.json();
             setComments(jsonData);
-            console.log(comments);
+            console.log("Comments: ", jsonData);
         } catch (err) {
             console.error(err.message);
         }
-    }, [location.state.forumContent.thread_id]);
+    }, [ForumContent.thread_id]);
 
     const getEditHistory = async (commentId) => {
         console.log(commentId)

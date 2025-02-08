@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
+import { useNavigate } from 'react-router-dom';
 
 const ListUsers = () => {
     const [userList, setUserList] = useState([]);
@@ -12,6 +13,7 @@ const ListUsers = () => {
     const [showModal, setShowModal] = useState(false);
     const [userAssigned, setUserAssigned] = useState('');
     const [buttonSelected, setbuttonSelected] = useState(null)
+    const navigate = useNavigate();
 
     const getUserList = async () => {
         try {
@@ -142,7 +144,7 @@ const ListUsers = () => {
             <tbody>
                 {userList.map(e => (
                     <tr key={e.id}>
-                        <td>{e.username}</td>
+                        <td onClick={() => navigate(`/userprofile/${e.username}/${e.users_id}`)} style={{ cursor: "pointer", color: "blue" }}>{e.username}</td>
                         <td>{e.role}</td>
                         <td>{formatLastOnline(e.last_online)}</td>
                         {(userRole === 'admin' || userRole === 'moderator') && (

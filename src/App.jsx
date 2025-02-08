@@ -12,8 +12,10 @@ import ForgotPassword from './pages/forgotpassword'
 import Messaging from './pages/messaging'
 import Calendar from './pages/calendar'
 import UserSettings from './pages/usersettings'
+import Feedback from './pages/feedback'
 import './App.css'
 import { Container } from 'react-bootstrap'
+import { UserProvider } from './pages/usercontext';
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 
@@ -34,21 +36,24 @@ export default function App() {
             <Container fluid className='p-0 row-flex'>
                 <Container fluid className='p-0 row-flex Container-home'>
                     <Router>
-                        <Header />
-                        <Routes>
-                        <Route path='/' element={<Homepage />} />
-                        <Route path='/about' element={<About />} />
-                        <Route path='/contact' element={<Contact />} />
-                        <Route path='/signin' element={<SignIn />} />
-                        <Route path='/register' element={<Register />} />
-                        <Route path='/userlist' element={<Userlist />} />
-                        <Route path='/userprofile/:username/:friendid' element={<Userprofile />} />
-                        <Route path='/threads/:threadId' element={<Threads />} />
-                        <Route path='/forgotpassword' element={<ForgotPassword />} />
-                        <Route path='/messaging/:user/:userid' element={<Messaging/>}/>
-                        <Route path='/calendar' element={<Calendar/>}/>
-                        <Route path='/usersettings' element={<UserSettings toggleTheme={toggleTheme} />}/>
-                        </Routes>
+                        <UserProvider>
+                            <Header />
+                            <Routes>
+                                <Route path='/' element={<Homepage />} />
+                                <Route path='/about' element={<About />} />
+                                <Route path='/contact' element={<Contact />} />
+                                <Route path='/signin' element={<SignIn />} />
+                                <Route path='/register' element={<Register />} />
+                                <Route path='/userlist' element={<Userlist />} />
+                                <Route path='/userprofile/:username/:friendid' element={<Userprofile />} />
+                                <Route path='/threads/:threadId' element={<Threads />} />
+                                <Route path='/forgotpassword' element={<ForgotPassword />} />
+                                <Route path='/messaging/:user/:userid' element={<Messaging/>}/>
+                                <Route path='/calendar' element={<Calendar/>}/>
+                                <Route path='/usersettings' element={<UserSettings toggleTheme={toggleTheme} />}/>
+                                <Route path='/feedback' element={<Feedback/>}/>
+                            </Routes>
+                        </UserProvider>
                     </Router>
                 </Container>
                 <Footer />

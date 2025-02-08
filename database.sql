@@ -11,6 +11,8 @@ CREATE TABLE forumusers(
     verified BOOLEAN DEFAULT false,
     character_name VARCHAR(100) DEFAULT 'Mario',
     selected_skin INTEGER, 
+    location VARCHAR(30),
+    description VARCHAR(180),
 
 );
 
@@ -18,7 +20,7 @@ CREATE TABLE forumcontent(
     thread_id SERIAL PRIMARY KEY,
     title VARCHAR(255),
     content VARCHAR(8000),
-    likes INTEGER,
+    likes INTEGER DEFAULT 0,
     comments INTEGER,
     username VARCHAR(255),
     postdate TIMESTAMPTZ,
@@ -141,3 +143,45 @@ CREATE TABLE forumuser_public_keys (
     public_key TEXT NOT NULL,
     FOREIGN KEY (users_id) REFERENCES forumusers(users_id) ON DELETE CASCADE
 );
+
+CREATE TABLE user_feedback (
+    feedback_id SERIAL PRIMARY KEY,
+    issue issue_type,
+    problem VARCHAR(1000) NOT NULL
+);
+
+UPDATE forumusers
+SET character_name = 'Mario'
+WHERE users_id = 7;
+
+UPDATE forumcontent
+SET likes = COALESCE(l.like_count, 0) - COALESCE(d.dislike_count, 0)
+FROM (
+    SELECT post_id, COUNT(*) AS like_count
+    FROM likes
+    GROUP BY post_id
+) l
+LEFT JOIN (
+    SELECT post_id, COUNT(*) AS dislike_count
+    FROM dislikes
+    GROUP BY post_id
+) d ON l.post_id = d.post_id
+WHERE forumcontent.thread_id = l.post_id;
+
+UPDATE forumcontent
+SET likes = 0
+WHERE likes IS NULL;
+
+UPDATE forumcontent
+SET likes = COALESCE(l.like_count, 0) - COALESCE(d.dislike_count, 0)
+FROM (
+    SELECT post_id, COUNT(*) AS like_count
+    FROM likes
+    GROUP BY post_id
+) l
+FULL OUTER JOIN (
+    SELECT post_id, COUNT(*) AS dislike_count
+    FROM dislikes
+    GROUP BY post_id
+) d ON l.post_id = d.post_id
+WHERE forumcontent.thread_id = COALESCE(l.post_id, d.post_id);

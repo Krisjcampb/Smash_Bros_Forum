@@ -1,11 +1,13 @@
-// src/components/MessagingPage.js
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+// src/components/messaging.jsx
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Container, Row, Col, ListGroup, Card, Form, Button } from 'react-bootstrap'
 import { Link, useLocation } from 'react-router-dom'
 import crypto from 'crypto-browserify'
 import { Buffer } from 'buffer'
+import socket from "../websocket/socket";
 
 const Messaging = () => {
+    const messageContainerRef = useRef(null);
     const [selectedUser, setSelectedUser] = useState(null)
     const [messageInput, setMessageInput] = useState('')
     const [messages, setMessages] = useState([])
@@ -14,13 +16,14 @@ const Messaging = () => {
     const [listfriends, setListFriends] = useState([])
     const token = localStorage.getItem('token')
     const location = useLocation();
-    const [config, setConfig] = useState(null) // Initializing config as null
+    const [config, setConfig] = useState(null)
     const usernotif = useMemo(() => location.state?.entityID || null, [location.state]);
 
     window.Buffer = Buffer;
 
     const handleUserSelection = (user) => {
         setSelectedUser(user)
+        fetchMessageHistory(user.id)
     }
     
     const encrypt = (text) => {
@@ -31,7 +34,7 @@ const Messaging = () => {
         
         const key = Buffer.from(config.secretKey, 'hex');
         if (key.length !== 32) {
-            console.error('Invalid secret key length:', key.length); // Log invalid key length
+            console.error('Invald secret key length:', key.length);
             return '';
         }
         const iv = crypto.randomBytes(16);
@@ -42,17 +45,21 @@ const Messaging = () => {
 
     const decrypt = useCallback((text) => {
         if (!config) {
-            console.error('Config not defined');
+            console.error('Config not defined decrypt');
             return '';
         }
 
         const key = Buffer.from(config.secretKey, 'hex');
         if (key.length !== 32) {
-            console.error('Invalid secret key length:', key.length); // Log invalid key length
+            console.error('Invalid secret key length:', key.length);
             return '';
         }
         const textParts = text.split(':');
         const iv = Buffer.from(textParts.shift(), 'hex');
+        console.log(text)
+        console.log("config: ", config)
+        console.log("key: ", key)
+        console.log("iv: ", iv)
         const encryptedText = Buffer.from(textParts.join(':'), 'hex');
         const decipher = crypto.createDecipheriv(config.algorithm, key, iv);
         const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
@@ -94,177 +101,217 @@ const Messaging = () => {
                     throw new Error('Failed to fetch config');
                 }
                 const data = await response.json();
+                console.log("Config: ", data)
                 setConfig(data);
             }
         } catch (error) {
             console.error('Error fetching config: ', error);
         }
     }, [token])
+    
+    const fetchMessageHistory = useCallback((friendId) => {
+        if (userid && friendId) {
+            console.log(`Requesting message history for friendId: ${friendId}`);
+            socket.emit('getMessageHistory', { userId: userid, friendId });
+        }
+    }, [userid]);
 
-    const handleSendMessage2 = useCallback(async () => {
-        if(userid !== null && Number.isInteger(userid) && config){
+    const fetchFriendsList = useCallback(async () => {
+        if (userid !== null && Number.isInteger(userid)) {
             try {
-              const response = await fetch(
-                `http://localhost:5000/all-friends/${userid}`
-              )
-              const data = await response.json()
+                const response = await fetch(`http://localhost:5000/all-friends/${userid}`);
+                const data = await response.json();
 
-              const fetchedUsers = data.map((friend) => ({
-                id: friend.friend_id,
-                name: friend.username,
-              }))
-              setListFriends(fetchedUsers)
-
-              const messagesSorted = data.map(async (friend) => {
-                const friendId = friend.friend_id
-                const msgresponse = await fetch(
-                  `http://localhost:5000/retrieve-messages/${userid}/${friendId}`
-                )
-                console.log("Handle send message2 ", config)
-
-                const datamsg = await msgresponse.json()
-                const decryptedMessages = datamsg.map(msg => ({
-                    ...msg,
-                    message_text: decrypt(msg.iv + ":" + msg.message_text)
+                const fetchedUsers = data.map((friend) => ({
+                    id: friend.friend_id,
+                    name: friend.username,
                 }));
 
-                return { friendId, messages: decryptedMessages }
-              })
-              const allMessages = await Promise.allSettled(messagesSorted)
-              const orderedMessages = allMessages
-                .filter(({ status }) => status === 'fulfilled')
-                .map(({ value }) => value)
-
-              setMessages(orderedMessages)
+                setListFriends(fetchedUsers);
             } catch (error) {
-                console.error('Error fetching friendship status:', error)
-                console.log(error.message)
+                console.error('Error fetching friends list:', error);
             }
         }
-    }, [userid, decrypt, config])
+    }, [userid]);
 
     useEffect(() => {
         const fetchData = async () => {
-            await authenticateUser()
-            await fetchConfig()
-        }
+            await fetchConfig();
+            await authenticateUser();
+            await fetchFriendsList();
+        };
         fetchData();
-    }, [authenticateUser, fetchConfig])
 
-    useEffect(() => {
-        if(config) {
-            handleSendMessage2();
+        if (userid) {
+            socket.emit('joinRoom', userid);
         }
-    }, [config, handleSendMessage2])
+    }, [authenticateUser, fetchConfig, fetchFriendsList, userid]);
 
     useEffect(() => {
-        if (usernotif && listfriends.length > 0) {
-            const selectedUserFromNotif = listfriends.find(user => user.id === usernotif);
-            if (selectedUserFromNotif) {
-                setSelectedUser(selectedUserFromNotif);
+        console.log("🔄 Setting up WebSocket listener for `messageHistory`...");
+
+        console.log("🛠 Existing WebSocket Listeners:", socket._callbacks);
+
+        const handleMessageHistory = (data) => {
+            console.log("📩 Received `messageHistory` event:", data);
+
+            if (!data || !data.messages || data.messages.length === 0) {
+                console.warn("⚠️ No messages received from backend");
+                return;
             }
+
+            const { friendId, messages } = data;
+            console.log(`📨 Processing messages for friendId: ${friendId}`, messages);
+            console.log("config check: ", config)
+
+            const decryptedMessages = messages.map(msg => ({
+                ...msg,
+                message_text: decrypt(`${msg.iv}:${msg.message_text}`)
+            }));
+
+            setMessages((prevMessages) => [
+                ...prevMessages,
+                { friendId, messages: decryptedMessages }
+            ]);
+        };
+
+        socket.on('messageHistory', handleMessageHistory);
+
+        return () => {
+            console.log("🧹 Cleaning up WebSocket listener for `messageHistory`");
+            socket.off('messageHistory', handleMessageHistory);
+        };
+    }, [socket, config]);
+
+    useEffect(() => {
+        if (!usernotif || listfriends.length === 0) return;
+
+        const selectedUserFromNotif = listfriends.find(user => user.id === usernotif);
+        if (selectedUserFromNotif) {
+            setSelectedUser(selectedUserFromNotif);
         }
     }, [usernotif, listfriends]);
 
-    const handleSendMessage = () => {
-        if (selectedUser && messageInput.trim() !== '') 
-        {
-            const encryptedMessage = encrypt(messageInput);
-            const newMessage = {
-                friendId: selectedUser.id,
-                messages: [
-                    {
-                    sender_id: userid,
-                    message_text: encryptedMessage,
-                    },
-                ],
-            }
-            console.log('Before update:', messages);
-            setMessages((prevMessages) => [...prevMessages, newMessage])
-            setMessageInput('')
-            console.log('After update:', messages);
-            
-            const sendMessageToBackend = async () => {
-                try {
-                    const response = await fetch('http://localhost:5000/send-message',{
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            sender_id: userid,
-                            receiver_id: selectedUser.id,
-                            message_text: encryptedMessage,
-                            username: user,
-                        }),
-                    });
-                    console.log(response)
+    useEffect(() => {
+    socket.on("receiveMessage", (message) => {
+        console.log("📩 Received message via WebSocket:", message);
+
+        setMessages((prevMessages) => {
+            return prevMessages.map(chat => {
+                if (chat.friendId === message.sender_id || chat.friendId === message.receiver_id) {
+                    return {
+                        ...chat,
+                        messages: [
+                            ...chat.messages,
+                            {
+                                sender_id: message.sender_id,
+                                message_text: decrypt(message.message_text),
+                            },
+                        ],
+                    };
                 }
-                catch (error) {
-                    console.error('Error sending message to the backend:', error);
-                }
-            }
-            sendMessageToBackend();
-            handleSendMessage2();
+                return chat;
+            });
+        });
+    });
+
+    return () => {
+        socket.off("receiveMessage");
+    };
+}, [userid]);
+
+    useEffect(() => {
+        if (messageContainerRef.current) {
+            messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
         }
-    }
+    }, [messages]);
+
+    const handleSendMessage = () => {
+        if (selectedUser && messageInput.trim() !== "") {
+            const encryptedMessage = encrypt(messageInput);
+
+            const newMessage = {
+                sender_id: userid,
+                receiver_id: selectedUser.id,
+                message_text: encryptedMessage,
+                username: user,
+            };
+
+            socket.emit("sendMessage", newMessage);
+
+            setMessageInput("");
+        }
+    };
 
     return (
-      <Container className='mt-5'>
-        <div>{user}</div>
-        <Row>
-          <Col sm={4}>
-            <ListGroup>
-              {listfriends.map((user) => (
-                <ListGroup.Item
-                  key={user.id}
-                  action
-                  active={user === selectedUser}
-                  onClick={() => handleUserSelection(user)}
+      <Container fluid className='mt-5 messaging-page'>
+      <Row className='h-100'>
+        <Col sm={4} className='p-3 friends-list'>
+          <h4 className='mb-3'>Friends</h4>
+          <ListGroup variant='flush'>
+            {listfriends.map((user) => (
+              <ListGroup.Item
+                key={user.id}
+                action
+                active={user === selectedUser}
+                className='friend-item'
+                onClick={() => handleUserSelection(user)}
+              >
+                {user.name}
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        </Col>
+        <Col sm={8} className='p-3 chat-area'>
+          {selectedUser ? (
+            <Card className='h-100 chat-card'>
+              <Card.Header className='d-flex justify-content-between align-items-center chat-header'>
+                <Link
+                  to={`/userprofile/${selectedUser.name}/${selectedUser.id}`}
+                  className='text-decoration-none text-dark'
                 >
-                  {user.name}
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          </Col>
-          <Col sm={8}>
-            {selectedUser ? (
-              <Card>
-                <Card.Header>
-                    <Link to={`/userprofile/${selectedUser.name}/${selectedUser.id}`} className="text-decoration-none text-dark">{selectedUser.name}
-                    </Link>
-                    </Card.Header>
-                <Card.Body>
-                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    {messages.find((friendMessages) => friendMessages.friendId === selectedUser.id)?.messages.map((msg, index) => (
-                      <p key={index}>
-                        <strong>{msg.sender_id === userid ? 'You' : selectedUser.name}:</strong> {msg.message_text}
-                      </p>
+                  {selectedUser.name}
+                </Link>
+              </Card.Header>
+              <Card.Body className='chat-body'>
+                <div ref={messageContainerRef} className='messages-container'>
+                  {messages
+                    .find((friendMessages) => friendMessages.friendId === selectedUser.id)
+                    ?.messages.map((msg, index) => (
+                      <div
+                        key={index}
+                        className={`message ${
+                          msg.sender_id === userid ? 'sent' : 'received'
+                        }`}
+                      >
+                        <p className='mb-0'>{msg.message_text}</p>
+                      </div>
                     ))}
-                  </div>
-                  <Form className='mt-3'>
-                    <Form.Group controlId='messageInput'>
-                      <Form.Control
-                        type='text'
-                        placeholder='Type your message...'
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                      />
-                    </Form.Group>
-                    <Button variant='primary' onClick={handleSendMessage}>
-                      Send
-                    </Button>
-                  </Form>
-                </Card.Body>
-              </Card>
-            ) : (
-              <p className='text-center mt-5'>
-                Select a user to start chatting
-              </p>
-            )}
-          </Col>
-        </Row>
-      </Container>
+                </div>
+              </Card.Body>
+              <Card.Footer className='chat-footer'>
+                <Form className='d-flex'>
+                  <Form.Control
+                    type='text'
+                    placeholder='Type your message...'
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    className='me-2'
+                  />
+                  <Button variant='primary' onClick={handleSendMessage}>
+                    Send
+                  </Button>
+                </Form>
+              </Card.Footer>
+            </Card>
+          ) : (
+            <div className='d-flex justify-content-center align-items-center h-100'>
+              <p className='text-center'>Select a user to start chatting</p>
+            </div>
+          )}
+        </Col>
+      </Row>
+    </Container>
     )
 }
 

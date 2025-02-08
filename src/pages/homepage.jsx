@@ -50,7 +50,6 @@ function Homepage() {
         const postdate = new Date().toLocaleString();
 
         try {
-            // First, submit the forum content to get the `thread_id`
             const body = { title, content, username, postdate, usersId };
             const response = await fetch('http://localhost:5000/forumcontent', {
                 method: 'POST',
@@ -62,18 +61,17 @@ function Homepage() {
                 throw new Error('Failed to create forum content');
             }
 
-            // Get the new `thread_id` from the response
-            const newThread = await response.json(); // Assuming the backend returns the created thread object with `thread_id`
-            const { thread_id } = newThread; // Extract the `thread_id`
+            const newThread = await response.json();
+            const { thread_id } = newThread;
 
             // Refresh the list of posts
             setRefreshKey(prevKey => prevKey + 1);
 
-            // Now, upload the image and associate it with the new `thread_id`
-            if (file) { // Ensure that a file has been selected
+            // Image is now associated with thread ID
+            if (file) {
                 const formData = new FormData();
                 formData.append('image', file);
-                formData.append('thread_id', thread_id); // Attach the `thread_id` to link the image to the content
+                formData.append('thread_id', thread_id);
                 
                 const imageUploadResponse = await axios({
                     method: 'POST',

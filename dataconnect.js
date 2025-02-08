@@ -9,6 +9,17 @@ const nodemailer = require("nodemailer");
 const jwt = require('jsonwebtoken');
 const crypto = require("crypto")
 const bcrypt = require("bcrypt")
+const http = require('http');
+const { Server } = require('socket.io');
+
+const server = http.createServer(app);  // Create an HTTP server
+
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
 
 //storage
 const Storage = multer.diskStorage({
@@ -178,15 +189,15 @@ app.post('/userlogin', async (req, res) => {
 //user authentication
 app.get('/userauthenticate', authenticateToken, (req, res) => {
     pool.query(`UPDATE forumusers SET last_online = NOW() WHERE users_id = $1`, [req.user.users_id]);
-    pool.query('SELECT username, users_id, role FROM forumusers WHERE users_id = $1', [req.user.users_id], (err, result) =>{
+    pool.query('SELECT username, users_id, role, location, description, last_online FROM forumusers WHERE users_id = $1', [req.user.users_id], (err, result) =>{
         if (err) {
             console.error(err)
             res.sendStatus(500);
         } else if (result.rows.length === 0) {
-            console.log(req.user.users_id)
+            // console.log(req.user.users_id)
             res.sendStatus(404);
         } else {
-            res.json({name: result.rows[0].username, id: result.rows[0].users_id, role: result.rows[0].role});
+            res.json({name: result.rows[0].username, id: result.rows[0].users_id, role: result.rows[0].role, location: result.rows[0].location, description: result.rows[0].description, last_online: result.rows[0].last_online});
         }
     })
 })
@@ -203,16 +214,34 @@ app.get("/forumusers", async(req, res) => {
 })
 
 //get a forum user
-app.get("/forumusers/:id", async(req, res) => {
+app.get("/forumusers/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const forumusers = await pool.query("SELECT * FROM forumusers WHERE users_id = $1", [id])
+        console.log("ID: ", id);
 
-        res.json(forumusers.rows[0])
+        // Query the database for the user with the given ID
+        const forumusers = await pool.query("SELECT * FROM forumusers WHERE users_id = $1", [id]);
+
+        // Check if the user was found
+        if (forumusers.rows.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Respond with the user data
+        const user = forumusers.rows[0];
+        res.json({
+            name: user.username,
+            id: user.users_id,
+            role: user.role,
+            location: user.location,
+            description: user.description,
+            last_online: user.last_online,
+        });
     } catch (err) {
-        console.error(err.message)
+        console.error("Error fetching forum user:", err.message);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-})
+});
 
 //updating email code
 app.put("/resendcode", async (req, res) => {
@@ -355,6 +384,8 @@ app.get('/forumimages', async (req, res) => {
   }
 })
 
+app.get('/forumimage')
+
 app.get('/getProfilePictures', (req, res) => {
     const fs = require('fs');
     const path = require('path');
@@ -439,7 +470,7 @@ app.get('/forumcontent', async (req, res) => {
 app.get('/forumcontent/:threadID', async (req, res) => {
   try {
     const { threadID } = req.params
-    console.log(threadID)
+    console.log("THREAD ID: ", threadID)
     const forumcontent = await pool.query(
       'SELECT * FROM forumcontent WHERE thread_id = $1',
       [threadID]
@@ -466,11 +497,7 @@ app.put('/forumcontent/:thread_id', async (req, res) => {
 
         const timeDiff = currentTime - postdate;
         const timeDiffInHours = timeDiff / (1000 * 60 * 60);
-        console.log(thread.postdate, timeDiffInHours)
-        if (!content || !title || timeDiffInHours >= 1) {
-            return res.status(400).json({ error: 'Invalid thread to edit.' });
-        }
-
+        console.log("Thread date: ", thread.postdate, "Time in hours: ", timeDiffInHours)
         
         console.log(`Updating thread ${thread_id} with title: ${title}`);
 
@@ -497,6 +524,17 @@ app.put('/forumcontent/:thread_id', async (req, res) => {
     }
 });
 
+app.get('/forumuserposts/:friendid', async (req, res) => {
+    try {
+        const { friendid } = req.params;
+        console.log("User ID for forumcontent: ", friendid)
+        postQuery = await pool.query('SELECT * FROM forumcontent WHERE users_id = $1', [friendid]);
+        res.json(postQuery.rows)
+    } catch(err) {
+        console.error(err.message);
+    }
+})
+
 //delete a forum thread
 app.delete('/forumcontent/:id', async (req, res) => {
   try {
@@ -521,7 +559,7 @@ app.get('/threadcontent/:userid', async (req, res) => {
             WHERE fcm.users_id = $1;`, [userid]
         )
         res.json(getThreadcontent.rows)
-    } catch {
+    } catch (error) {
         console.error('Error getting thread content:', error);
         res.status(500).json({ error: 'An error occurred while getting the thread content.' });
     }
@@ -700,7 +738,7 @@ app.get('/forumcomments/:thread_id', async (req, res) => {
          AND (fu.is_banned IS NULL OR fu.is_banned = FALSE)`,
       [thread_id]
     );
-    console.log(forumcomments.rows)
+    // console.log(forumcomments.rows)
     res.json(forumcomments.rows)
   } catch (err) {
     console.error(err.message)
@@ -780,7 +818,7 @@ const edithistory = await pool.query(
         console.error(err.message)
     }
 })
-app.listen(5000, () => {
+server.listen(5000, () => {
     console.log("server has started on port 5000");
 
 });
@@ -984,6 +1022,7 @@ app.get('/all-friends/:userid', async (req, res) => {
      }
 })
 
+//Get friendship status
 app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
     
     const {userid, friendid} = req.params;
@@ -995,11 +1034,19 @@ app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
         `;
 
         const result = await pool.query(query, [userid, friendid]);
-
-        if(result.rows.length === 0) {
-            res.json({status: 'not_friends', userid});
+        if (result.rows.length === 0) {
+            res.json({
+                status: 'not_friends',
+                user_id1: parseInt(userid, 10),
+                user_id2: parseInt(friendid, 10),
+            });
         } else {
-            res.json({status: result.rows[0]});
+            const row = result.rows[0];
+            res.json({
+                status: row.status,
+                user_id1: parseInt(row.user_id1, 10),
+                user_id2: parseInt(row.user_id2, 10),
+            });
         }
     } catch (error) {
         console.error('Error fetching friendship status:', error);
@@ -1007,10 +1054,10 @@ app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
     }
 });
 
+//Get user profile picture
 app.get('/get-pfp/:userid', async (req, res) => {
     try {
         const { userid } = req.params;
-        console.log(userid);
         
         const response = await pool.query(
             `SELECT character_name, selected_skin 
@@ -1018,8 +1065,6 @@ app.get('/get-pfp/:userid', async (req, res) => {
             WHERE users_id = $1`,
             [userid]
         );
-        
-        console.log(response);
 
         if (response.rows.length !== 0) {
             res.json(response.rows[0]);
@@ -1032,14 +1077,15 @@ app.get('/get-pfp/:userid', async (req, res) => {
     }
 });
 
+//Update user profile picture
 app.post('/change-pfp/:userid', async (req, res) => {
     const {userid} = req.params;
-    const {clickedImage, character} = req.body;
+    const {clickedImage, newCharacter} = req.body;
 
     const match = clickedImage.match(/_([0-9]+)\.png$/);
     const numberStr = match[1];
 
-    const character_name = character;
+    const character_name = newCharacter;
     const selected_skin = parseInt(numberStr, 10);
     
     console.log("Selected Image: ", clickedImage)
@@ -1049,7 +1095,7 @@ app.post('/change-pfp/:userid', async (req, res) => {
         `;
 
         await pool.query(updatepfpimage, [character_name, selected_skin, userid]);
-
+        console.log(character_name, selected_skin)
         res.json({ success: true });
     } catch (error) {
         console.error('Error changing profile picture:', error);
@@ -1057,6 +1103,33 @@ app.post('/change-pfp/:userid', async (req, res) => {
     }
 })
 
+//Update user profile info
+app.post('/update-profile/:userid', async (req, res) => {
+    const {userid} = req.params
+    const {username, location, description} = req.body
+
+    try {
+        const result = await pool.query(
+            `UPDATE forumusers 
+             SET username = COALESCE($1, username),
+                 location = COALESCE($2, location), 
+                 description = COALESCE($3, description) 
+             WHERE users_id = $4`,
+            [username, location, description, userid]
+        );
+
+         if (result.rowCount === 0) {
+            return res.status(404).json({ error: "User not found." });
+        }
+
+        res.status(200).json({ message: "Profile updated successfully!" });
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ error: "Internal server error." });
+    }
+})
+
+//Get user profile 
 app.get('/retrieve-image/:userid', async (req, res) => {
     const {userid} = req.params;
 
@@ -1085,70 +1158,116 @@ app.get('/config', authenticateToken, (req, res) => {
     });
 });
 
-app.post('/send-message', async (req, res) => {
-  try {
-    const { sender_id, receiver_id, message_text, username } = req.body;
-    console.log("message: ", message_text)
+//Saves encrypted messages to database
+const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username }) => {
+    try {
+        console.log("📩 Storing message:", message_text);
 
-    const [iv, content] = message_text.split(':');
-    console.log("iv: ", iv, "content: ", content)
-    const newMessage = await pool.query(
-      'INSERT INTO messages (sender_id, receiver_id, message_text, iv) VALUES($1, $2, $3, $4) RETURNING *',
-      [sender_id, receiver_id, content, iv]
-    );
+        const [iv, content] = message_text.split(":");
+        if (!iv || !content) {
+            console.error("❌ Invalid encrypted message format:", message_text);
+            return null;
+        }
 
-    const existingNotification = await pool.query(
-      'SELECT * FROM notifications WHERE users_id = $1 AND type = $2 AND entity_id = $3',
-      [receiver_id, 'directmessage', sender_id]
-    );
+        const newMessage = await pool.query(
+            `INSERT INTO messages (sender_id, receiver_id, message_text, iv) 
+             VALUES($1, $2, $3, $4) RETURNING *`,
+            [sender_id, receiver_id, content, iv]
+        );
 
-    let notificationMessage;
+        const existingNotification = await pool.query(
+            `SELECT * FROM notifications WHERE users_id = $1 AND type = $2 AND entity_id = $3`,
+            [receiver_id, "directmessage", sender_id]
+        );
 
-    if (existingNotification.rows.length > 0) {
-      // Update existing notification
-      const notification = existingNotification.rows[0];
-      const newMessageCount = (notification.message_count || 1) + 1;
-      notificationMessage = `${username} sent you ${newMessageCount} direct messages.`;
+        let notificationMessage;
+        if (existingNotification.rows.length > 0) {
+            const notification = existingNotification.rows[0];
+            const newMessageCount = (notification.message_count || 1) + 1;
+            notificationMessage = `${username} sent you ${newMessageCount} direct messages.`;
 
-      await pool.query(
-        'UPDATE notifications SET message = $1, message_count = $2, created_at = NOW() WHERE notification_id = $3',
-        [notificationMessage, newMessageCount, notification.notification_id]
-      );
-    } else {
-      notificationMessage = `${username} sent you a message.`;
-      await pool.query(
-        'INSERT INTO notifications (users_id, type, entity_id, message, message_count) VALUES($1, $2, $3, $4, $5)',
-        [receiver_id, 'directmessage', sender_id, notificationMessage, 1]
-      );
+            await pool.query(
+                `UPDATE notifications SET message = $1, message_count = $2, created_at = NOW() 
+                 WHERE notification_id = $3`,
+                [notificationMessage, newMessageCount, notification.notification_id]
+            );
+        } else {
+            notificationMessage = `${username} sent you a message.`;
+            await pool.query(
+                `INSERT INTO notifications (users_id, type, entity_id, message, message_count) 
+                 VALUES($1, $2, $3, $4, $5)`,
+                [receiver_id, "directmessage", sender_id, notificationMessage, 1]
+            );
+        }
+
+        return newMessage.rows[0];
+    } catch (err) {
+        console.error("❌ Error saving message to DB:", err);
+        return null;
     }
+};
 
-    res.json(newMessage.rows[0]);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
+//Retrieves encrypted messages from database
+const getMessagesFromDB = async (userId, friendId) => {
+    try {
+        console.log("Hello World!")
+        const result = await pool.query(
+            `SELECT sender_id, receiver_id, message_text, iv, timestamp 
+             FROM messages 
+             WHERE (sender_id = $1 AND receiver_id = $2) 
+                OR (sender_id = $2 AND receiver_id = $1) 
+             ORDER BY timestamp ASC`,
+            [userId, friendId]
+        );
+
+        return result.rows;
+    } catch (error) {
+        console.error("Error retrieving messages from database:", error);
+        return [];
+    }
+};
+
+//Websocket connection started
+io.on("connection", (socket) => {
+    console.log("A user connected:", socket.id);
+
+    socket.on("joinRoom", (userId) => {
+        socket.join(userId);
+        console.log(`User ${userId} joined their room`);
+    });
+
+    socket.on("sendMessage", async (data) => {
+    const { sender_id, receiver_id, message_text, username } = data;
+
+    const savedMessage = await saveMessageToDB({ sender_id, receiver_id, message_text, username });
+
+    if (savedMessage) {
+        console.log("✅ Message stored:", savedMessage);
+
+        socket.to(receiver_id).emit("receiveMessage", data);
+    } else {
+        console.error("❌ Failed to save message, not emitting.");
+    }
+    });
+
+    socket.on('getMessageHistory', async ({ userId, friendId }) => {
+        try {
+            const messages = await getMessagesFromDB(userId, friendId); // Fetch from DB
+            console.log(`Fetched messages for ${userId} & ${friendId}:`, messages);
+
+            socket.emit('messageHistory', { friendId, messages });
+            console.log(`✅ Sent message history to user ${userId}`);
+        } catch (error) {
+            console.error('❌ Error retrieving message history:', error);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+    });
 });
 
-app.get('/retrieve-messages/:userid/:friendid', async (req, res) => {
-    const userId = parseInt(req.params.userid, 10)
-    const friendId = parseInt(req.params.friendid, 10)
-    try {
-        const result = await pool.query(`
-      SELECT sender_id, receiver_id, message_text, iv
-      FROM messages
-      WHERE (sender_id = $1 AND receiver_id = $2)
-         OR (sender_id = $2 AND receiver_id = $1)
-      ORDER BY timestamp;
-    `, [userId, friendId]);
-    
-        res.json(result.rows);
-
-    } catch (error) {
-        console.error('Error fetching messages:', error);
-        res.status(500).json({ error: 'Internal server error'});
-    }
-})
-
+//Get notifications for user
 app.get('/notifications/:userid', async (req, res) => {
     try {
         const { userid } = req.params;
@@ -1161,6 +1280,22 @@ app.get('/notifications/:userid', async (req, res) => {
     }
 });
 
+//Post feedback info to database
+app.post('/feedback', async (req, res) => {
+    try {
+        const {issue, message} = req.body;
+        await pool.query(
+            'INSERT INTO user_feedback (issue, problem) VALUES ($1, $2)', [issue, message]
+        );
+
+        res.json({ success: true })
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+})
+
+//Set unread notification to read
 app.post('/notifications/mark-read', authenticateToken, async (req, res) => {
     try {
         const { userid } = req.body;

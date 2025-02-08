@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Nav, Navbar, NavDropdown, Image } from 'react-bootstrap';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { FaBell } from 'react-icons/fa';
-import Logo from '../Images/pnw-smash-hub-high-resolution-color-logo.png';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
+import { FaBell, FaEnvelope, FaCalendarAlt } from 'react-icons/fa';
+import Logo from '../Images/smash-point-high-resolution-logo.png';
+import RotatingBanner from './RotatingBanner';
+import { useUserContext } from '../../pages/usercontext';
+import { getImageUrl } from '../Utilities/adjusturl';
 
 const Logout = () => {
     localStorage.clear();
@@ -16,11 +19,19 @@ function Header() {
     const [notifications, setNotifications] = useState([]);
     const [hasUnread, setHasUnread] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
-    const [characterName, setCharacterName] = useState("")
-    const [selectedSkin, setSelectedSkin] = useState(0)
     const dropdownRef = useRef(null);
     const userprofile = `/userprofile/${user}/${userid}`;
     const navigate = useNavigate();
+    const { profilePicture } = useUserContext();
+    const { characterName, selectedSkin } = profilePicture;
+    const headerImageUrl = getImageUrl(characterName, selectedSkin, 'header');
+
+    const banners = [
+        "Welcome to Smash Point!",
+        "Check out the latest threads!",
+        "Join our upcoming tournament!",
+        "New messages? Check your inbox!",
+    ];
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -58,23 +69,6 @@ function Header() {
             .catch(err => console.error('Error authenticating user', err));
         }
     }, [user]);
-
-    useEffect(() => {
-        const getUserProfile = async () => {
-            try {               
-                const response = await fetch(`http://localhost:5000/get-pfp/${userid}`, {
-                    method: 'GET',             
-                })
-                const data = await response.json()
-                console.log(data)
-                setSelectedSkin(data.selected_skin)
-                setCharacterName(data.character_name)
-            } catch (error) {
-                console.error("Error fetching user profile picture", error);
-            }
-        }
-        getUserProfile();
-    }, [userid])
 
     const navigateToThread = async (threadID) => {
         try {
@@ -133,13 +127,6 @@ function Header() {
         }
     }
 
-    const getProfileImageUrl = (characterName, selectedSkin) => {
-        if (!characterName) {
-            return '/path/to/default/profile_image.png';
-        }
-        return `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${characterName}/chara_0_${characterName.toLowerCase()}_0${selectedSkin}.png`;
-    };
-
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
 
@@ -149,65 +136,76 @@ function Header() {
   }, []);
 
   return (
-    <Navbar bg='primary' variant='dark'>
-      <img className='img-fluid' style={{ width: 150 }} alt='Logo' src={Logo} />
-      <Navbar.Brand as={NavLink} to='/'>Navbar</Navbar.Brand>
-      <Nav className='container-fluid'>
-        <Nav.Item>
-          <Nav.Link as={NavLink} to='/'>Home</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link as={NavLink} to='/resetpassword'>Features</Nav.Link>
-        </Nav.Item>
-        {loginstate === true && (
-          <Nav.Item className='ms-auto' style={{ position: 'relative' }} ref={dropdownRef}>
-            <div onClick={handleBellClick} style={{ position: 'relative' }}>
-              <FaBell className={hasUnread ? 'highlight' : ''} size={24} />
-              {hasUnread && <span className="notification-dot"></span>}
-            </div>
-            {showDropdown && (
-              <div className='dropdown-menu show' style={{ position: 'absolute', right: 0, top: '100%', minWidth: '200px', zIndex: 1000 }}>
-                {notifications.length > 0 ? (
-                  notifications.map((notification, index) => (
-                    <div
-                      key={index}
-                      onClick={() => handleNotifications(notification.thread_id, notification.entity_id)}
-                      className="dropdown-item"
-                    >
-                      {notification.message}
+        <Navbar bg='primary' variant='dark' style={{padding: '0px', height: '72px'}}    >
+            <Link to="/">
+                <img className='flex' style={{ marginLeft: '12px', width: 290 }} alt='Logo' src={Logo}/>
+            </Link>
+            <Nav className='container-fluid'>
+                <Nav.Item className="centered-banner">
+                    <RotatingBanner banners={banners} />
+                </Nav.Item>
+                <Nav.Item className='ms-auto d-flex align-items-center justify-content-between' style={{ position: 'relative', gap: '24px'}} ref={dropdownRef}>
+                    <div onClick={() => navigate(`/calendar`)} style={{ cursor: 'pointer', position: 'relative' }}>
+                        <FaCalendarAlt size={24} style={{marginBottom:'2px'}}/>
                     </div>
-                  ))
-                ) : (
-                  <div className="dropdown-item">No new notifications</div>
+                    {loginstate === true && (
+                    <>
+                        <div onClick={handleBellClick} style={{ cursor: 'pointer', position: 'relative' }}>
+                        <FaBell className={hasUnread ? 'highlight' : ''} size={25} />
+                        {hasUnread && <span className="notification-dot"></span>}
+                        </div>
+                        {showDropdown && (
+                        <div className='dropdown-menu show' style={{ position: 'absolute', right: 0, top: '100%', minWidth: '200px', zIndex: 1000 }}>
+                        {notifications.length > 0 ? (
+                            notifications.map((notification, index) => (
+                            <div
+                                key={index}
+                                onClick={() => handleNotifications(notification.thread_id, notification.entity_id)}
+                                className="dropdown-item"
+                            >
+                                {notification.message}
+                            </div>
+                            ))
+                        ) : (
+                            <div className="dropdown-item">No new notifications</div>
+                        )}
+                        </div>
+                        )}
+                        <div onClick={() => navigate(`/messaging/${user}/${userid}`)} style={{ cursor: 'pointer', position: 'relative' }}>
+                            <FaEnvelope size={25}/>
+                        </div>
+                        <NavDropdown
+                            title={
+                            <Image
+                                src={headerImageUrl}
+                                alt="User Profile"
+                                roundedCircle
+                                style={{ width: '38px', height: '38px', cursor: 'pointer'}}
+                            />
+                            }
+                            align='end'
+                            className="no-padding-dropdown"
+                            style={{ marginRight: '32px'}}
+                        >
+                        <NavDropdown.Item className='no-highlight'>{user}</NavDropdown.Item>
+                        <hr className="dropdown-divider" />
+                        <NavDropdown.Item as={NavLink} to={userprofile}>Profile</NavDropdown.Item>
+                        <NavDropdown.Item onClick={() => navigate('/usersettings')}>Settings</NavDropdown.Item>
+                        <NavDropdown.Item onClick={() => navigate('/feedback')}>Give Feedback</NavDropdown.Item>
+                        <NavDropdown.Item onClick={Logout}>Log Out</NavDropdown.Item>
+                        </NavDropdown>
+                    </>                    
+                    )}
+                </Nav.Item>
+
+                {!loginstate && (
+                <Nav.Item>
+                    <Nav.Link as={NavLink} to='/signin'>Sign In</Nav.Link>
+                </Nav.Item>
                 )}
-              </div>
-            )}
-          </Nav.Item>
-        )}
-        <Nav.Item className='me'>
-          {loginstate === false && (
-            <Nav.Link as={NavLink} to='/signin'>Sign In</Nav.Link>
-          )}
-          {loginstate === true && (
-            <div>
-                <Image
-                    src={getProfileImageUrl(characterName, selectedSkin)}
-                    alt="User Profile"
-                    rounded
-                    style={{ width: '80px', height: '80px' }}
-                />
-                <NavDropdown title={user} align='end'>
-                    <NavDropdown.Item as={NavLink} to={userprofile}>Profile</NavDropdown.Item>
-                    <NavDropdown.Item onClick={() => navigate(`/messaging/${user}/${userid}`)}>Direct Messages</NavDropdown.Item>
-                    <NavDropdown.Item onClick={() => navigate('/usersettings')}>Settings</NavDropdown.Item>
-                    <NavDropdown.Item onClick={Logout}>Log Out</NavDropdown.Item>
-                </NavDropdown>
-            </div>
-          )}
-        </Nav.Item>
-      </Nav>
-    </Navbar>
-  );
+            </Nav>
+        </Navbar>
+    );
 }
 
 export default Header;

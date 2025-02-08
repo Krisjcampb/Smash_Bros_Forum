@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Card from 'react-bootstrap/Card'
 import { NavLink } from 'react-router-dom'
-import { Row, Col, Button, Modal } from 'react-bootstrap'
+import { Row, Col, Button, Modal, Container } from 'react-bootstrap'
 import Form from 'react-bootstrap/Form'
 import { BsArrowUp, BsArrowDown, BsThreeDotsVertical } from 'react-icons/bs'
 
@@ -63,12 +63,12 @@ const ListContent = (props) => {
         }
     }, [showMenu])
 
-    const handleEdit = async (userRole, users_id) => {
-        if(userRole === 'admin' || userRole === 'moderator' || usersId === users_id){
-            return true;
-        }
-        return false;
-    }
+    // const handleEdit = async (userRole, users_id) => {
+    //     if(userRole === 'admin' || userRole === 'moderator' || usersId === users_id){
+    //         return true;
+    //     }
+    //     return false;
+    // }
 
     const handleEditAsModerator = async () => {
         try {
@@ -138,11 +138,17 @@ const ListContent = (props) => {
         try {
             let isCurrentlyLiked = likedStatus[thread_id] || false;
 
-            setLikedStatus(prevStatus => ({
-                ...prevStatus,
-                [thread_id]: !isCurrentlyLiked
-            }));
+            console.log("Is Currently Liked?: ", likedStatus[thread_id])
 
+            setLikedStatus(prevStatus => {
+                console.log("Previous Status:", prevStatus);
+                return {
+                    ...prevStatus,
+                    [thread_id]: !isCurrentlyLiked
+                };
+            });
+            console.log(likedStatus[thread_id])
+            
             setDislikedStatus(prevStatus => ({
                 ...prevStatus,
                 [thread_id]: false
@@ -155,6 +161,7 @@ const ListContent = (props) => {
                         : post
                 )
             );
+            console.log("Initial Posts: ", initialposts)
 
             const response = await fetch('http://localhost:5000/forumlikes', {
                 method: 'POST',
@@ -209,6 +216,28 @@ const ListContent = (props) => {
             console.error('Error disliking post:', error);
         }
     };
+
+    useEffect(() => {
+        if (initialposts && initialposts.length > 0) {
+            const initialLikes = {};
+            const initialDislikes = {};
+
+            initialposts.forEach(post => {
+                if (post.type === 'like') {
+                    initialLikes[post.thread_id] = true;
+                } else if (post.type === 'dislike') {
+                    initialDislikes[post.thread_id] = true;
+                }
+            });
+
+            setLikedStatus(initialLikes);
+            setDislikedStatus(initialDislikes);
+        }
+    }, [initialposts]);
+
+    useEffect(() => {
+        console.log("likedStatus updated:", likedStatus);
+    }, [likedStatus]);
 
     const filterPosts = useCallback(() => {
         const filteredPosts = originalList.filter(item =>
@@ -407,6 +436,7 @@ const ListContent = (props) => {
 
             setOriginalList(postsWithData);
             setList(postsWithData);
+            console.log(list)
         } catch (err) {
             console.error(err.message);
         } finally {
@@ -444,7 +474,7 @@ const ListContent = (props) => {
                     console.log("Initial Liked Status: ", initialLikedStatus);
                     console.log("Initial Disliked Status: ", initialDislikedStatus);
 
-                    setLikedStatus(initialLikedStatus);
+                    // setLikedStatus(initialLikedStatus);
                     setDislikedStatus(initialDislikedStatus);
 
                     setInitialPosts(res);
@@ -468,7 +498,7 @@ const ListContent = (props) => {
     }
 
     return (
-    <>
+    <Container style={{ maxWidth: '80%'}} classname='mx-auto'>
         <Row className='mt-16 ms-auto me-auto mb-16 mw-25'>
             <Col>
             <Form.Control
@@ -479,7 +509,7 @@ const ListContent = (props) => {
             />
             </Col>
             <Col>
-            <Form.Select value={sortBy} onChange={handleSortChange}>
+            <Form.Select value={sortBy} onChange={handleSortChange} className='text-center'>
                 <option value='newest'>Sort by Newest</option>
                 <option value='oldest'>Sort by Oldest</option>
                 <option value='mostPopular'>Sort by Most Popular</option>
@@ -489,7 +519,7 @@ const ListContent = (props) => {
         </Row>
         <div className='justify-content-center' style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap'}}>
             {list.map((e, index) => (
-            <div key={index} className="position-relative" style={{ marginBottom: '8px', marginRight: '8px' }}>
+            <div key={index} className="position-relative" style={{ marginBottom: '8px', marginLeft: '4px', marginRight: '4px' }}>
                 <Card style={{ width: '25rem', height: '26.5rem', transition: 'transform 0.2s', zIndex: 0 }} className="hover-card">
                     <Card.Body>
                         <NavLink to={`/threads/${e.thread_id}`} className='nav-link' state={{ forumContent: e }}>
@@ -503,19 +533,21 @@ const ListContent = (props) => {
                             </Card.Text>
                         </NavLink>
                         <div className='position-absolute bottom-0 end-0 pe-4' style={{ fontWeight: 'bold', fontSize: '15px' }}>
-                            {formatPostDate(e.postdate)} <NavLink to={`/userdetails/${e.username}`} className="nav-link">{e.username}</NavLink>
+                            {formatPostDate(e.postdate)} 
+                            <NavLink to={`/userprofile/${e.username}/${e.users_id}`} className="nav-link">{e.username}</NavLink>
                         </div>
                         <div className='position-absolute right-0 bottom-0 pb-4' style={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
                             <Button
                                 variant={
-                                    likedStatus[e.thread_id] !== undefined 
+                                    likedStatus[e.thread_id] !== undefined
                                         ? likedStatus[e.thread_id] 
                                             ? "success"
                                             : "outline-success"
-                                        : initialposts.find(item => item.post_id === e.thread_id && item.type === 'like') 
+                                        : initialposts.find(item => item.thread_id === e.thread_id && item.type === 'like')
                                             ? "success"
                                             : "outline-success"
                                 }
+                                className={likedStatus[e.thread_id] ? "success" : "outline-success"}
                                 onClick={() => handleLike(e.thread_id)}
                             >
                                 <BsArrowUp />
@@ -584,6 +616,7 @@ const ListContent = (props) => {
             ))}
             {loading && <div>Loading...</div>}
         </div>
+        {/* Delete Thread Modal */}
         <Modal show={showDeleteModal} onHide={DeleteClose} size="md" style={{ color: '#000000' }} centered>
             <Modal.Header className="position-relative">
                 <Modal.Title className="w-100 text-center">Deleting Modal</Modal.Title>
@@ -602,6 +635,8 @@ const ListContent = (props) => {
                 <Button size="lg" className="ps-22 pe-22" onClick={DeleteClose}>Cancel</Button>
             </Modal.Footer>
         </Modal>
+
+        {/* Edit Thread Modal */}
         <Modal show={showEditModal} onHide={EditClose} size="lg" style={{ color: '#000000' }} centered>
             <Modal.Header className="position-relative">
                 <Modal.Title className="w-100 text-center">Editing Modal</Modal.Title>
@@ -629,9 +664,6 @@ const ListContent = (props) => {
                         onChange={(e) => setEditModalContent(e.target.value)}
                         />
                     </Form.Group>
-                    <Button variant="primary" type="submit">
-                        Submit
-                    </Button>
                 </Form>
             </Modal.Body>
             <Modal.Footer className="justify-content-center">
@@ -639,7 +671,7 @@ const ListContent = (props) => {
                 <Button size="lg" className="ps-22 pe-22" onClick={EditClose}>Cancel</Button>
             </Modal.Footer>
         </Modal>
-    </>
+    </Container>
     );
 }
 
