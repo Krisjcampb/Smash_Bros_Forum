@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Container, Row, Col, Button, Dropdown, Modal, Table, Image } from 'react-bootstrap';
 import { FaEdit, FaTrash, FaCog } from 'react-icons/fa';
+import { BsArrowUp, BsArrowDown } from 'react-icons/bs';
+import { PiArrowUpBold, PiArrowDownBold } from "react-icons/pi";
 import Form from 'react-bootstrap/Form'
 
 function UserComments(props) {
@@ -18,6 +20,10 @@ function UserComments(props) {
     const [banReason, setBanReason] = useState('')
     const [banDuration, setBanDuration] = useState('');
     const [isPermanentBan, setIsPermanentBan] = useState(false);
+    const [likedStatus, setLikedStatus] = useState({})
+    const [dislikedStatus, setDislikedStatus] = useState({})
+    const [likesdislikes, setNetLikesDislikes] = useState([])
+    const [initialComments, setInitialComments] = useState([]);
     const { userRole, userId, forumContent } = props;
     const location = useLocation();
     const contentInputRef = useRef(null);
@@ -155,6 +161,133 @@ function UserComments(props) {
         }
     };
 
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [likecount, dislikecount] = await Promise.all([
+                    fetch('http://localhost:5000/commentlikes'),
+                    fetch('http://localhost:5000/commentdislikes'),
+                ])
+                const likedata = await likecount.json();
+                const dislikedata = await dislikecount.json();
+
+                const netLikesToDislikes = likedata.map((like) => ({
+                    comment_id: like.comment_id,
+                    like_count: like.like_count,
+                    dislike_count: 0,
+                }));
+                dislikedata.forEach((dislike) => {
+                    const index = netLikesToDislikes.findIndex((item) => item.comment_id === dislike.comment_id);
+                    if (index !== -1) {
+                        netLikesToDislikes[index].dislike_count = dislike.dislike_count;
+                    } else {
+                        netLikesToDislikes.push({
+                            comment_id: dislike.comment_id,
+                            like_count: 0,
+                            dislike_count: dislike.dislike_count,
+                        });
+                    }
+                });
+                const netLikesDislikes = netLikesToDislikes.map((item) => ({
+                    comment_id: item.comment_id,
+                    net_likes: item.like_count - item.dislike_count,
+                }));
+                setNetLikesDislikes(netLikesDislikes)
+                console.log("likes: ", likedata)
+                console.log("likes and dislikes: ", netLikesDislikes)
+            }
+            catch (err) {
+                console.error(err.message)
+            }
+        }
+        fetchData();
+
+    }, [likedStatus, dislikedStatus])
+
+    const handleLike = async (comment_id) => {
+        console.log("Hello World", userId)
+        try {
+            let isCurrentlyLiked = likedStatus[comment_id] || false;
+
+            console.log("Is Currently Liked?: ", likedStatus[comment_id])
+
+            setLikedStatus(prevStatus => {
+                console.log("Previous Status:", prevStatus);
+                return {
+                    ...prevStatus,
+                    [comment_id]: !isCurrentlyLiked
+                };
+            });
+            console.log(likedStatus[comment_id])
+            
+            setDislikedStatus(prevStatus => ({
+                ...prevStatus,
+                [comment_id]: false
+            }));
+
+            setInitialComments(prevComments =>
+                prevComments.map(comment =>
+                    comment.comment_id === comment_id
+                        ? { ...comment, type: isCurrentlyLiked ? null : 'like' }
+                        : comment
+                )
+            );
+            // console.log("Initial Posts: ", initialposts)
+
+            const response = await fetch('http://localhost:5000/commentlikes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId, comment_id }),
+            });
+
+            if (!response.ok) {
+                console.error('Error liking post:', await response.json().error);
+            }
+        } catch (error) {
+            console.error('Error liking post:', error);
+        }
+    };
+
+    const handleDislike = async (comment_id) => {
+        try {
+            let isCurrentlyDisliked = dislikedStatus[comment_id] || false;
+
+            setDislikedStatus(prevStatus => ({
+                ...prevStatus,
+                [comment_id]: !isCurrentlyDisliked
+            }));
+            
+            setLikedStatus(prevStatus => ({
+                ...prevStatus,
+                [comment_id]: false
+            }));
+
+            // setInitialPosts(prevComments =>
+            //     prevComments.map(comment =>
+            //         comment.comment_id === comment_id
+            //             ? { ...comment, type: isCurrentlyDisliked ? null : 'dislike' }
+            //             : comment
+            //     )
+            // );
+
+            const response = await fetch('http://localhost:5000/commentdislikes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId, comment_id }),
+            });
+
+            if (!response.ok) {
+                console.error('Error disliking post:', await response.json().error);
+            }
+        } catch (error) {
+            console.error('Error disliking post:', error);
+        }
+    };
+
     const getProfileImageUrl = (characterName, selectedSkin) => {
         if (!characterName) {
             return '/path/to/default/profile_image.png';
@@ -205,26 +338,57 @@ function UserComments(props) {
                 {comments.sort((a, b) => a.comment_id - b.comment_id).map((e) => (
                     <Container key={e.comment_id} className='square bg-secondary rounded ps-24 pb-8 pt-16 m-24 ms-128 me-128 border border-dark text-dark'>
                         <Row className="align-items-start">
-                            {/* Profile image and username */}
-                            <Col xs={12} md={2} className="d-flex flex-column align-items-center text-center ">
-                                <Link to={`/userprofile/${e.username}/${e.users_id}`} className="text-decoration-none text-dark">
-                                    <strong>{e.username}</strong>
-                                </Link>
-                                <Image
-                                    src={getProfileImageUrl(e.character_name, e.selected_skin)}
-                                    alt="User Profile"
-                                    rounded
-                                    style={{ width: '80px', height: '80px' }}
-                                />
+                            <Col xs="auto" className="d-flex align-items-center">
+                                <div className="d-flex flex-column align-items-center me-8">
+                                    <Button 
+                                        variant={
+                                            likedStatus[e.comment_id] !== undefined
+                                                ? likedStatus[e.comment_id] 
+                                                    ? "success"
+                                                    : "outline-success"
+                                                : initialposts.find(item => item.comment_id === e.comment_id && item.type === 'like')
+                                                    ? "success"
+                                                    : "outline-success"
+                                        } 
+                                        className="ps-8 pe-8 pt-4 pb-4" onClick={() => handleLike(e.comment_id)}>
+                                        <PiArrowUpBold size={12}/>
+                                    </Button>
+                                    {/* <span className="my-1">{e.votes || 0}</span> Vote Count */}
+                                    <span style={{ margin: '0 5px' }}>
+                                        {likesdislikes.find(item => item.comment_id === e.comment_id)?.net_likes || 0}
+                                    </span>
+                                    <Button 
+                                        variant={ 
+                                            dislikedStatus[e.thread_id] !== undefined 
+                                                ? dislikedStatus[e.thread_id] 
+                                                    ? "danger"
+                                                    : "outline-danger"
+                                                : initialposts.find(item => item.post_id === e.thread_id && item.type === 'dislike') 
+                                                    ? "danger"
+                                                    : "outline-danger"
+                                            }
+                                        className="ps-8 pe-8 pt-4 pb-4" onClick={() => handleDislike(e.comment_id)}>
+                                        <PiArrowDownBold size={12}/>
+                                    </Button>
+                                </div>
+                                
+                                <div className="d-flex flex-column align-items-center text-center">
+                                    <Link to={`/userprofile/${e.username}/${e.users_id}`} className="text-decoration-none text-dark">
+                                        <strong>{e.username}</strong>
+                                    </Link>
+                                    <Image
+                                        src={getProfileImageUrl(e.character_name, e.selected_skin)}
+                                        alt="User Profile"
+                                        rounded
+                                        style={{ width: '80px', height: '80px' }}
+                                    />
+                                </div>
                             </Col>
-                            
-                            {/* Comment and time posted */}
+
                             <Col xs={12} md={10} className="d-flex flex-column justify-content-between">
                                 <div className="d-flex justify-content-between">
                                     <div></div>
-                                    <strong className="text-end">
-                                        {updatedNums(e.timeposted)}
-                                    </strong>
+                                    <strong className="text-end">{updatedNums(e.timeposted)}</strong>
                                 </div>
                                 <div className="pt-8 p-4">
                                     {e.comment}
@@ -232,7 +396,6 @@ function UserComments(props) {
                             </Col>
                         </Row>
 
-                        {/* Row for buttons (Edit/Delete/Moderation) */}
                         <Row className="mt-3 pt-24">
                             <Col className="d-flex align-items-center">
                                 {UsersCommentCheck(e.users_id) && (
@@ -305,6 +468,7 @@ function UserComments(props) {
                     </Modal.Footer>
                 </Form>
             </Modal>
+
             {/* Delete Comment Modal */}
             <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
                 <Form onSubmit={(e) => {
@@ -324,6 +488,7 @@ function UserComments(props) {
                     </Modal.Footer>
                 </Form>
             </Modal>
+
             {/*Edit History Modal */}
             <Modal show={showHistoryModal} onHide={() => setShowHistoryModal(false)} size="xl">
                 <Modal.Header closeButton>
@@ -372,6 +537,7 @@ function UserComments(props) {
                     </Button>
                 </Modal.Footer>
             </Modal>
+            
             {/* Ban User Modal */}
             <Modal show={showBanUserModal} onHide={() => setShowBanUserModal(false)}>
                 <Form onSubmit={(e) => {

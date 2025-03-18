@@ -564,6 +564,8 @@ app.get('/threadcontent/:userid', async (req, res) => {
         res.status(500).json({ error: 'An error occurred while getting the thread content.' });
     }
 })
+
+//FORUM CONTENT LIKES AND DISLIKES
 app.post('/forumlikes', async (req, res) => {
     const {userid, thread_id} = req.body
 
@@ -665,6 +667,7 @@ app.get('/userlikesdislikes', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 })
+
 //////////////////////////////// FORUM COMMENTS ////////////////////////////////////////
 
 app.post('/forumcomments', async (req, res) => {
@@ -823,6 +826,139 @@ server.listen(5000, () => {
 
 });
 
+//FORUM COMMENT LIKES AND DISLIKES
+app.post('/commentlikes', async (req, res) => {
+    const {userId, comment_id} = req.body
+    try {
+        const like = await pool.query('SELECT * FROM commentlikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
+
+        if (like.rows.length > 0) {
+            await pool.query(`DELETE FROM commentlikes WHERE user_id = $1 AND comment_id = $2`, [userId, comment_id])
+            return res.status(200).send('Comment like removed');
+        }
+
+        const dislike = await pool.query('SELECT * FROM commentdislikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
+
+        if (dislike.rows.length > 0) {
+            await pool.query(`DELETE FROM commentdislikes WHERE user_id = $1 AND comment_id = $2`, [userId, comment_id])
+        }
+
+        await pool.query('INSERT INTO commentlikes (user_id, comment_id) VALUES ($1, $2)', [userId, comment_id]);
+        res.status(200).json({ message: 'Post liked successfully.' });
+    }
+    catch (error) {
+        console.error('Error liking post:', error);
+        res.status(500).json({ error: 'An error occurred while liking the post.' });
+    }
+})
+
+app.post('/commentdislikes', async (req, res) => {
+    const { userId, comment_id} = req.body;
+
+    try {
+        const dislike = await pool.query('SELECT * FROM commentdislikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
+
+        if (dislike.rows.length > 0) {
+            await pool.query(`DELETE FROM commentdislikes WHERE user_id = $1 AND comment_id = $2`, [userId, comment_id])
+            return res.status(200).send('Dislike removed');
+        }
+
+        const like = await pool.query('SELECT * FROM commentlikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
+
+        if (like.rows.length > 0) {
+            await pool.query(`DELETE FROM commentlikes WHERE user_id = $1 AND comment_id = $2`, [userId, comment_id])
+        }
+
+        await pool.query('INSERT INTO commentdislikes (user_id, comment_id) VALUES ($1, $2)', [userId, comment_id]);
+
+        res.status(200).json({ message: 'Post disliked successfully.' });
+    } catch (error) {
+        console.error('Error disliking post:', error);
+        res.status(500).json({ error: 'An error occurred while disliking the post.' });
+    }
+
+})
+
+app.get('/commentlikes', async (req, res) => {
+    try {
+        const likes = await pool.query(
+        `SELECT comment_id, COUNT(*) AS like_count
+        FROM commentlikes
+        GROUP BY comment_id;
+        `)
+        const result = likes.rows;
+
+        res.json(result)
+
+    } catch (err) {
+        console.error(err.message)
+    }
+})
+
+app.get('/commentdislikes', async (req, res) => {
+    try {
+        const dislikes = await pool.query(
+        `SELECT comment_id, COUNT(*) AS dislike_count
+        FROM commentdislikes
+        GROUP BY comment_id;
+        `)
+        const result = dislikes.rows;
+
+        res.json(result)
+
+    } catch (err) {
+        console.error(err.message)
+    }
+})
+
+app.get('/forumlikes', async (req, res) => {
+    try {
+        const likes = await pool.query(
+        `SELECT comment_id, COUNT(*) AS like_count
+        FROM commentlikes
+        GROUP BY comment_id;
+        `)
+        const result = likes.rows;
+
+        res.json(result)
+
+    } catch (err) {
+        console.error(err.message)
+    }
+})
+
+app.get('/forumdislikes', async (req, res) => {
+    try {
+        const dislikes = await pool.query(
+        `SELECT post_id, COUNT(*) AS dislike_count
+        FROM dislikes
+        GROUP BY post_id;
+        `)
+        const result = dislikes.rows;
+
+        res.json(result)
+
+    } catch (err) {
+        console.error(err.message)
+    }
+})
+
+app.get('/userlikesdislikes', async (req, res) => {
+
+    const userid = req.query.userid;
+    try {
+        const likes = await pool.query(`SELECT post_id FROM likes WHERE user_id = $1`, [userid])
+        const dislikes = await pool.query(`SELECT post_id FROM dislikes WHERE user_id = $1`, [userid])
+
+        const result = [
+            ...likes.rows.map(like => ({ thread_id: like.post_id, type: 'like' })),
+            ...dislikes.rows.map(dislike => ({ thread_id: dislike.post_id, type: 'dislike' }))
+        ];
+        res.json(result)
+    } catch (err) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+})
 //////////////////////////////// RESET PASSWORD //////////////////////////////////////
 
 app.post('/passwordreset', async (req, res) => {

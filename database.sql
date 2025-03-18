@@ -185,3 +185,25 @@ FULL OUTER JOIN (
     GROUP BY post_id
 ) d ON l.post_id = d.post_id
 WHERE forumcontent.thread_id = COALESCE(l.post_id, d.post_id);
+
+CREATE TABLE commentlikes (
+    commentlikes_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    comment_id INTEGER REFERENCES forumcomments(comment_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (user_id, comment_id)
+);
+
+CREATE INDEX idx_commentlikes_user ON commentlikes(user_id);
+CREATE INDEX idx_commentlikes_comment ON commentlikes(comment_id);
+
+CREATE TABLE commentdislikes (
+    commentdislikes_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    comment_id INTEGER REFERENCES forumcomments(comment_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (user_id, comment_id)
+);
+
+CREATE INDEX idx_commentdislikes_user ON commentdislikes(user_id);
+CREATE INDEX idx_commentdislikes_comment ON commentdislikes(comment_id);
