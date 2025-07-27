@@ -64,10 +64,8 @@ function Homepage() {
             const newThread = await response.json();
             const { thread_id } = newThread;
 
-            // Refresh the list of posts
             setRefreshKey(prevKey => prevKey + 1);
 
-            // Image is now associated with thread ID
             if (file) {
                 const formData = new FormData();
                 formData.append('image', file);
@@ -92,7 +90,7 @@ function Homepage() {
     };
 
     return (
-        <Container>
+        <Container className='content-container'>
             <Container className='d-flex flex-column'>
                 <Row className='mt-24 ms-24 me-24 text-center'>
                     <Col>

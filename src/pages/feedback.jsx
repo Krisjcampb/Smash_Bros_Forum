@@ -10,7 +10,7 @@ function Feedback() {
 
     const changeProblem = (selectedissue) => {
         setProblem(selectedissue)
-        setErrorMessage("") // Clear error when a selection is made
+        setErrorMessage("")
     }
 
     const SubmitFeedback = async () => {

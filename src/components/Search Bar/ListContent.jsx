@@ -497,125 +497,125 @@ const ListContent = (props) => {
         return <div className='fs-4 text-center mt-16'>Loading...</div>
     }
 
-    return (
-    <Container style={{ maxWidth: '80%'}} classname='mx-auto'>
-        <Row className='mt-16 ms-auto me-auto mb-16 mw-25'>
-            <Col>
-            <Form.Control
-                type='text'
-                placeholder='Search'
-                className='text-center'
-                onChange={handleSearch}
-            />
-            </Col>
-            <Col>
-            <Form.Select value={sortBy} onChange={handleSortChange} className='text-center'>
-                <option value='newest'>Sort by Newest</option>
-                <option value='oldest'>Sort by Oldest</option>
-                <option value='mostPopular'>Sort by Most Popular</option>
-                <option value='Top'>Sort by Top Liked</option>
-            </Form.Select>
-            </Col>
-        </Row>
-        <div className='justify-content-center' style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap'}}>
-            {list.map((e, index) => (
-            <div key={index} className="position-relative" style={{ marginBottom: '8px', marginLeft: '4px', marginRight: '4px' }}>
-                <Card style={{ width: '25rem', height: '26.5rem', transition: 'transform 0.2s', zIndex: 0 }} className="hover-card">
-                    <Card.Body>
-                        <NavLink to={`/threads/${e.thread_id}`} className='nav-link' state={{ forumContent: e }}>
-                            <Card.Img
-                                height={250}
-                                src={e.filepath ? e.filepath.slice(6) : 'default_image_path'}
-                            />
-                            <Card.Title style={{ fontSize: '22px' }}>{e.title}</Card.Title>
-                            <Card.Text className='text-truncate-container' style={{fontSize: '16px', lineHeight: '1.3'}}>
-                                {e.content}
-                            </Card.Text>
-                        </NavLink>
-                        <div className='position-absolute bottom-0 end-0 pe-4' style={{ fontWeight: 'bold', fontSize: '15px' }}>
-                            {formatPostDate(e.postdate)} 
-                            <NavLink to={`/userprofile/${e.username}/${e.users_id}`} className="nav-link">{e.username}</NavLink>
-                        </div>
-                        <div className='position-absolute right-0 bottom-0 pb-4' style={{ display: 'flex', alignItems: 'center', zIndex: 1 }}>
-                            <Button
-                                variant={
-                                    likedStatus[e.thread_id] !== undefined
-                                        ? likedStatus[e.thread_id] 
-                                            ? "success"
-                                            : "outline-success"
-                                        : initialposts.find(item => item.thread_id === e.thread_id && item.type === 'like')
-                                            ? "success"
-                                            : "outline-success"
-                                }
-                                className={likedStatus[e.thread_id] ? "success" : "outline-success"}
-                                onClick={() => handleLike(e.thread_id)}
-                            >
-                                <BsArrowUp />
-                            </Button>
+return (
+  <Container fluid className="d-flex justify-content-center px-0">
+    <div className="content-box">
+      <Row className='mt-16 mb-16'>
+        <Col>
+          <Form.Control
+            type='text'
+            placeholder='Search'
+            className='text-center'
+            onChange={handleSearch}
+          />
+        </Col>
+        <Col>
+          <Form.Select value={sortBy} onChange={handleSortChange} className='text-center'>
+            <option value='newest'>Sort by Newest</option>
+            <option value='oldest'>Sort by Oldest</option>
+            <option value='mostPopular'>Sort by Most Popular</option>
+            <option value='Top'>Sort by Top Liked</option>
+          </Form.Select>
+        </Col>
+      </Row>
 
-                            <span style={{ margin: '0 5px' }}>
-                                {likesdislikes.find(item => item.post_id === e.thread_id)?.net_likes || 0}
-                            </span>
+      <div className='d-flex justify-content-center flex-wrap'>
+        {list.map((e, index) => (
+          <div key={index} className="position-relative m-1">
+            <Card style={{ width: '25rem', height: '26.5rem', transition: 'transform 0.2s' }} className="hover-card">
+              <Card.Body>
+                <NavLink to={`/threads/${e.thread_id}`} className='nav-link' state={{ forumContent: e }}>
+                  <Card.Img
+                    height={250}
+                    src={e.filepath ? e.filepath.slice(6) : 'default_image_path'}
+                  />
+                  <Card.Title style={{ fontSize: '22px' }}>{e.title}</Card.Title>
+                  <Card.Text className='text-truncate-container' style={{ fontSize: '16px', lineHeight: '1.3' }}>
+                    {e.content}
+                  </Card.Text>
+                </NavLink>
 
-                            <Button
-                                variant={
-                                    dislikedStatus[e.thread_id] !== undefined 
-                                        ? dislikedStatus[e.thread_id] 
-                                            ? "danger"
-                                            : "outline-danger"
-                                        : initialposts.find(item => item.post_id === e.thread_id && item.type === 'dislike') 
-                                            ? "danger"
-                                            : "outline-danger"
-                                }
-                                onClick={() => handleDislike(e.thread_id)}
-                            >
-                                <BsArrowDown />
-                            </Button>
-                        </div>
-                    </Card.Body>
-                </Card>
-                {
-                    UserPermissions(userRole, e.users_id) && (
-                        <div className='action-menu position-absolute' style={{ top: '5px', right: '5px', zIndex: 1050 }}>
-                            <Button variant="light" onClick={() => toggleMenu(index)}>
-                                <BsThreeDotsVertical />
-                            </Button>
-                            {showMenu === index && (
-                                <div 
-                                    className='position-absolute bg-light border rounded p-2' 
-                                    style={{ zIndex: 1050, top: '100%', right: 0, minWidth: '8rem' }}
-                                >
-                                    <ul className="list-unstyled mb-0">
-                                        {(usersId === e.users_id) && (userRole !== 'admin' && userRole !== 'moderator') && (
-                                            <>
-                                                <li className="p-2">
-                                                    <button className="btn btn-link" onClick={() => EditOpen(e)}>Edit Thread</button>
-                                                </li>
-                                                <li className="p-2">
-                                                    <button className="btn btn-link text-danger" onClick={() => {DeleteOpen(); setCurrentThread(e)}}>Delete Thread</button>
-                                                </li>
-                                            </>
-                                        )}
-                                        {(userRole === 'moderator' || userRole === 'admin') && (
-                                            <>
-                                                <li className="p-2">
-                                                    <button className="btn btn-link" onClick={() => {EditOpen(e); setCurrentThread(e)}}>Edit as Moderator</button>
-                                                </li>
-                                                <li className="p-2">
-                                                    <button className="btn btn-link text-danger" onClick={() => {DeleteOpen(); setCurrentThread(e)}}>Delete as Moderator</button>
-                                                </li>
-                                            </>
-                                        )}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    )
-                }
-            </div>
-            ))}
-            {loading && <div>Loading...</div>}
-        </div>
+                <div className='position-absolute bottom-0 end-0 pe-4' style={{ fontWeight: 'bold', fontSize: '15px' }}>
+                  {formatPostDate(e.postdate)}
+                  <NavLink to={`/userprofile/${e.username}/${e.users_id}`} className="nav-link">{e.username}</NavLink>
+                </div>
+
+                <div className='position-absolute right-0 bottom-0 pb-4' style={{ display: 'flex', alignItems: 'center' }}>
+                  <Button
+                    variant={
+                      likedStatus[e.thread_id] !== undefined
+                        ? likedStatus[e.thread_id]
+                          ? "success"
+                          : "outline-success"
+                        : initialposts.find(item => item.thread_id === e.thread_id && item.type === 'like')
+                          ? "success"
+                          : "outline-success"
+                    }
+                    onClick={() => handleLike(e.thread_id)}
+                    className='me-4 fixed-size-button'
+                  >
+                    <BsArrowUp />
+                  </Button>
+                  <span className="mx-2">
+                    {likesdislikes.find(item => item.post_id === e.thread_id)?.net_likes || 0}
+                  </span>
+                  <Button
+                    variant={
+                      dislikedStatus[e.thread_id] !== undefined
+                        ? dislikedStatus[e.thread_id]
+                          ? "danger"
+                          : "outline-danger"
+                        : initialposts.find(item => item.post_id === e.thread_id && item.type === 'dislike')
+                          ? "danger"
+                          : "outline-danger"
+                    }
+                    onClick={() => handleDislike(e.thread_id)}
+                    className='ms-4 fixed-size-button'
+                  >
+                    <BsArrowDown />
+                  </Button>
+                </div>
+              </Card.Body>
+            </Card>
+
+            {UserPermissions(userRole, e.users_id) && (
+              <div className='action-menu position-absolute' style={{ top: '5px', right: '5px', zIndex: 1050 }}>
+                <Button variant="light three-dot-button" onClick={() => toggleMenu(index)}>
+                  <BsThreeDotsVertical />
+                </Button>
+                {showMenu === index && (
+                  <div className='position-absolute bg-light border rounded p-2 dropdown-animation action-dropdown' style={{ zIndex: 1050, top: '100%', right: 0, minWidth: '8rem' }}>
+                    <ul className="list-unstyled mb-0">
+                      {(usersId === e.users_id) && (userRole !== 'admin' && userRole !== 'moderator') && (
+                        <>
+                          <li className="p-2">
+                            <button className="btn btn-link" onClick={() => EditOpen(e)}>Edit Thread</button>
+                          </li>
+                          <li className="p-2">
+                            <button className="btn btn-link text-danger" onClick={() => { DeleteOpen(); setCurrentThread(e); }}>Delete Thread</button>
+                          </li>
+                        </>
+                      )}
+                      {(userRole === 'moderator' || userRole === 'admin') && (
+                        <>
+                          <li className="p-2">
+                            <button className="btn btn-link" onClick={() => { EditOpen(e); setCurrentThread(e); }}>Edit as Moderator</button>
+                          </li>
+                          <li className="p-2">
+                            <button className="btn btn-link text-danger" onClick={() => { DeleteOpen(); setCurrentThread(e); }}>Delete as Moderator</button>
+                          </li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+        {loading && <div>Loading...</div>}
+      </div>
+    </div>
         {/* Delete Thread Modal */}
         <Modal show={showDeleteModal} onHide={DeleteClose} size="md" style={{ color: '#000000' }} centered>
             <Modal.Header className="position-relative">

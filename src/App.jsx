@@ -2,6 +2,8 @@ import Header from './components/Header/Header'
 import Footer from './components/Footer/Footer'
 import About from './pages/about'
 import Contact from './pages/contact'
+import Privacy from './pages/privacy'
+import Terms from './pages/terms'
 import SignIn from './pages/signin'
 import Homepage from './pages/homepage'
 import Register from './pages/register'
@@ -37,11 +39,14 @@ export default function App() {
                 <Container fluid className='p-0 row-flex Container-home'>
                     <Router>
                         <UserProvider>
+                            <div className="full-bg" />
                             <Header />
                             <Routes>
                                 <Route path='/' element={<Homepage />} />
                                 <Route path='/about' element={<About />} />
                                 <Route path='/contact' element={<Contact />} />
+                                <Route path='/privacy' element={<Privacy />} />
+                                <Route path ='/terms' element={<Terms />} />
                                 <Route path='/signin' element={<SignIn />} />
                                 <Route path='/register' element={<Register />} />
                                 <Route path='/userlist' element={<Userlist />} />

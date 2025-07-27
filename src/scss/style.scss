@@ -60,7 +60,7 @@ $container-max-widths: (
   lg: 960px,
   xl: 1200px,
   xxl: 1320px,
-  xxxl: 1680px,
+  xxxl: 1400px,
 ) !default;
 
 $spacer: 1rem !default;
@@ -192,7 +192,7 @@ $spacers: map-merge(
 }
 
 .truncate-text {
-    max-width: 200px; /* Set width as needed */
+    max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -201,15 +201,15 @@ $spacers: map-merge(
 .expanded-text {
     white-space: normal;
     cursor: pointer;
-    width: 200px; /* Set width as needed */
+    width: 200px;
 }
 
 .edit-timestamp {
-    width: 125px; /* Set width as needed */
+    width: 125px;
   }
 
 .edited-by {
-    width: 125px; /* Set width as needed */
+    width: 125px;
     max-width: 220px;
 }
 
@@ -277,16 +277,27 @@ $spacers: map-merge(
     padding: 20px;
     border-radius: 5px;
   }
+
+  .three-dot-button {
+    background-color: #f1f1f1;
+    color: #000000;
+    border: none;
+
+    &:hover {
+      background-color: #e2e6ea;
+    }
+  }
+
+  .action-dropdown {
+    background-color: #ffffff;
+    color: #000000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
 }
 
 .dark-theme {
   background-color: #222222;
   color: #ffffff;
-
-//   button {
-//     background-color: #555555;
-//     color: #ffffff;
-//   }
 
   .container {
     background-color: #333333;
@@ -298,11 +309,45 @@ $spacers: map-merge(
     background-color: #444444;
     color: #ffffff;
   }
+
+  .three-dot-button {
+    background-color: #444444;
+    color: #ffffff;
+    border: none;
+
+    &:hover {
+      background-color: #555555;
+    }
+  }
+
+  .action-dropdown {
+    background-color: #2b2b2b;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+  }
+}
+
+.fixed-size-button {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-header .btn-close {
     margin-bottom:14px !important;
     margin-right:2px !important;
+}
+
+.dropdown-animation {
+  animation: fadeIn 0.15s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .profile-container {
@@ -486,5 +531,486 @@ $spacers: map-merge(
   padding: 10px 15px;
   border-top: 1px solid #ddd;
 }
+
+.comment-card {
+  background: $light;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba($dark, 0.08);
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba($primary, 0.1);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  
+  &:hover {
+    box-shadow: 0 4px 20px rgba($dark, 0.12);
+    transform: translateY(-2px);
+  }
+
+  .comment-header {
+    background: linear-gradient(to right, $primary, darken($primary, 5%));
+    color: $light;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    .comment-meta {
+      font-size: 0.85rem;
+      color: rgba($light, 0.9);
+    }
+  }
+
+  .comment-body {
+    padding: 1.25rem;
+    display: flex;
+    
+    .vote-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-right: 1rem;
+      min-width: 40px;
+      
+      .vote-count {
+        font-weight: 600;
+        margin: 0.5rem 0;
+        color: $primary;
+        font-size: 0.95rem;
+      }
+    }
+    
+    .user-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-right: 1.5rem;
+      
+      .user-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid $secondary;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          transform: scale(1.05);
+          border-color: lighten($secondary, 10%);
+        }
+      }
+      
+      .username {
+        font-weight: 600;
+        color: $primary;
+        font-size: 0.9rem;
+        max-width: 80px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+    
+    .comment-content {
+      flex: 1;
+      line-height: 1.6;
+      color: darken($primary, 10%);
+      font-size: 0.95rem;
+      
+      .mention-highlight {
+        background-color: rgba($secondary, 0.3);
+        color: darken($primary, 15%);
+        padding: 0.1rem 0.3rem;
+        border-radius: 4px;
+        font-weight: 500;
+      }
+    }
+  }
+
+    .comment-footer {
+    padding: 0.5rem 1.25rem;
+    background: rgba($primary, 0.03);
+    border-radius: 0 0 8px 8px;
+    border-top: 1px solid rgba($primary, 0.1);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+
+    .footer-content {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        
+        &:not(:has(.action-buttons)) {
+        justify-content: flex-end;
+        }
+        
+        &:not(:has(.moderation-tools)) {
+        justify-content: flex-start;
+        }
+        
+        &:empty {
+        display: none;
+        }
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .moderation-tools {
+        margin-left: auto;
+    }
+
+    .action-button {
+        border: none;
+        background: none;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        
+        &.btn-edit {
+        color: $warning;
+        background: rgba($warning, 0.1);
+        
+        &:hover {
+            background: rgba($warning, 0.2);
+        }
+        }
+        
+        &.btn-delete {
+        color: $danger;
+        background: rgba($danger, 0.1);
+        
+        &:hover {
+            background: rgba($danger, 0.2);
+        }
+        }
+    }
+    }
+}
+
+.role-badge.admin {
+  background-color: #d00000;
+  color: white;
+}
+
+.role-badge.moderator {
+  background-color: #388fd6;
+  color: white;
+}
+
+.role-badge.user {
+  background-color: #6c757d;
+  color: white;
+}
+
+.vote-button {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  svg {
+    transition: all 0.2s ease;
+    color: rgba($primary, 0.5);
+  }
+  
+  &.like-button {
+    &:hover svg {
+      color: $success;
+      transform: scale(1.1);
+    }
+    
+    &.active-like svg {
+      color: $success;
+      filter: drop-shadow(0 1px 2px rgba($success, 0.3));
+    }
+  }
+  
+  &.dislike-button {
+    &:hover svg {
+      color: $danger;
+      transform: scale(1.1);
+    }
+    
+    &.active-dislike svg {
+      color: $danger;
+      filter: drop-shadow(0 1px 2px rgba($danger, 0.3));
+    }
+  }
+
+  &.active-like:hover svg,
+  &.active-dislike:hover svg {
+    filter: none !important;
+  }
+}
+
+.sort-dropdown {
+  .dropdown-toggle {
+    background: $light;
+    border: 1px solid rgba($primary, 0.2);
+    color: $primary;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 180px;
+    
+    &:after {
+      margin-left: 0.75rem;
+      color: $primary;
+    }
+    
+    &:hover {
+      background: rgba($primary, 0.05);
+    }
+  }
+}
+
+.full-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('../components/Images/smashlogo.png');
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  background-position: top left;
+  background-attachment: fixed;
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Makes all containers above background */
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.content-box {
+  width: 100%;
+  max-width: 1200px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#dropdown-sort {
+  min-width: 150px;
+  text-align: left;
+  
+  &::after {
+    margin-left: auto;
+  }
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 5px 15px rgba($dark, 0.1);
+    border-radius: 6px;
+    padding: 0.5rem 0;
+    
+    .dropdown-item {
+      padding: 0.5rem 1.25rem;
+      transition: all 0.2s ease;
+      color: $primary;
+      
+      &:hover {
+        background: rgba($secondary, 0.2);
+      }
+      
+      &.active {
+        background: rgba($secondary, 0.3);
+        font-weight: 500;
+      }
+    }
+  }
+
+.dropdown-item.active {
+  background-color: #f8f9fa;
+  color: #212529;
+  font-weight: 500;
+}
+
+.mention-highlight {
+  background-color: #343434;
+  color: #eaeaea; 
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.mention-dropdown {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 5px;
+}
+
+.mention-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.mention-item:last-child {
+    border-bottom: none;
+}
+
+.mention-item:hover, .active-mention {
+    background-color: #f8f9fa;
+}
+
+.username {
+  font-weight: 500;
+  color:#000;
+}
+
+.text-muted.small {
+  font-size: 0.8rem;
+}
+
+.register-container {
+  .register-form {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 2rem;
+    
+    @media (max-width: 576px) {
+      padding: 1.5rem;
+    }
+  }
+  
+  .form-title {
+    color: $primary;
+    margin-bottom: 1.5rem;
+    font-weight: bold;
+  }
+  
+  .form-control {
+    border: 1px solid darken($info, 10%);
+    padding: 0.75rem 1rem;
+    
+    &:focus {
+      border-color: $primary;
+      box-shadow: 0 0 0 0.25rem rgba($primary, 0.25);
+    }
+  }
+  
+  .submit-btn {
+    background-color: $primary;
+    border: none;
+    padding: 0.75rem;
+    font-weight: bold;
+    width: 100%;
+    transition: all 0.2s;
+    
+    &:hover {
+      background-color: darken($primary, 10%);
+      transform: translateY(-1px);
+    }
+  }
+  
+  .terms-links {
+    a {
+      color: $primary;
+      font-weight: bold;
+      text-decoration: underline;
+      
+      &:hover {
+        color: darken($primary, 10%);
+      }
+    }
+  }
+  
+  .password-hint {
+    font-size: 0.8rem;
+    color: gray;
+  }
+
+  
+}
+.password-toggle {
+  cursor: pointer;
+  &:hover {
+    color: $primary;
+  }
+}
+
+.password-feedback-container {
+  min-height: 1.5rem;
+  margin-top: 0.25rem;
+}
+
+.form-control-feedback {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+/* For the helper text */
+.text-muted {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.password-error-message {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.password-strength {
+  height: 4px;
+  margin-top: 4px;
+  background: gray;
+  border-radius: 2px;
+  
+  &::after {
+    content: '';
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+  
+  &.weak::after {
+    width: 25%;
+    background: $danger;
+  }
+  
+  &.medium::after {
+    width: 50%;
+    background: $warning;
+  }
+  
+  &.strong::after {
+    width: 100%;
+    background: $success;
+  }
+}
+
 
 @import "~bootstrap/scss/bootstrap";

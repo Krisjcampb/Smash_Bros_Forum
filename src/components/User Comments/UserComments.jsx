@@ -1,44 +1,69 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Container, Row, Col, Button, Dropdown, Modal, Table, Image } from 'react-bootstrap';
 import { FaEdit, FaTrash, FaCog } from 'react-icons/fa';
-import { BsArrowUp, BsArrowDown } from 'react-icons/bs';
-import { PiArrowUpBold, PiArrowDownBold } from "react-icons/pi";
-import Form from 'react-bootstrap/Form'
+import { PiArrowFatUpFill, PiArrowFatDownFill, PiArrowFatUp, PiArrowFatDown } from "react-icons/pi";
+import Form from 'react-bootstrap/Form';
 
-function UserComments(props) {
+function UserComments({ userRole, userId, forumContent, renderMentions }) {
     const [comments, setComments] = useState([]);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [showBanUserModal, setShowBanUserModal] = useState(false);
-    const [editHistory, setEditHistory] = useState([])
-    const [currComment, setCurrComment] = useState('')
-    const [content, setContent] = useState('')
-    const [commentId, setCommentId] = useState(0)
+    const [editHistory, setEditHistory] = useState([]);
+    const [currComment, setCurrComment] = useState('');
+    const [content, setContent] = useState('');
+    const [commentId, setCommentId] = useState(0);
     const [expandedRows, setExpandedRows] = useState([]);
-    const [banReason, setBanReason] = useState('')
+    const [banReason, setBanReason] = useState('');
     const [banDuration, setBanDuration] = useState('');
     const [isPermanentBan, setIsPermanentBan] = useState(false);
-    const [likedStatus, setLikedStatus] = useState({})
-    const [dislikedStatus, setDislikedStatus] = useState({})
-    const [likesdislikes, setNetLikesDislikes] = useState([])
+    const [likedStatus, setLikedStatus] = useState({});
+    const [dislikedStatus, setDislikedStatus] = useState({});
+    const [likesdislikes, setNetLikesDislikes] = useState([]);
     const [initialComments, setInitialComments] = useState([]);
-    const { userRole, userId, forumContent } = props;
-    const location = useLocation();
+    const [sortMethod, setSortMethod] = useState('newest');
+    const [showSortDropdown, setShowSortDropdown] = useState(false);
     const contentInputRef = useRef(null);
 
-    const ForumContent = location.state?.forumContent || forumContent
+    const sortOptions = [
+        { value: 'newest', label: 'Newest First' },
+        { value: 'oldest', label: 'Oldest First' },
+        { value: 'top', label: 'Top Rated' },
+        { value: 'controversial', label: 'Most Controversial' }
+    ];
 
-    //Converts date to legible format
+    const sortComments = (comments, likesData, method) => {
+        const merged = comments.map(comment => {
+            const likeInfo = likesData.find(item => item.comment_id === comment.comment_id) || { net_likes: 0 };
+            return {
+                ...comment,
+                net_likes: likeInfo.net_likes,
+                total_votes: Math.abs(likeInfo.net_likes)
+            };
+        });
+
+        switch(method) {
+            case 'newest':
+                return merged.sort((a, b) => new Date(b.timeposted) - new Date(a.timeposted));
+            case 'oldest':
+                return merged.sort((a, b) => new Date(a.timeposted) - new Date(b.timeposted));
+            case 'top':
+                return merged.sort((a, b) => b.net_likes - a.net_likes);
+            case 'controversial':
+                return merged.sort((a, b) => b.total_votes - a.total_votes);
+            default:
+                return merged;
+        }
+    };
+
     const updatedNums = (time) => {
         try {
             const parsedDate = new Date(time);
-
             if (isNaN(parsedDate)) {
                 throw new Error('Invalid date format');
             }
-        
             return new Intl.DateTimeFormat('en-US', {
                 year: '2-digit',
                 month: '2-digit',
@@ -54,19 +79,12 @@ function UserComments(props) {
     };
 
     const UserPermissions = (userRole) => {
-        if(userRole === 'admin' || userRole === 'moderator'){
-            return true;
-        }
-        return false;
-    }
+        return userRole === 'admin' || userRole === 'moderator';
+    };
 
-    //Checks if user id of comment matches user id of current user
     const UsersCommentCheck = (users_id) => {
-        if(userId === users_id){
-            return true;
-        }
-        return false;
-    }
+        return userId === users_id;
+    };
 
     const handleRowClick = (index) => {
         setExpandedRows(prevExpandedRows => {
@@ -77,29 +95,26 @@ function UserComments(props) {
             }
         });
     };
-    
+
     const getComments = useCallback(async () => {
         try {
-            const response = await fetch(`http://localhost:5000/forumcomments/${ForumContent.thread_id}`);
+            const response = await fetch(`http://localhost:5000/forumcomments/${forumContent.thread_id}`);
             const jsonData = await response.json();
             setComments(jsonData);
-            console.log("Comments: ", jsonData);
         } catch (err) {
             console.error(err.message);
         }
-    }, [ForumContent.thread_id]);
+    }, [forumContent.thread_id]);
 
     const getEditHistory = async (commentId) => {
-        console.log(commentId)
         try {
-            const response = await fetch (`http://localhost:5000/edithistory/${commentId}`)
+            const response = await fetch(`http://localhost:5000/edithistory/${commentId}`);
             const jsonData = await response.json();
-            setEditHistory(jsonData)
-            console.log(editHistory)
+            setEditHistory(jsonData);
         } catch (err) {
             console.error(err.message);
         }
-    }
+    };
     const EditComment = async () => {
         try {
             const response = await fetch(`http://localhost:5000/forumcomments/${commentId}`, {
@@ -161,65 +176,110 @@ function UserComments(props) {
         }
     };
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [likecount, dislikecount] = await Promise.all([
-                    fetch('http://localhost:5000/commentlikes'),
-                    fetch('http://localhost:5000/commentdislikes'),
-                ])
-                const likedata = await likecount.json();
-                const dislikedata = await dislikecount.json();
+    const fetchData = async () => {
+        try {
+            const [likecount, dislikecount] = await Promise.all([
+                fetch('http://localhost:5000/commentlikes'),
+                fetch('http://localhost:5000/commentdislikes'),
+            ])
+            const likedata = await likecount.json();
+            const dislikedata = await dislikecount.json();
 
-                const netLikesToDislikes = likedata.map((like) => ({
-                    comment_id: like.comment_id,
-                    like_count: like.like_count,
-                    dislike_count: 0,
-                }));
-                dislikedata.forEach((dislike) => {
-                    const index = netLikesToDislikes.findIndex((item) => item.comment_id === dislike.comment_id);
-                    if (index !== -1) {
-                        netLikesToDislikes[index].dislike_count = dislike.dislike_count;
-                    } else {
-                        netLikesToDislikes.push({
-                            comment_id: dislike.comment_id,
-                            like_count: 0,
-                            dislike_count: dislike.dislike_count,
-                        });
-                    }
-                });
-                const netLikesDislikes = netLikesToDislikes.map((item) => ({
-                    comment_id: item.comment_id,
-                    net_likes: item.like_count - item.dislike_count,
-                }));
-                setNetLikesDislikes(netLikesDislikes)
-                console.log("likes: ", likedata)
-                console.log("likes and dislikes: ", netLikesDislikes)
-            }
-            catch (err) {
-                console.error(err.message)
-            }
+            const netLikesToDislikes = likedata.map((like) => ({
+                comment_id: like.comment_id,
+                like_count: like.like_count,
+                dislike_count: 0,
+            }));
+            dislikedata.forEach((dislike) => {
+                const index = netLikesToDislikes.findIndex((item) => item.comment_id === dislike.comment_id);
+                if (index !== -1) {
+                    netLikesToDislikes[index].dislike_count = dislike.dislike_count;
+                } else {
+                    netLikesToDislikes.push({
+                        comment_id: dislike.comment_id,
+                        like_count: 0,
+                        dislike_count: dislike.dislike_count,
+                    });
+                }
+            });
+            const netLikesDislikes = netLikesToDislikes.map((item) => ({
+                comment_id: item.comment_id,
+                net_likes: item.like_count - item.dislike_count,
+            }));
+            setNetLikesDislikes(netLikesDislikes)
+            console.log("likes: ", likedata)
+            console.log("likes and dislikes: ", netLikesDislikes)
         }
-        fetchData();
+        catch (err) {
+            console.error(err.message)
+        }
+    }
 
-    }, [likedStatus, dislikedStatus])
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            fetchData();
+        }, 100);
+
+        return () => clearTimeout(timeout);
+    }, [likedStatus, dislikedStatus]);
+
+    useEffect(() => {
+        const fetchdata2 = async () => {
+            try {
+                // setLoading(true);
+                const response = await fetch(`http://localhost:5000/commentlikesdislikes?userid=${userId}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const res = await response.json();
+                console.log("res: ", res)
+                if (Array.isArray(res)) {
+                    const initialLikedStatus = {};
+                    const initialDislikedStatus = {};
+
+                    res.forEach(item => {
+                        if (item.type === 'like') {
+                            initialLikedStatus[item.comment_id] = true;
+                            initialDislikedStatus[item.comment_id] = false;
+                        } else if (item.type === 'dislike') {
+                            initialLikedStatus[item.comment_id] = false;
+                            initialDislikedStatus[item.comment_id] = true;
+                        }
+                    });
+
+                    console.log("Initial Liked Status: ", initialLikedStatus);
+                    console.log("Initial Disliked Status: ", initialDislikedStatus);
+
+                    setLikedStatus(initialLikedStatus);
+                    setDislikedStatus(initialDislikedStatus);
+
+                    setInitialComments(res);
+                } else {
+                    console.error('Response is not an array:', res);
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                // setLoading(false);
+            }
+        };
+
+        if (userId) {
+            fetchdata2();
+        }
+    }, [userId]);
+    
 
     const handleLike = async (comment_id) => {
-        console.log("Hello World", userId)
         try {
-            let isCurrentlyLiked = likedStatus[comment_id] || false;
+            const initialType = initialComments.find(c => c.comment_id === comment_id)?.type;
+            const isCurrentlyLiked = likedStatus[comment_id] ?? (initialType === 'like');
 
-            console.log("Is Currently Liked?: ", likedStatus[comment_id])
+            setLikedStatus(prevStatus => ({
+                ...prevStatus,
+                [comment_id]: !isCurrentlyLiked
+            }));
 
-            setLikedStatus(prevStatus => {
-                console.log("Previous Status:", prevStatus);
-                return {
-                    ...prevStatus,
-                    [comment_id]: !isCurrentlyLiked
-                };
-            });
-            console.log(likedStatus[comment_id])
-            
             setDislikedStatus(prevStatus => ({
                 ...prevStatus,
                 [comment_id]: false
@@ -232,18 +292,17 @@ function UserComments(props) {
                         : comment
                 )
             );
-            // console.log("Initial Posts: ", initialposts)
 
             const response = await fetch('http://localhost:5000/commentlikes', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, comment_id }),
             });
 
             if (!response.ok) {
                 console.error('Error liking post:', await response.json().error);
+            } else {
+                fetchData();
             }
         } catch (error) {
             console.error('Error liking post:', error);
@@ -252,7 +311,8 @@ function UserComments(props) {
 
     const handleDislike = async (comment_id) => {
         try {
-            let isCurrentlyDisliked = dislikedStatus[comment_id] || false;
+            const initialType = initialComments.find(c => c.comment_id === comment_id)?.type;
+            const isCurrentlyDisliked = dislikedStatus[comment_id] ?? (initialType === 'dislike');
 
             setDislikedStatus(prevStatus => ({
                 ...prevStatus,
@@ -264,13 +324,13 @@ function UserComments(props) {
                 [comment_id]: false
             }));
 
-            // setInitialPosts(prevComments =>
-            //     prevComments.map(comment =>
-            //         comment.comment_id === comment_id
-            //             ? { ...comment, type: isCurrentlyDisliked ? null : 'dislike' }
-            //             : comment
-            //     )
-            // );
+            setInitialComments(prevComments =>
+                prevComments.map(comment =>
+                    comment.comment_id === comment_id
+                        ? { ...comment, type: isCurrentlyDisliked ? null : 'dislike' }
+                        : comment
+                )
+            );
 
             const response = await fetch('http://localhost:5000/commentdislikes', {
                 method: 'POST',
@@ -282,6 +342,9 @@ function UserComments(props) {
 
             if (!response.ok) {
                 console.error('Error disliking post:', await response.json().error);
+            }
+            else {
+                fetchData();
             }
         } catch (error) {
             console.error('Error disliking post:', error);
@@ -328,112 +391,140 @@ function UserComments(props) {
     }, [getComments]);
 
     useEffect(() => {
-        if(showEditModal && contentInputRef.current) {
+        if (typeof window !== 'undefined' && showEditModal && contentInputRef.current) {
             contentInputRef.current.focus();
         }
-    }, [showEditModal])
-    return (
-        <>
-            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
-                {comments.sort((a, b) => a.comment_id - b.comment_id).map((e) => (
-                    <Container key={e.comment_id} className='square bg-secondary rounded ps-24 pb-8 pt-16 m-24 ms-128 me-128 border border-dark text-dark'>
-                        <Row className="align-items-start">
-                            <Col xs="auto" className="d-flex align-items-center">
-                                <div className="d-flex flex-column align-items-center me-8">
-                                    <Button 
-                                        variant={
-                                            likedStatus[e.comment_id] !== undefined
-                                                ? likedStatus[e.comment_id] 
-                                                    ? "success"
-                                                    : "outline-success"
-                                                : initialposts.find(item => item.comment_id === e.comment_id && item.type === 'like')
-                                                    ? "success"
-                                                    : "outline-success"
-                                        } 
-                                        className="ps-8 pe-8 pt-4 pb-4" onClick={() => handleLike(e.comment_id)}>
-                                        <PiArrowUpBold size={12}/>
-                                    </Button>
-                                    {/* <span className="my-1">{e.votes || 0}</span> Vote Count */}
-                                    <span style={{ margin: '0 5px' }}>
-                                        {likesdislikes.find(item => item.comment_id === e.comment_id)?.net_likes || 0}
-                                    </span>
-                                    <Button 
-                                        variant={ 
-                                            dislikedStatus[e.thread_id] !== undefined 
-                                                ? dislikedStatus[e.thread_id] 
-                                                    ? "danger"
-                                                    : "outline-danger"
-                                                : initialposts.find(item => item.post_id === e.thread_id && item.type === 'dislike') 
-                                                    ? "danger"
-                                                    : "outline-danger"
-                                            }
-                                        className="ps-8 pe-8 pt-4 pb-4" onClick={() => handleDislike(e.comment_id)}>
-                                        <PiArrowDownBold size={12}/>
-                                    </Button>
-                                </div>
-                                
-                                <div className="d-flex flex-column align-items-center text-center">
-                                    <Link to={`/userprofile/${e.username}/${e.users_id}`} className="text-decoration-none text-dark">
-                                        <strong>{e.username}</strong>
-                                    </Link>
-                                    <Image
-                                        src={getProfileImageUrl(e.character_name, e.selected_skin)}
-                                        alt="User Profile"
-                                        rounded
-                                        style={{ width: '80px', height: '80px' }}
-                                    />
-                                </div>
-                            </Col>
+    }, [showEditModal]);
 
-                            <Col xs={12} md={10} className="d-flex flex-column justify-content-between">
-                                <div className="d-flex justify-content-between">
-                                    <div></div>
-                                    <strong className="text-end">{updatedNums(e.timeposted)}</strong>
-                                </div>
-                                <div className="pt-8 p-4">
-                                    {e.comment}
-                                </div>
-                            </Col>
-                        </Row>
+return (
+  <>
+    <div className="d-flex justify-content-end mb-4">
+      <Dropdown className="sort-dropdown">
+        <Dropdown.Toggle variant="outline-secondary" id="dropdown-sort">
+          <span className="me-2">Sort:</span> 
+          {sortOptions.find(opt => opt.value === sortMethod)?.label || 'Newest First'}
+        </Dropdown.Toggle>
+        <Dropdown.Menu>
+          {sortOptions.map((option) => (
+            <Dropdown.Item 
+              key={option.value}
+              active={sortMethod === option.value}
+              onClick={() => setSortMethod(option.value)}
+            >
+              {option.label}
+            </Dropdown.Item>
+          ))}
+        </Dropdown.Menu>
+      </Dropdown>
+    </div>
 
-                        <Row className="mt-3 pt-24">
-                            <Col className="d-flex align-items-center">
-                                {UsersCommentCheck(e.users_id) && (
-                                    <div>
-                                        <Button variant="link" className="btn-edit me-8" style={{ textDecoration: 'none' }} onClick={() => handleEditComment(e.comment_id)}>
-                                            <FaEdit className="edit-icon" /> Edit
-                                        </Button>
-                                        <Button variant="link" className="btn-delete me-8" style={{ textDecoration: 'none' }} onClick={() => handleDeleteComment(e.comment_id)}>
-                                            <FaTrash className="delete-icon" /> Delete
-                                        </Button>
-                                    </div>
-                                )}
-                                {UserPermissions(userRole) && (
-                                    <Dropdown >
-                                        <Dropdown.Toggle variant="link" id="dropdown-moderation" style={{ textDecoration: 'none' }}>
-                                            <FaCog className="moderation-icon" /> Moderation Tools
-                                        </Dropdown.Toggle>
-                                        <Dropdown.Menu>
-                                            <Dropdown.Item onClick={() => handleModerationOption('Option 1', e.comment_id, e.comment)}>
-                                                View Edit History
-                                            </Dropdown.Item>
-                                            <Dropdown.Item onClick={() => handleModerationOption('Option 2', e.comment_id, e.comment)}>
-                                                Edit Comment
-                                            </Dropdown.Item>
-                                            <Dropdown.Item onClick={() => handleModerationOption('Option 3', e.comment_id, e.comment)}>
-                                                Delete Comment
-                                            </Dropdown.Item>
-                                            <Dropdown.Item onClick={() => handleModerationOption('Option 4', e.users_id, e.username)}>
-                                                Ban User
-                                            </Dropdown.Item>
-                                        </Dropdown.Menu>
-                                    </Dropdown>
-                                )}
-                            </Col>
-                        </Row>
-                    </Container>
-                ))}
+    <div className="comments-container">
+      {comments && Array.isArray(comments) 
+        ? sortComments(comments, likesdislikes || [], sortMethod).map((comment) => (
+            <div key={comment.comment_id} className="comment-card">
+              <div className="comment-header">
+                <Link 
+                  to={`/userprofile/${comment.username}/${comment.users_id}`} 
+                  className="text-white text-decoration-none"
+                >
+                  <strong>{comment.username}</strong>
+                </Link>
+                <span className="comment-meta">{updatedNums(comment.timeposted)}</span>
+              </div>
+
+              <div className="comment-body">
+                <div className="vote-section">
+                  <button
+                    className={`vote-button like-button ${likedStatus[comment.comment_id] ? 'active-like' : ''}`}
+                    onClick={() => handleLike(comment.comment_id)}
+                  >
+                    {likedStatus[comment.comment_id] ? (
+                      <PiArrowFatUpFill size={20} />
+                    ) : (
+                      <PiArrowFatUp size={20} />
+                    )}
+                  </button>
+                  <span className="vote-count">{comment.net_likes ?? 0}</span>
+                  <button
+                    className={`vote-button dislike-button ${dislikedStatus[comment.comment_id] ? 'active-dislike' : ''}`}
+                    onClick={() => handleDislike(comment.comment_id)}
+                  >
+                    {dislikedStatus[comment.comment_id] ? (
+                      <PiArrowFatDownFill size={20} />
+                    ) : (
+                      <PiArrowFatDown size={20} />
+                    )}
+                  </button>
+                </div>
+
+                <div className="user-section">
+                  <Image
+                    src={getProfileImageUrl(comment.character_name, comment.selected_skin)}
+                    alt="User Profile"
+                    className="user-avatar"
+                  />
+                    <span className={`badge role-badge ${comment.role}`}>
+                    {comment.role.charAt(0).toUpperCase() + comment.role.slice(1)}
+                    </span>
+                </div>
+
+                <div className="comment-content">
+                  {renderMentions && typeof comment.comment === 'string' ? 
+                    renderMentions(comment.comment, comment.mentions || []) : 
+                    comment.comment
+                  }
+                </div>
+              </div>
+
+<div className="comment-footer">
+  <div className="footer-content">
+    {UsersCommentCheck(comment.users_id) && (
+      <div className="action-buttons">
+        <button 
+          className="action-button btn-edit"
+          onClick={() => handleEditComment(comment.comment_id)}
+        >
+          <FaEdit size={14} /> Edit
+        </button>
+        <button
+          className="action-button btn-delete"
+          onClick={() => handleDeleteComment(comment.comment_id)}
+        >
+          <FaTrash size={14} /> Delete
+        </button>
+      </div>
+    )}
+    
+    {UserPermissions(userRole) && (
+      <div className="moderation-tools">
+        <Dropdown>
+          <Dropdown.Toggle as={Button} variant="link" className="action-button">
+            <FaCog size={14} /> Mod Tools
+          </Dropdown.Toggle>
+          <Dropdown.Menu>
+            <Dropdown.Item onClick={() => handleModerationOption('Option 1', comment.comment_id, comment.comment)}>
+              View Edit History
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleModerationOption('Option 2', comment.comment_id, comment.comment)}>
+              Edit Comment
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleModerationOption('Option 3', comment.comment_id, comment.comment)}>
+              Delete Comment
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => handleModerationOption('Option 4', comment.users_id, comment.username)}>
+              Ban User
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
+    )}
+  </div>
+</div>
             </div>
+          ))
+        : <div className="text-center py-5 text-muted">No comments found</div>
+      }
+    </div>
             {/* Edit Comment Modal */}
             <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
                 <Form onSubmit={(e) => {

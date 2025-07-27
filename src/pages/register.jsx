@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import Button from 'react-bootstrap/Button'
-import Form from 'react-bootstrap/Form'
-import { Container, Alert, Modal } from 'react-bootstrap'
+import { Container, Alert, Modal, Row, Col, Button, Form, InputGroup } from 'react-bootstrap'
 import { saveAs } from 'file-saver';
 import bcrypt from 'bcryptjs'
 import { useNavigate } from 'react-router-dom'
-import { BsX } from 'react-icons/bs'
+import { BsX, BsEye, BsEyeSlash } from 'react-icons/bs'
 import Filter from 'bad-words';
 import forge from 'node-forge';
 
@@ -14,6 +12,10 @@ function BasicExample() {
     const [username, setUserName] = useState('')
     const [password, setPassword] = useState('')
     const [confirmpass, setConfirmPass] = useState('')
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [passwordRequirementsError, setPasswordRequirementsError] = useState('');
+    const [passwordsMatchError, setPasswordsMatchError] = useState('');
     const [validated, setValidated] = useState(false);
     const [userData, setUserData] = useState([])
     const [emailError, setEmailError] = useState('')
@@ -31,6 +33,31 @@ function BasicExample() {
     const re =
       /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
     
+    const validatePassword = (pass) => {
+        const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+        const isValid = regex.test(pass);
+        setPasswordRequirementsError(isValid ? '' : 'Password must be at least 8 characters with 1 number and 1 special character');
+        return isValid;
+    };
+
+    const handlePasswordChange = (e) => {
+        const newPassword = e.target.value;
+        setPassword(newPassword);
+        
+        validatePassword(newPassword);
+        
+        if (confirmpass) {
+            setPasswordsMatchError(newPassword === confirmpass ? '' : 'Passwords do not match');
+        }
+    };
+
+    const handleConfirmPasswordChange = (e) => {
+        const newConfirmPass = e.target.value;
+        setConfirmPass(newConfirmPass);
+        
+        setPasswordsMatchError(password === newConfirmPass ? '' : 'Passwords do not match');
+    };
+
     const getUserDetails = async () => {
       try {
         const response = await fetch('http://localhost:5000/forumusers')
@@ -166,7 +193,15 @@ function BasicExample() {
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
+        setValidated(true);
         setNameError('');
+        
+        const isPasswordValid = validatePassword(password);
+        const doPasswordsMatch = password === confirmpass;
+        
+        if (!doPasswordsMatch) {
+            setPasswordsMatchError('Passwords do not match');
+        }
 
         if (profanityFilter.isProfane(username)) {
             setNameError('Username cannot contain profanity');
@@ -174,7 +209,7 @@ function BasicExample() {
             return;
         }
 
-        if (!password || password !== confirmpass || !username.trim()) {
+        if (!isPasswordValid || !doPasswordsMatch || !username.trim()) {
             setValidated(true);
             return;
         }
@@ -183,15 +218,15 @@ function BasicExample() {
             const hashedpassword = bcrypt.hashSync(password, 10);
             const body = { email, username, hashedpassword };
             const response = await fetch('http://localhost:5000/forumusers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
             });
 
             if (response.ok) {
-                setStep(2); // Proceed to email verification step
+            setStep(2);
             } else {
-                console.error('Failed to submit form');
+            console.error('Failed to submit form');
             }
         } catch (err) {
             console.error(err.message);
@@ -208,15 +243,17 @@ function BasicExample() {
     return (
         <Container>
             {step === 1 && (
-            <Container>
-                <div className='text-center h5 mt-96'>Create Your Account</div>
-                <Container className='d-inline-flex justify-content-center'>
+            <Container className='register-container'>
+                <div className='text-center h3 form-title'>Create Your Account</div>
+                <Container className='d-flex justify-content-center'>
                     <Form
                         noValidate
                         validated={validated}
                         className='rounded bg-info p-80'
                         onSubmit={onSubmitForm}
+                        style={{ width: '100%', maxWidth: '600px' }}
                     >
+                    <div style={{ maxWidth: '260px', margin: '0 auto'}}>
                         <Form.Group className='mb-3'>
                         <Form.Label>Email address</Form.Label>
                         <Form.Control
@@ -242,31 +279,84 @@ function BasicExample() {
                             This will be your display name.
                         </Form.Text>
                         </Form.Group>
-                        <Form.Group>
+                        <Form.Group className="mb-3">
                         <Form.Label>Password</Form.Label>
-                        <Form.Control
-                            type='password'
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
+                            <InputGroup hasValidation>
+                                <Form.Control
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={handlePasswordChange}
+                                required
+                                isInvalid={validated && !!passwordRequirementsError}
+                                />
+                                <InputGroup.Text>
+                                <Button
+                                    variant="link"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="p-0"
+                                >
+                                    {showPassword ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
+                                </Button>
+                                </InputGroup.Text>
+                                {validated && passwordRequirementsError && (
+                                <Form.Control.Feedback type="invalid">
+                                    {passwordRequirementsError}
+                                </Form.Control.Feedback>
+                                )}
+                            </InputGroup>                        
+                            <div style={{ minHeight: '1.5rem' }}>
+                                {validated && passwordRequirementsError ? (
+                                <div className="text-danger small">{!passwordRequirementsError}</div>
+                                ) : (
+                                <Form.Text className="text-muted">
+                                    Minimum 8 characters with at least 1 number and 1 special character
+                                </Form.Text>
+                                )}
+                            </div>
                         </Form.Group>
-                        <Form.Group>
+
+                        <Form.Group className="mb-3">
                         <Form.Label>Confirm Password</Form.Label>
-                        <Form.Control
-                            type='password'
-                            onChange={(e) => setConfirmPass(e.target.value)}
-                            required
-                        />
-                        <Form.Control.Feedback type='invalid'>
-                            Please make sure passwords are matching.
-                        </Form.Control.Feedback>
+                            <InputGroup hasValidation>
+                                <Form.Control
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={confirmpass}
+                                onChange={handleConfirmPasswordChange}
+                                required
+                                isInvalid={validated && !!passwordsMatchError}
+                                />
+                                <InputGroup.Text>
+                                <Button
+                                    variant="link"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="p-0"
+                                >
+                                    {showConfirmPassword ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
+                                </Button>
+                                </InputGroup.Text>
+                                {validated && passwordsMatchError && (
+                                <Form.Control.Feedback type="invalid">
+                                    {passwordsMatchError}
+                                </Form.Control.Feedback>
+                                )}
+                            </InputGroup>
                         </Form.Group>
+                        <Row className="mt-3 justify-content-center">
+                            <Col xs={12} md={10} lg={8}>
+                                <Form.Text className="text-muted text-center d-block" style={{ fontSize: '0.9rem' }}>
+                                By creating an account for <strong>SmashPoint</strong>, you agree to our{' '}
+                                <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> and{' '}
+                                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+                                </Form.Text>
+                            </Col>
+                        </Row>
 
                         <Button variant='primary' type='submit' className='mt-24'>
                         Submit
                         </Button>
+                        </div>
                     </Form>
+                    
                 </Container>
             </Container>
             )}
