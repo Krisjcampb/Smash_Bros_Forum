@@ -40,7 +40,6 @@ CREATE TABLE forumcomments(
     users_id INTEGER,
     comment_id INTEGER,
     is_deleted BOOLEAN
-
 );
 
 CREATE TABLE passwordreset (
@@ -56,7 +55,8 @@ CREATE TABLE messages (
     sender_id INT REFERENCES forumusers(users_id) NOT NULL,
     receiver_id INT REFERENCES forumusers(users_id) NOT NULL,
     message_text TEXT NOT NULL,
-    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT false
 )
 
 CREATE TABLE friendships (
@@ -207,3 +207,33 @@ CREATE TABLE commentdislikes (
 
 CREATE INDEX idx_commentdislikes_user ON commentdislikes(user_id);
 CREATE INDEX idx_commentdislikes_comment ON commentdislikes(comment_id);
+
+CREATE TABLE threadreports (
+    report_id INTEGER PRIMARY KEY DEFAULT nextval('report_id_sequence'),
+    reporting_uid INTEGER NOT NULL REFERENCES forumusers(users_id),
+    thread_id INTEGER NOT NULL REFERENCES forumcontent(thread_id),
+    reported_uid INTEGER NOT NULL REFERENCES forumusers(users_id),
+    reason VARCHAR(255) NOT NULL,
+    report_desc TEXT,
+    reported_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    is_reviewed BOOLEAN DEFAULT FALSE,
+    mod_notes TEXT,
+
+    UNIQUE (reporting_uid, thread_id)
+);
+
+CREATE TABLE commentreports (
+    report_id INTEGER PRIMARY KEY DEFAULT nextval('report_id_sequence'),
+    reporting_uid INTEGER NOT NULL REFERENCES forumusers(users_id),
+    comment_id INTEGER NOT NULL REFERENCES forumcomments(comment_id),
+    reported_uid INTEGER NOT NULL REFERENCES forumusers(users_id),
+    reason VARCHAR(255) NOT NULL,
+    report_desc TEXT,
+    reported_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    is_reviewed BOOLEAN DEFAULT FALSE,
+    mod_notes TEXT,
+
+    UNIQUE (reporting_uid, comment_id)
+);
+
+CREATE SEQUENCE report_id_sequence START 1;

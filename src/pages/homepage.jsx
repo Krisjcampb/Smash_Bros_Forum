@@ -90,7 +90,7 @@ function Homepage() {
     };
 
     return (
-        <Container className='content-container'>
+        <Container className='hello'>
             <Container className='d-flex flex-column'>
                 <Row className='mt-24 ms-24 me-24 text-center'>
                     <Col>
@@ -123,6 +123,7 @@ function Homepage() {
                                 type='text'
                                 value={title}
                                 placeholder='Title'
+                                maxLength={70}
                                 onChange={(e) => setTitle(e.target.value)}
                             />
                             <Form.Label>Thread Content</Form.Label>

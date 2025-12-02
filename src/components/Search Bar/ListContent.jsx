@@ -4,6 +4,8 @@ import { NavLink } from 'react-router-dom'
 import { Row, Col, Button, Modal, Container } from 'react-bootstrap'
 import Form from 'react-bootstrap/Form'
 import { BsArrowUp, BsArrowDown, BsThreeDotsVertical } from 'react-icons/bs'
+import Dropdown from 'react-bootstrap/Dropdown';
+import DropdownButton from 'react-bootstrap/DropdownButton';
 
 const ListContent = (props) => {
     const [list, setList] = useState([])
@@ -26,6 +28,9 @@ const ListContent = (props) => {
     const [showMenu, setShowMenu] = useState(null);
     const [page, setPage] = useState(1)
     const [hasMore, setHasMore] = useState(true)
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [reportDescription, setReportDescription] = useState('')
     const { userRole, usersId } = props;
 
     const DeleteOpen = () => {setShowDeleteModal(true); console.log(currentThread)}
@@ -52,7 +57,55 @@ const ListContent = (props) => {
         }
         return false;
     }
-    
+
+    const CanReport = () => {
+        return userid && userid !== currentThread.users_id;
+    }
+
+    const reportReasons = [
+        "Sexual content",
+        "Hateful or abusive content",
+        "Harmful or dangerous acts",
+        "Promotes terrorism",
+        "Repulsive or violent content",
+        "Minor abuse or sexualization",
+        "Spam",
+        "Misinformation",
+        "Self-harm or suicide",
+    ];
+
+    const handleReport = (thread) => {
+        setCurrentThread(thread);
+        setShowReportModal(true);
+    };
+
+    const handleReportSubmit = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/threadreport', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    user_id: userid,
+                    thread_id: currentThread.thread_id,
+                    reported_user: currentThread.users_id,
+                    reason: reportReason,
+                    report_desc: reportDescription,
+                }),
+            });
+
+            if (response.ok) {
+                console.log("Report submitted successfully");
+                setShowReportModal(false);
+                setReportReason('');
+                // You might want to show a success message to the user
+            } else {
+                console.error("Failed to submit report");
+            }
+        } catch (err) {
+            console.error("Error submitting report:", err.message);
+        }
+    };
+
     const toggleMenu = (index) => {
         setShowMenu(showMenu === index ? null : index);
     };
@@ -234,7 +287,7 @@ const ListContent = (props) => {
             setDislikedStatus(initialDislikes);
         }
     }, [initialposts]);
-
+    
     useEffect(() => {
         console.log("likedStatus updated:", likedStatus);
     }, [likedStatus]);
@@ -247,7 +300,9 @@ const ListContent = (props) => {
     }, [searchTerm, originalList]);
 
     const handleSearch = (e) => {
-        setSearchTerm(e.target.value)
+        setSearchTerm(e.target.value);
+        setPage(1);
+        setHasMore(true);
     }
 
     const sortByNewest = (a, b) => new Date(b.postdate) - new Date(a.postdate);
@@ -274,48 +329,91 @@ const ListContent = (props) => {
 
     const handleSortChange = (e) => {
         setSortBy(e.target.value);
+        setPage(1);
+        setHasMore(true);
     };
 
-    const fetchPosts = async (page) => {
+    const fetchPostsWithImages = useCallback(async (page) => {
         try {
             setLoading(true);
+            console.log("Fetch Posts With Images")
             const limit = 24;
+
+            const currentScrollPosition = window.scrollY || document.documentElement.scrollTop;
+
+            // Only fetch forum content now (includes image)
             const response = await fetch(`http://localhost:5000/forumcontent?page=${page}&limit=${limit}`);
             const newPosts = await response.json();
 
-            if (newPosts.length < limit) {
-                setHasMore(false);
+            // Add net likes if already fetched
+            if (likesdislikes.length > 0) {
+            newPosts.forEach(post => {
+                const likeData = likesdislikes.find(item => item.post_id === post.thread_id);
+                post.likes = likeData ? likeData.net_likes : 0;
+            });
+            }
+
+            if (newPosts.length === 0 || newPosts.length < limit) {
+            setHasMore(false);
             }
 
             setOriginalList(prevList => {
-                const mergedList = [...prevList, ...newPosts];
-                const deduplicatedList = mergedList.filter((post, index, self) => index === self.findIndex(p => p.thread_id === post.thread_id));
-                return deduplicatedList;
+            if (page === 1) return newPosts;
+            // Merge while keeping unique threads
+            const mergedList = [...prevList, ...newPosts];
+            const uniqueList = mergedList.reduce((acc, current) => {
+                if (!acc.find(item => item.thread_id === current.thread_id)) acc.push(current);
+                return acc;
+            }, []);
+            return uniqueList;
             });
+
+            setTimeout(() => {
+            window.scrollTo(0, currentScrollPosition);
+            }, 0);
 
         } catch (err) {
             console.error(err.message);
+            setHasMore(false);
         } finally {
             setLoading(false);
         }
-    };
+    }, [likesdislikes]);
 
     useEffect(() => {
-        fetchPosts(page)
-    }, [page, currentThread])
+        fetchPostsWithImages(page);
+    }, [page, currentThread, fetchPostsWithImages]);
 
-    const handleScroll = useCallback(() => {
-        if (window.innerHeight + document.documentElement.scrollTop !== document.documentElement.offsetHeight || !hasMore) {
-            return;
+    // const handleScroll = useCallback(() => {
+    //     if (window.innerHeight + document.documentElement.scrollTop !== document.documentElement.offsetHeight || !hasMore) {
+    //         return;
+    //     }
+
+    //     setPage(prevPage => prevPage + 1);
+    // }, [hasMore]);
+
+    // useEffect(() => {
+    //     window.addEventListener('scroll', handleScroll)
+    //     return () => window.removeEventListener('scroll', handleScroll)
+    // }, [handleScroll])
+
+    function formatShortDate(dateString) {
+        const options = { month: 'short', day: 'numeric', year: 'numeric'}; // e.g. "Jul 30"
+        return new Date(dateString).toLocaleDateString(undefined, options);
+    }
+
+    function formatCompactNumber(num) {
+        if (num >= 1000000) {
+            return `${(num / 1000000).toFixed(1)}M`;
         }
-
-        setPage(prevPage => prevPage + 1);
-    }, [hasMore]);
-
-    useEffect(() => {
-        window.addEventListener('scroll', handleScroll)
-        return () => window.removeEventListener('scroll', handleScroll)
-    }, [handleScroll])
+        if (num >= 10000) {
+            return `${Math.round(num / 1000)}k`;
+        }
+        if (num >= 1000) {
+            return `${(num / 1000).toFixed(2)}k`.replace(/\.?0+k$/, 'k');
+        }
+        return num.toString();
+    }
 
     useEffect(() => {
         let sortedList = [...filteredPosts];
@@ -331,10 +429,10 @@ const ListContent = (props) => {
         setList(sortedList);
     }, [sortBy, filteredPosts]);
 
-    const formatPostDate = (timestamp) => {
-        const date = new Date(timestamp)
-        return date.toLocaleString();
-    }
+    // const formatPostDate = (timestamp) => {
+    //     const date = new Date(timestamp)
+    //     return date.toLocaleString();
+    // }
 
     useEffect(() => {
         filterPosts();
@@ -378,6 +476,7 @@ const ListContent = (props) => {
                     like_count: like.like_count,
                     dislike_count: 0,
                 }));
+                
                 dislikedata.forEach((dislike) => {
                     const index = netLikesToDislikes.findIndex((item) => item.post_id === dislike.post_id);
                     if (index !== -1) {
@@ -390,67 +489,37 @@ const ListContent = (props) => {
                         });
                     }
                 });
+                
                 const netLikesDislikes = netLikesToDislikes.map((item) => ({
                     post_id: item.post_id,
                     net_likes: item.like_count - item.dislike_count,
                 }));
-                setNetLikesDislikes(netLikesDislikes)
-            }
-            catch (err) {
-                console.error(err.message)
+                
+                setNetLikesDislikes(netLikesDislikes);
+
+                // Update the current list with new like counts
+                setOriginalList(prevList => 
+                    prevList.map(post => {
+                        const likeData = netLikesDislikes.find(item => item.post_id === post.thread_id);
+                        return {
+                            ...post,
+                            likes: likeData ? likeData.net_likes : post.likes || 0
+                        };
+                    })
+                );
+
+            } catch (err) {
+                console.error(err.message);
             }
         }
         fetchData();
-
-    }, [likedStatus, dislikedStatus])
-
-    useEffect(() => {
-    const fetchData = async () => {
-        try {
-            const [listResponse, imageResponse] = await Promise.all([
-                fetch('http://localhost:5000/forumcontent'),
-                fetch('http://localhost:5000/forumimages'),
-            ]);
-            const listData = await listResponse.json();
-            const imageData = await imageResponse.json();
-
-            const postsWithData = listData.map((post) => {
-                const correspondingImage = imageData.find((image) => image.thread_id === post.thread_id);
-                return {
-                    ...post,
-                    filepath: correspondingImage ? correspondingImage.filepath : null,
-                };
-            });
-
-            if (likesdislikes.length > 0) {
-                Object.keys(postsWithData).forEach(key => {
-                    const threadId = postsWithData[key].thread_id;
-
-                    Object.keys(likesdislikes).forEach(key2 => {
-                        if (threadId === likesdislikes[key2].post_id) {
-                            postsWithData[key].likes = likesdislikes[key2].net_likes;
-                        }
-                    });
-                });
-            }
-
-            setOriginalList(postsWithData);
-            setList(postsWithData);
-            console.log(list)
-        } catch (err) {
-            console.error(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    fetchData();
-}, [likesdislikes]);
+    }, [likedStatus, dislikedStatus]);
 
     useEffect(() => {
         const fetchdata2 = async () => {
             try {
                 setLoading(true);
+                console.log("Fetch Data 2")
                 const response = await fetch(`http://localhost:5000/userlikesdislikes?userid=${userid}`, {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
@@ -520,101 +589,155 @@ return (
       </Row>
 
       <div className='d-flex justify-content-center flex-wrap'>
-        {list.map((e, index) => (
-          <div key={index} className="position-relative m-1">
+            {list.map((e, index) => (
+            <div key={index} className="position-relative m-1">
             <Card style={{ width: '25rem', height: '26.5rem', transition: 'transform 0.2s' }} className="hover-card">
-              <Card.Body>
-                <NavLink to={`/threads/${e.thread_id}`} className='nav-link' state={{ forumContent: e }}>
-                  <Card.Img
-                    height={250}
-                    src={e.filepath ? e.filepath.slice(6) : 'default_image_path'}
-                  />
-                  <Card.Title style={{ fontSize: '22px' }}>{e.title}</Card.Title>
-                  <Card.Text className='text-truncate-container' style={{ fontSize: '16px', lineHeight: '1.3' }}>
-                    {e.content}
-                  </Card.Text>
-                </NavLink>
+                <Card.Body className="d-flex flex-column justify-content-between">
+                    <NavLink to={`/threads/${e.thread_id}`} className="nav-link" state={{ forumContent: e }}>
+                    <Card.Img
+                        height={250}
+                        src={e.filepath ? e.filepath.slice(6) : 'default_image_path'}
+                        className="mb-2"
+                    />
+                    <Card.Title style={{ fontSize: '20px', fontWeight: '600' }} className="mb-1">
+                        {e.title}
+                    </Card.Title>
+                    <Card.Text className="text-truncate text-muted" style={{ fontSize: '15px', lineHeight: '1.3' }}>
+                        {e.content}
+                    </Card.Text>
+                    </NavLink>
 
-                <div className='position-absolute bottom-0 end-0 pe-4' style={{ fontWeight: 'bold', fontSize: '15px' }}>
-                  {formatPostDate(e.postdate)}
-                  <NavLink to={`/userprofile/${e.username}/${e.users_id}`} className="nav-link">{e.username}</NavLink>
-                </div>
+                    <div className="d-flex justify-content-between align-items-end mt-3">
+                    {/* Vote buttons */}
+                    <div className="vote-buttons-container">
+                        <Button
+                        variant={
+                            likedStatus[e.thread_id] !== undefined
+                            ? likedStatus[e.thread_id]
+                                ? 'success'
+                                : 'outline-success'
+                            : initialposts.find(item => item.thread_id === e.thread_id && item.type === 'like')
+                                ? 'success'
+                                : 'outline-success'
+                        }
+                        onClick={() => handleLike(e.thread_id)}
+                        className="fixed-size-button"
+                        >
+                        <BsArrowUp />
+                        </Button>
 
-                <div className='position-absolute right-0 bottom-0 pb-4' style={{ display: 'flex', alignItems: 'center' }}>
-                  <Button
-                    variant={
-                      likedStatus[e.thread_id] !== undefined
-                        ? likedStatus[e.thread_id]
-                          ? "success"
-                          : "outline-success"
-                        : initialposts.find(item => item.thread_id === e.thread_id && item.type === 'like')
-                          ? "success"
-                          : "outline-success"
-                    }
-                    onClick={() => handleLike(e.thread_id)}
-                    className='me-4 fixed-size-button'
-                  >
-                    <BsArrowUp />
-                  </Button>
-                  <span className="mx-2">
-                    {likesdislikes.find(item => item.post_id === e.thread_id)?.net_likes || 0}
-                  </span>
-                  <Button
-                    variant={
-                      dislikedStatus[e.thread_id] !== undefined
-                        ? dislikedStatus[e.thread_id]
-                          ? "danger"
-                          : "outline-danger"
-                        : initialposts.find(item => item.post_id === e.thread_id && item.type === 'dislike')
-                          ? "danger"
-                          : "outline-danger"
-                    }
-                    onClick={() => handleDislike(e.thread_id)}
-                    className='ms-4 fixed-size-button'
-                  >
-                    <BsArrowDown />
-                  </Button>
-                </div>
-              </Card.Body>
+                        <span className="vote-count">
+                        {formatCompactNumber(likesdislikes.find(item => item.post_id === e.thread_id)?.net_likes || 0)}
+                        </span>
+
+                        <Button
+                        variant={
+                            dislikedStatus[e.thread_id] !== undefined
+                            ? dislikedStatus[e.thread_id]
+                                ? 'danger'
+                                : 'outline-danger'
+                            : initialposts.find(item => item.post_id === e.thread_id && item.type === 'dislike')
+                                ? 'danger'
+                                : 'outline-danger'
+                        }
+                        onClick={() => handleDislike(e.thread_id)}
+                        className="fixed-size-button"
+                        >
+                        <BsArrowDown />
+                        </Button>
+                    </div>
+
+                        {/* Timestamp + user */}
+                        <div className="text-end" style={{ fontSize: '14px' }}>
+                            <div className="text-muted">{formatShortDate(e.postdate)}</div>
+                            <NavLink to={`/userprofile/${e.username}/${e.users_id}`} className="nav-link p-0 m-0" style={{ fontWeight: '600' }}>
+                            {e.username}
+                            </NavLink>
+                        </div>
+                    </div>
+                </Card.Body>
             </Card>
 
-            {UserPermissions(userRole, e.users_id) && (
-              <div className='action-menu position-absolute' style={{ top: '5px', right: '5px', zIndex: 1050 }}>
+            {(UserPermissions(userRole, e.users_id) || (userid && userid !== e.users_id)) && (
+            <div className='action-menu position-absolute' style={{ top: '5px', right: '5px', zIndex: 1050 }}>
                 <Button variant="light three-dot-button" onClick={() => toggleMenu(index)}>
-                  <BsThreeDotsVertical />
+                <BsThreeDotsVertical />
                 </Button>
                 {showMenu === index && (
-                  <div className='position-absolute bg-light border rounded p-2 dropdown-animation action-dropdown' style={{ zIndex: 1050, top: '100%', right: 0, minWidth: '8rem' }}>
+                <div className='position-absolute bg-light border rounded p-2 dropdown-animation action-dropdown' style={{ zIndex: 1050, top: '100%', right: 0, minWidth: '8rem' }}>
                     <ul className="list-unstyled mb-0">
-                      {(usersId === e.users_id) && (userRole !== 'admin' && userRole !== 'moderator') && (
+                    {/* Report button - show for all logged-in users who don't own the content */}
+                    {userid && userid !== e.users_id && (
+                        <li className="p-2">
+                        <button className="btn btn-link" onClick={() => handleReport(e)}>Report</button>
+                        </li>
+                    )}
+                    
+                    {/* Edit/Delete options - only show for content owners or moderators */}
+                    {UserPermissions(userRole, e.users_id) && (
                         <>
-                          <li className="p-2">
-                            <button className="btn btn-link" onClick={() => EditOpen(e)}>Edit Thread</button>
-                          </li>
-                          <li className="p-2">
-                            <button className="btn btn-link text-danger" onClick={() => { DeleteOpen(); setCurrentThread(e); }}>Delete Thread</button>
-                          </li>
+                        {(usersId === e.users_id) && (userRole !== 'admin' && userRole !== 'moderator') && (
+                            <>
+                            <li className="p-2">
+                                <button className="btn btn-link" onClick={() => EditOpen(e)}>Edit Thread</button>
+                            </li>
+                            <li className="p-2">
+                                <button className="btn btn-link text-danger" onClick={() => { DeleteOpen(); setCurrentThread(e); }}>Delete Thread</button>
+                            </li>
+                            </>
+                        )}
+                        {(userRole === 'moderator' || userRole === 'admin') && (
+                            <>
+                            <li className="p-2">
+                                <button className="btn btn-link" onClick={() => { EditOpen(e); setCurrentThread(e); }}>Edit as Moderator</button>
+                            </li>
+                            <li className="p-2">
+                                <button className="btn btn-link text-danger" onClick={() => { DeleteOpen(); setCurrentThread(e); }}>Delete as Moderator</button>
+                            </li>
+                            </>
+                        )}
                         </>
-                      )}
-                      {(userRole === 'moderator' || userRole === 'admin') && (
-                        <>
-                          <li className="p-2">
-                            <button className="btn btn-link" onClick={() => { EditOpen(e); setCurrentThread(e); }}>Edit as Moderator</button>
-                          </li>
-                          <li className="p-2">
-                            <button className="btn btn-link text-danger" onClick={() => { DeleteOpen(); setCurrentThread(e); }}>Delete as Moderator</button>
-                          </li>
-                        </>
-                      )}
+                    )}
                     </ul>
-                  </div>
+                </div>
                 )}
-              </div>
+            </div>
             )}
-          </div>
+            </div>
         ))}
-        {loading && <div>Loading...</div>}
-      </div>
+        <div className="w-100 text-center mt-4 mb-4">
+            {hasMore && !searchTerm && (
+            <Button 
+                variant="primary" 
+                size="lg"
+                onClick={() => setPage(prevPage => prevPage + 1)}
+                disabled={loading}
+                className="see-more-btn px-4 py-2"
+                style={{ 
+                minWidth: '150px',
+                borderRadius: '25px',
+                fontWeight: '600'
+                }}
+            >
+                {loading ? (
+                    <>
+                        <span className="spinner-border spinner-border-sm me-2" />
+                        Loading...
+                    </>
+                ) : (
+                    'See More Posts'
+                )}
+            </Button>
+            )}
+
+            {/* No more content message */}
+            {!hasMore && list.length > 0 && (
+                <div className="text-muted mt-32">
+                    You've reached the end of the content
+                </div>
+                )}
+            </div>
+        </div>
     </div>
         {/* Delete Thread Modal */}
         <Modal show={showDeleteModal} onHide={DeleteClose} size="md" style={{ color: '#000000' }} centered>
@@ -669,6 +792,45 @@ return (
             <Modal.Footer className="justify-content-center">
                 <Button size="lg" onClick={handleEditAsModerator}>Confirm</Button>
                 <Button size="lg" className="ps-22 pe-22" onClick={EditClose}>Cancel</Button>
+            </Modal.Footer>
+        </Modal>
+        <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" style={{ color: '#000000' }} centered>
+            <Modal.Header className="position-relative">
+                <Modal.Title className="w-100 text-center">Report Thread</Modal.Title>
+                <Button 
+                    variant="close" 
+                    onClick={() => setShowReportModal(false)} 
+                    className="position-absolute"
+                    style={{ top: '18px', right: '8px' }}
+                />
+            </Modal.Header>
+            <Modal.Body>
+                <Form>
+                    <Form.Group controlId="formReportReason">
+                        <Form.Label>Reason for reporting:</Form.Label>
+                            {reportReasons.map(reason => (                        
+                                <Form.Check
+                                    label={reason}
+                                    name="reportReason"
+                                    type='radio'
+                                    key={reason}
+                                    onChange={() => setReportReason(reason)}
+                                />
+                            ))}
+                        <Form.Label className='mt-16'>Optional:</Form.Label>
+                        <Form.Control
+                            as="textarea"
+                            rows={3}
+                            placeholder="Please describe why you are reporting this thread..."
+                            value={reportDescription}
+                            onChange={(e) => setReportDescription(e.target.value)}
+                        />
+                    </Form.Group>
+                </Form>
+            </Modal.Body>
+            <Modal.Footer className="justify-content-center">
+                <Button size="lg" onClick={handleReportSubmit}>Submit Report</Button>
+                <Button size="lg" variant="secondary" onClick={() => setShowReportModal(false)}>Cancel</Button>
             </Modal.Footer>
         </Modal>
     </Container>

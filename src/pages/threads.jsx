@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams, NavLink } from 'react-router-dom';
 import { Container, Row } from 'react-bootstrap';
 import { Form } from 'react-bootstrap';
 import { useState, useEffect } from 'react';
@@ -8,7 +8,7 @@ import UserComments from '../components/User Comments/UserComments';
 
 function Threads() {
     const [comment, setComment] = useState("");
-    const paramThreadId = useParams();
+    const { threadId } = useParams();
     const location = useLocation();
     const [forumContent, setForumContent] = useState(location.state?.forumContent);
     const [user, setUser] = useState("");
@@ -21,7 +21,7 @@ function Threads() {
     const [activeMentionIndex, setActiveMentionIndex] = useState(-1);
     const [mentions, setMentions] = useState([]);
     const [commentsKey, setCommentsKey] = useState(0);
-    const thread_id = forumContent?.thread_id || paramThreadId;
+    const thread_id = forumContent?.thread_id || threadId
 
     const fetchUsersForMentions = async (username) => {
         try {
@@ -206,44 +206,46 @@ function Threads() {
             });
             console.log("Retrieved Data: ", forumContent)
 
-            if(forumContent === undefined) {
-                fetch(`http://localhost:5000/forumcontent/${thread_id.threadId}`, {
+            if (!forumContent) {
+                fetch(`http://localhost:5000/forumcontent/${thread_id}`, {
                     method: 'GET',
-                    headers: {'Content-Type': 'application/json',}
+                    headers: { 'Content-Type': 'application/json' }
                 })
-                .then((response) => response.json())
-                .then((data) => {
-                    setForumContent(data)
-                    console.log("thread data: ", data)
+                .then(res => res.json())
+                .then(data => {
+                    setForumContent(data);
+                    console.log("Fetched thread data:", data);
                 })
-                .catch((error) => {
-                    console.error('Error fetching forum content:', error);
-                })
+                .catch(err => console.error("Error fetching forum content:", err));
             }
         }
-    }, [forumContent, thread_id.threadId]);
+        console.log("forum content: ",forumContent)
+    }, [forumContent, thread_id.threadId, thread_id]);
 
 
     return (
 <>
   <Container>
-    {!forumContent ? (
-      <div className="text-center">Loading...</div>
-    ) : (
-      <>
-        <div className="h4 text-center mb-32 mt-24">{forumContent.title}</div>
+  {!forumContent ? (
+    <div className="text-center">Loading...</div>
+  ) : (
+    <>
+      <div className="h4 text-center mb-32 mt-24">{forumContent.title}</div>
 
-        <Row>
-          <div className="mx-auto pb-64" style={{ maxWidth: '700px', textAlign: 'right' }}>
-            {forumContent.content}
-          </div>
-        </Row>
+      <Row>
+        <img src={forumContent?.filepath ? forumContent.filepath.slice(6) : ""} className='ps-64 pe-64' alt='Thread' style={{ display: "block",
+    margin: "0 auto", maxWidth: "1000px", maxHeight: "500px", objectFit: "cover" }}/>
+        <div className="mx-auto pb-32 pt-40" style={{ maxWidth: '1200px', textAlign: 'left' }}>
+          {forumContent.content}
+        </div>
+      </Row>
 
-        <Row>
-          <div className="mx-auto" style={{ maxWidth: '1200px' }}>
+      <Row>
+        <div className="mx-auto" style={{ maxWidth: '1200px' }}>
+          {user ? (
+            // ✅ Show comment form if user is signed in
             <Form>
               <Form.Group className="mb-3" controlId="exampleForm.ControlTextarea1" style={{ position: 'relative' }}>
-                <Form.Label>Comment</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={5}
@@ -292,23 +294,29 @@ function Threads() {
                 </Button>
               </Form.Group>
             </Form>
-          </div>
-        </Row>
-
-        <Container>
-          {forumContent && userrole && userid && (
-            <UserComments
-              key={commentsKey}
-              userRole={userrole}
-              userId={userid}
-              forumContent={forumContent}
-              renderMentions={renderCommentWithMentions}
-            />
+          ) : (
+            <div className="text-center thread-signin mt-4 pb-8 pt-8 mx-auto">
+              <p>You must be signed in to post a comment.</p>
+              <NavLink to="/signin">
+                <Button variant="primary">Sign In</Button>
+              </NavLink>
+            </div>
           )}
-        </Container>
-      </>
-    )}
-  </Container>
+        </div>
+      </Row>
+
+      <Container>
+        <UserComments
+          key={commentsKey}
+          userRole={userrole}
+          userId={userid}
+          forumContent={forumContent}
+          renderMentions={renderCommentWithMentions}
+        />
+      </Container>
+    </>
+  )}
+</Container>
 </>
     );
 }

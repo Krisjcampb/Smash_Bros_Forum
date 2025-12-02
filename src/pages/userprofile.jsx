@@ -1,5 +1,4 @@
-import React, {useState, useEffect} from 'react'
-import ListGroup from 'react-bootstrap/ListGroup';
+import React, {useState, useEffect, useCallback} from 'react'
 import { Container, Image, Tabs, Tab, Modal, Button, ButtonGroup, Dropdown, Form, Row, Col, Card } from 'react-bootstrap'
 import { useParams, useNavigate } from 'react-router-dom';
 import FriendOptionsDropdown from '../components/Friend Dropdown/Friend_Dropdown'
@@ -76,7 +75,7 @@ function Userprofile() {
 
     }, [profilePicture.characterName]);
     
-    const getfriendImage = async () =>{
+    const getfriendImage = useCallback(async () =>{
         try{
             const response = await fetch(`http://localhost:5000/get-pfp/${friendid}`, {
                 method: 'GET',
@@ -91,7 +90,8 @@ function Userprofile() {
             console.error('Error finding friend profile picture.')
             return `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`
         }
-    }
+    }, [friendid]);
+    
 
     useEffect(() => {
         const fetchImage = async () => {
@@ -99,7 +99,7 @@ function Userprofile() {
             setFriendUrl(imageUrl)
         };
         fetchImage();
-    }, [friendid])
+    }, [friendid, getfriendImage])
 
     const handleDropdownSelect = (eventKey, event) => {
         console.log("DropDown: ", eventKey, event)
@@ -270,20 +270,20 @@ function Userprofile() {
             })
             .then(response => response.json())
             .then(data => {
-                const { name, last_online, description, location } = data;
+                const { name, last_online, description, location, role } = data;
                 console.log("Data: ", data)
                 const lastOnlineDate = new Date(last_online);
                 const localTime = lastOnlineDate.toLocaleString();
                 setUsername(name)
                 setLocation(location)
                 setDescription(description)
-                setUser({name, localTime, description, location});
+                setUser({name, localTime, description, location, role});
             })
             .catch(error => {
                 console.error('Error fetching data:', error);
             });
         }
-    }, [token])
+    }, [token, friendid])
 
     useEffect(() => {
         console.log("USER: ", user);
@@ -309,85 +309,136 @@ function Userprofile() {
     }, [userid, friendid, initiatedByCurrentUser]);
 
     useEffect(() => {
-        if(friendid) {
+        if (friendid) {
             const fetchUserComments = async () => {
                 try {
-                    const response = await fetch(`http://localhost:5000/usercomments/${friendid}`)
-                    const data = await response.json()
-                    setComments(data)
-                }catch (error) {
+                    const response = await fetch(`http://localhost:5000/usercomments/${friendid}`);
+                    const data = await response.json();
+                    setComments(data);
+                } catch (error) {
                     console.error("Error fetching user comments:", error);
                 }
-            }
-            fetchUserComments();
+            };
+
             const fetchThreadContent = async () => {
                 try {
-                    const response = await fetch(`http://localhost:5000/threadcontent/${friendid}`)
-                    const data = await response.json()
-                    setThreadData(data)
+                    const response = await fetch(`http://localhost:5000/threadcontent/${friendid}`);
+                    const data = await response.json();
+                    setThreadData(data.map(thread => ({
+                        ...thread,
+                        filepath: thread.filepath || null
+                    })));
                 } catch (error) {
                     console.error("Error fetching thread data:", error);
                 }
-            }
-            fetchThreadContent();
+            };
+
             const fetchThreadPosts = async () => {
                 try {
-                    const response = await fetch(`http://localhost:5000/forumuserposts/${friendid}`)
-                    const data = await response.json()
+                    const response = await fetch(`http://localhost:5000/forumuserposts/${friendid}`);
+                    const data = await response.json();
                     setThreadPosts(data);
-                    console.log("Thread Posts: ", threadPosts, friendid)
+                    console.log("Thread Posts: ", data, friendid);
                 } catch (error) {
                     console.error("error fetching thread data", error);
                 }
-            }
+            };
+
+            fetchUserComments();
+            fetchThreadContent();
             fetchThreadPosts();
-            // retrieveImage();
         }
-    }, [friendid, userProfileImageUrl, userid])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [friendid, userProfileImageUrl, userid]);
 
     return (
         <Container className="profile-page mt-4">
             <Row>
                 <Col xs={12}>
-                    <Card className="p-3 profile-header">
-                        <Row className="d-flex">
+                    <Card className="p-8 profile-header shadow-sm border-0 bg-light rounded-3">
+                        <Row className="d-flex flex-nowrap pb-8">
                             <Col xs="auto" className="text-center">
-                                {userid === friendid ? (
-                                    <Image 
-                                        src={userProfileImageUrl} 
-                                        alt="User Profile" 
-                                        className="profile-image" 
-                                        rounded 
-                                        style={{ 
-                                            objectFit: 'cover',
-                                            objectPosition: '50% 5%',
-                                        }}
-                                    />
-                                ) : (
-                                    <Image 
-                                        src={friendUrl} 
-                                        alt="User Profile" 
-                                        className="profile-image" 
-                                        rounded 
-                                        style={{ 
-                                            objectFit: 'cover',
-                                            objectPosition: '50% 5%',
-                                        }}
-                                    />
-                                )}
+                            {userid === friendid ? (
+                                <Image
+                                src={userProfileImageUrl}
+                                alt="User Profile"
+                                className="profile-image"
+                                roundedCircle
+                                style={{
+                                    objectFit: 'cover',
+                                    objectPosition: '50% 5%',
+                                }}
+                                />
+                            ) : (
+                                <Image
+                                src={friendUrl}
+                                alt="User Profile"
+                                className="profile-image"
+                                roundedCircle
+                                style={{
+                                    objectFit: 'cover',
+                                    objectPosition: '50% 5%',
+                                }}
+                                />
+                            )}
+                            <div className="mt-2 text-muted" style={{ fontStyle: 'italic' }}>
+                                {user.role}
+                            </div>
                             </Col>
-                            <Col className="ms-3" style={{height:'100%'}}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{fontSize: 28}}>{user.name}</span>
-                                    {friendid === userid && (                                    
-                                        <span>
-                                            <Button variant="warning" onClick={profileOpen}>Change Profile Picture</Button>
-                                        </span>
+
+                            <Col className="ms-3 d-flex flex-column min-w-0">
+                                <Row className="align-items-start flex-wrap">
+                                    <Col xs={12} md className="flex-grow-1 min-w-0">
+                                    <h3 className="mb-1 text-truncate">{user.name}</h3>
+                                    <p className="text-muted mb-1">
+                                        <strong>Last Online:</strong> {user.localTime}
+                                    </p>
+                                    <p className="text-muted mb-1">
+                                        <strong>Location:</strong> {user.location}
+                                    </p>
+                                    <p
+                                        className="text-muted"
+                                        style={{
+                                        wordBreak: 'break-word',
+                                        overflowWrap: 'break-word',
+                                        }}
+                                    >
+                                        <strong>About:</strong>{' '}
+                                        {user.description || 'No description yet.'}
+                                    </p>
+                                    </Col>
+
+                                    {/* Actions */}
+                                    <Col xs="auto" className="mt-2 mt-md-0">
+                                    {friendid === userid ? (
+                                        <Button variant="primary" onClick={profileOpen}>
+                                        Change Profile
+                                        </Button>
+                                    ) : (
+                                        <div>
+                                        {friendshipStatus === 'pending' &&
+                                            (initiatedByCurrentUser ? (
+                                            <p>Friend Request Pending</p>
+                                            ) : (
+                                            <Button onClick={handleFriendAction}>
+                                                Accept Friend Request
+                                            </Button>
+                                            ))}
+                                        {friendshipStatus === 'accepted' && (
+                                            <FriendOptionsDropdown
+                                            onRemoveFriend={handleRemoveFriend}
+                                            onDirectMessage={handleDirectMessage}
+                                            onBlockFriend={handleBlockFriend}
+                                            />
+                                        )}
+                                        {friendshipStatus === 'not_friends' &&
+                                            String(userid) !== friendid && (
+                                            <Button onClick={handleFriendAction}>Add Friend</Button>
+                                            )}
+                                        </div>
                                     )}
-                                </div>
-                                <div>Last Online: {user.localTime}</div>
-                                <div>Location: {user.location}</div>
-                                <div>User Description: {user.description}</div>
+                                    </Col>
+                                </Row>
                             </Col>
                         </Row>
                     </Card>
@@ -396,66 +447,66 @@ function Userprofile() {
 
             <Row className="mt-4">
                 <Col md={8}>
-                    <Tabs defaultActiveKey="comments" id="user-profile-tabs">
-                        <Tab eventKey="comments" title="Comments">
-                            <ListGroup>
-                                {comments.map(comment => {
-                                    const threadContent = threadData.find(content => content.thread_id === comment.thread_id);
-                                    return (
-                                        <NavLink to={`/threads/${comment.thread_id}`} className='nav-link' state={{ forumContent: threadContent }} key={comment.id}>
-                                            <ListGroup.Item>
-                                                <div>
-                                                    <p><strong>{threadContent?.title || 'Thread Title'}</strong></p>
-                                                    <p><strong>{comment.username}:</strong> {comment.comment}</p>
-                                                </div>
-                                            </ListGroup.Item>
-                                        </NavLink>
-                                    );
-                                })}
-                            </ListGroup>
-                        </Tab>
-                        <Tab eventKey="posts" title="Posts">
-                            <ListGroup>
-                                {Array.isArray(threadPosts) && threadPosts.map(post => {
-                                    const likeContent = threadPosts.find(content => content.user_id === post.user_id)
-                                    return (
-                                        <NavLink to={`/threads/${post.thread_id}`} className='nav-link'>
-                                            <ListGroup.Item>
-                                                <div>
-                                                    <p><strong>{post?.title || 'Thread Title'}</strong></p>
-                                                    <p>{post.content}:</p>
-                                                    <p><strong>Likes:</strong> {post.likes}</p>
-                                                </div>
-                                            </ListGroup.Item>
-                                        </NavLink>
-                                    );
-                                })}
-                            </ListGroup>
-                        </Tab>
+                    <Tabs defaultActiveKey="comments" id="user-profile-tabs" className="mb-3">
+                    <Tab eventKey="comments" title="Comments">
+                        {comments.map(comment => {
+                        const threadContent = threadData.find(content => content.thread_id === comment.thread_id);
+                        return (
+                            <Card key={comment.id} className="mb-3 shadow-sm rounded p-3">
+                            <NavLink to={`/threads/${comment.thread_id}`} className="text-decoration-none text-dark" state={{ forumContent: threadContent }}>
+                                <Card.Body>
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <span className="text-muted small">{new Date(comment.timeposted).toLocaleString('en-US', {
+                                            timeZone: 'America/Los_Angeles',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            year: 'numeric',
+                                            hour: 'numeric',
+                                            minute: '2-digit',
+                                            hour12: true,
+                                        })}
+                                    </span>
+                                    <span className="badge bg-secondary text-uppercase">Comment</span>
+                                </div>
+                                <Card.Title className="fs-6 fw-bold">{threadContent?.title || 'Thread Title'}</Card.Title>
+                                <Card.Text><strong>{comment.username}:</strong> {comment.comment}</Card.Text>
+                                </Card.Body>
+                            </NavLink>
+                            </Card>
+                        );
+                        })}
+                    </Tab>
+                    <Tab eventKey="posts" title="Posts">
+                        {Array.isArray(threadPosts) && threadPosts.map(post => (
+                        <Card key={post.thread_id} className="mb-3 shadow-sm rounded p-3">
+                            <NavLink to={`/threads/${post.thread_id}`} className="text-decoration-none text-dark">
+                            <Card.Body>
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                <span className="text-muted small">{new Date(post.timeposted).toLocaleString('en-US', {
+                                        timeZone: 'America/Los_Angeles',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                        hour12: true,
+                                    })}
+                                </span>
+                                <span className="badge bg-primary text-uppercase">Post</span>
+                                </div>
+                                <Card.Title className="fs-6 fw-bold">{post?.title || 'Thread Title'}</Card.Title>
+                                <Card.Text>{post.content}</Card.Text>
+                                <Card.Text className="text-muted small"><strong>Likes:</strong> {post.likes}</Card.Text>
+                            </Card.Body>
+                            </NavLink>
+                        </Card>
+                        ))}
+                    </Tab>
                     </Tabs>
                 </Col>
 
                 <Col md={4}>
-                    <Card className="p-3">
-                        {friendshipStatus === 'pending' && (
-                            initiatedByCurrentUser ? (
-                                <p>Friend Request Pending</p>
-                            ) : (
-                                <Button onClick={handleFriendAction}>Accept Friend Request</Button>
-                            )
-                        )}
-                        {friendshipStatus === 'accepted' && (
-                            <FriendOptionsDropdown
-                                onRemoveFriend={handleRemoveFriend}
-                                onDirectMessage={handleDirectMessage}
-                                onBlockFriend={handleBlockFriend}
-                            />
-                        )}
-                        {friendshipStatus === 'not_friends' && (
-                            String(userid) !== friendid && (
-                                <Button onClick={handleFriendAction}>Add Friend</Button>
-                            )
-                        )}
+                    <Card className="p-3 shadow-sm">
                     </Card>
                 </Col>
             </Row>
@@ -530,7 +581,7 @@ function Userprofile() {
             {/* Modal for profile edit*/}
             <Modal show={showProfile} onHide={profileClose} size="lg">
                 <Modal.Header closeButton>
-                    <Modal.Title>Profile Image Selection</Modal.Title>
+                    <Modal.Title>Editing Profile Info</Modal.Title>
                 </Modal.Header>
                 <Form onSubmit={(e) => {e.preventDefault(); handleProfileSave();}}>
                     <div className='text-center'>
@@ -543,34 +594,45 @@ function Userprofile() {
                                         fluid
                                         loading="lazy"
                                 />
-                                <Button variant="warning" onClick={changeOpen}>Change Profile Image</Button>
+                                <Button variant="primary" onClick={changeOpen}>Change Profile Image</Button>
                             </ButtonGroup>
-                        <Form.Group className='mb-3'>
-                            <Form.Label>Username</Form.Label>
-                            <Form.Control 
-                                type='text'
-                                value = {username}
-                                onChange={e => setUsername(e.target.value)}
-                            />
-                        </Form.Group>
+                        <div>
+                            <Form.Group as={Row} className='mb-3 align-items-center'>
+                                <Form.Label column sm="3">Username</Form.Label>
+                                <Col sm="9">
+                                    <Form.Control 
+                                        type='text'
+                                        value = {username}
+                                        onChange={e => setUsername(e.target.value)}
+                                    />
+                                </Col>
+                            </Form.Group>
 
-                        <Form.Group className='mb-3'>
-                            <Form.Label>Location</Form.Label>
-                            <Form.Control 
-                                type='text' 
-                                value = {location}
-                                onChange={e => setLocation(e.target.value)}
-                            />
-                        </Form.Group>
+                            <Form.Group as={Row} className='mb-3 align-items-center'>
+                                <Form.Label column sm="3">Location</Form.Label>
+                                <Col sm="9">
+                                    <Form.Control 
+                                        type='text' 
+                                        value = {location}
+                                        onChange={e => setLocation(e.target.value)}
+                                    />
+                                </Col>
+                            </Form.Group>
 
-                        <Form.Group className='mb-3'>
-                            <Form.Label>Description</Form.Label>
-                            <Form.Control 
+                        <Form.Group as={Row} className='mb-3 align-items-center'>
+                            <Form.Label column sm="3">Description</Form.Label>
+                            <Col sm="9">
+                                <Form.Control
+                                as="textarea" 
                                 type='text' 
                                 value = {description}
                                 onChange={e => setDescription(e.target.value)}
-                            />
+                                maxLength={160}
+                                rows={3}
+                                />
+                            </Col>
                         </Form.Group>
+                        </div>
                         </div>
                         <div className='mt-40 mb-32'>
                             <Button type="submit" onClick={profileClose}>Confirm Changes</Button>

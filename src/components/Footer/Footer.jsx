@@ -4,7 +4,10 @@ import Logo from '../Images/smash-point-high-resolution-logo.png'
 
 export default function App() {
   return (
-    <Container fluid variant="footer" className='bg-primary pt-32 d-flex w-100'>
+    <Container fluid variant="footer" className='bg-primary pt-32 d-flex w-100' style={{ 
+        position: 'relative',
+        zIndex: 10 
+      }}>
         <Navbar className='d-flex'>
             <img src={Logo} className='img-fixed' alt='Logo' width={"400"} />
         </Navbar>
@@ -34,10 +37,14 @@ export default function App() {
                     </Col>
                     <Col>
                         <Row>
-                            <div>Terms of Use</div>
+                            <Nav.Item>
+                                <Nav.Link href='/terms'>Terms of Service</Nav.Link>
+                            </Nav.Item>
                         </Row>
                         <Row>
-                            <div>Privacy Policy</div>
+                            <Nav.Item>
+                                <Nav.Link href='/privacy'>Privacy Policy</Nav.Link>
+                            </Nav.Item>
                         </Row>
                     </Col>
                 </Row>

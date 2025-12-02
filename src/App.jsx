@@ -15,6 +15,7 @@ import Messaging from './pages/messaging'
 import Calendar from './pages/calendar'
 import UserSettings from './pages/usersettings'
 import Feedback from './pages/feedback'
+import ReportPage from './pages/reportpage'
 import './App.css'
 import { Container } from 'react-bootstrap'
 import { UserProvider } from './pages/usercontext';
@@ -56,12 +57,13 @@ export default function App() {
                                 <Route path='/messaging/:user/:userid' element={<Messaging/>}/>
                                 <Route path='/calendar' element={<Calendar/>}/>
                                 <Route path='/usersettings' element={<UserSettings toggleTheme={toggleTheme} />}/>
+                                <Route path='/reportpage' element={<ReportPage/>}/>
                                 <Route path='/feedback' element={<Feedback/>}/>
                             </Routes>
+                            <Footer />
                         </UserProvider>
                     </Router>
                 </Container>
-                <Footer />
             </Container>
         </div>
     )

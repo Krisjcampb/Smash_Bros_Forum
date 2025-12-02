@@ -213,21 +213,18 @@ app.get("/forumusers", async(req, res) => {
     }
 })
 
-//get a forum user
+//get a forum user by id
 app.get("/forumusers/:id", async (req, res) => {
     try {
         const { id } = req.params;
         console.log("ID: ", id);
 
-        // Query the database for the user with the given ID
         const forumusers = await pool.query("SELECT * FROM forumusers WHERE users_id = $1", [id]);
 
-        // Check if the user was found
         if (forumusers.rows.length === 0) {
             return res.status(404).json({ error: "User not found" });
         }
 
-        // Respond with the user data
         const user = forumusers.rows[0];
         res.json({
             name: user.username,
@@ -239,6 +236,35 @@ app.get("/forumusers/:id", async (req, res) => {
         });
     } catch (err) {
         console.error("Error fetching forum user:", err.message);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+//get a forum user by name
+app.get("/forumusers/get-user/:username", async (req, res) => {
+    try {
+        const { username } = req.params;
+        console.log("Username: ", username);
+
+        const forumusers = await pool.query(
+            "SELECT * FROM forumusers WHERE username ILIKE $1 ORDER BY username LIMIT 6",
+            [`${username}%`]
+        );
+
+        const users = forumusers.rows.map(user => ({
+            name: user.username,
+            id: user.users_id,
+            role: user.role,
+            character_name: user.character_name,
+            selected_skin: user.selected_skin,
+            location: user.location,
+            description: user.description,
+            last_online: user.last_online
+        }));
+
+        res.json(users);
+    } catch (err) {
+        console.error("Error fetching forum users by username:", err.message);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -277,7 +303,7 @@ app.put("/resendcode", async (req, res) => {
             host: 'smtp.gmail.com',
             secure: false,
             auth: {
-                user: "pnwsmashhub@gmail.com",
+                user: "smashpointssb@gmail.com",
                 pass: process.env.EMAIL_APP_PASS
             },
         });
@@ -428,29 +454,30 @@ app.post('/forumcontent', async (req, res) => {
 })
 
 //get all forum threads
-app.get('/forumcontent', async (req, res) => {
-  try {
-    const allForumcontent = await pool.query(`
-      SELECT fc.*
-      FROM forumcontent fc
-      JOIN forumusers fu ON fc.users_id = fu.users_id
-      WHERE fu.is_banned = FALSE
-    `);
-    res.json(allForumcontent.rows);
-  } catch (err) {
-    console.error(err.message);
-  }
-});
+// app.get('/forumcontent', async (req, res) => {
+//   try {
+//     const allForumcontent = await pool.query(`
+//       SELECT fc.*
+//       FROM forumcontent fc
+//       JOIN forumusers fu ON fc.users_id = fu.users_id
+//       WHERE fu.is_banned = FALSE
+//     `);
+//     res.json(allForumcontent.rows);
+//   } catch (err) {
+//     console.error(err.message);
+//   }
+// });
 
 app.get('/forumcontent', async (req, res) => {
   try {
-    const { page = 1, limit = 24 } = req.query;
-
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 24;
     const offset = (page - 1) * limit;
 
     const paginatedQuery = `
-      SELECT fc.*
+      SELECT fc.*, fi.filepath
       FROM forumcontent fc
+      LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
       JOIN forumusers fu ON fc.users_id = fu.users_id
       WHERE fu.is_banned = FALSE
       ORDER BY fc.postdate DESC
@@ -467,19 +494,24 @@ app.get('/forumcontent', async (req, res) => {
 });
 
 //get a forum thread
-app.get('/forumcontent/:threadID', async (req, res) => {
+app.get('/forumcontent/:thread_id', async (req, res) => {
   try {
-    const { threadID } = req.params
-    console.log("THREAD ID: ", threadID)
-    const forumcontent = await pool.query(
-      'SELECT * FROM forumcontent WHERE thread_id = $1',
-      [threadID]
-    )
-    res.json(forumcontent.rows[0])
+    const { thread_id } = req.params;
+    const query = `
+      SELECT fc.*, fu.username, fi.filepath
+      FROM forumcontent fc
+      JOIN forumusers fu ON fc.users_id = fu.users_id
+      LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
+      WHERE fc.thread_id = $1
+    `;
+    const result = await pool.query(query, [thread_id]);
+    if (result.rows.length === 0) return res.sendStatus(404);
+    res.json(result.rows[0]);
   } catch (err) {
-    console.error(err.message)
+    console.error(err.message);
+    res.sendStatus(500);
   }
-})
+});
 
 //update a forum thread
 app.put('/forumcontent/:thread_id', async (req, res) => {
@@ -551,19 +583,23 @@ app.delete('/forumcontent/:id', async (req, res) => {
 
 app.get('/threadcontent/:userid', async (req, res) => {
     try {
-        const { userid } = req.params
-        const getThreadcontent = await pool.query(`
-            SELECT fc.*
+        const { userid } = req.params;
+
+        const getThreadContent = await pool.query(`
+            SELECT DISTINCT fc.thread_id, fc.title, fc.content, fc.postdate, fi.filepath
             FROM forumcontent fc
             INNER JOIN forumcomments fcm ON fc.thread_id = fcm.thread_id
-            WHERE fcm.users_id = $1;`, [userid]
-        )
-        res.json(getThreadcontent.rows)
+            LEFT JOIN forumimages fi ON fi.thread_id = fc.thread_id
+            WHERE fcm.users_id = $1
+            ORDER BY fc.postdate DESC;
+        `, [userid]);
+
+        res.json(getThreadContent.rows);
     } catch (error) {
         console.error('Error getting thread content:', error);
         res.status(500).json({ error: 'An error occurred while getting the thread content.' });
     }
-})
+});
 
 //FORUM CONTENT LIKES AND DISLIKES
 app.post('/forumlikes', async (req, res) => {
@@ -671,82 +707,215 @@ app.get('/userlikesdislikes', async (req, res) => {
 //////////////////////////////// FORUM COMMENTS ////////////////////////////////////////
 
 app.post('/forumcomments', async (req, res) => {
-    try {
-        const { thread_id, comment, user, timeposted, userid } = req.body;
-        const newForumcomment = await pool.query(
-        'INSERT INTO forumcomments (thread_id, comment, username, timeposted, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *',
-        [thread_id, comment, user, timeposted, userid]
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const validateId = (id, name) => {
+      const num = Number(id);
+      if (isNaN(num)) throw new Error(`Invalid ${name}: ${id}`);
+      return num;
+    };
+
+    const { thread_id, comment, user, userid, mentions = [] } = req.body;
+    const validThreadId = validateId(thread_id, 'thread_id');
+    const validUserId = validateId(userid, 'userid');
+
+    const newComment = await client.query(
+      `INSERT INTO forumcomments 
+       (thread_id, comment, username, timeposted, users_id, mentions) 
+       VALUES($1, $2, $3, NOW(), $4, $5) 
+       RETURNING *`,
+      [validThreadId, comment, user, validUserId, JSON.stringify(mentions)]
+    );
+
+    const threadResult = await client.query(
+      'SELECT title, users_id FROM forumcontent WHERE thread_id = $1',
+      [validThreadId]
+    );
+    const threadTitle = threadResult.rows[0]?.title || 'a thread';
+    const threadCreatorId = threadResult.rows[0]?.users_id;
+
+    const mentionedUsers = new Set();
+
+    if (mentions.length > 0) {
+      for (const { username } of mentions) {
+        const userResult = await client.query(
+          'SELECT users_id FROM forumusers WHERE username = $1',
+          [username]
         );
 
-        const threadCreator = await pool.query('SELECT users_id FROM forumcontent WHERE thread_id = $1', [thread_id]);
-        const threadCreatorId = threadCreator.rows[0].users_id;
-        console.log(threadCreatorId, userid);
+        if (userResult.rows[0]?.users_id) {
+          const mentionedUserId = validateId(userResult.rows[0].users_id, 'mentionedUserId');
 
+          if (mentionedUserId !== validUserId && !mentionedUsers.has(mentionedUserId)) {
+            mentionedUsers.add(mentionedUserId);
 
-        if (threadCreatorId !== userid) {
-            const threadUrl = `/threads/${thread_id}`;
-            const existingNotification = await pool.query(
-            'SELECT * FROM notifications WHERE users_id = $1 AND type = $2 AND entity_id = $3',
-            [threadCreatorId, 'comment', thread_id]
-        );
+            const existingMention = await client.query(
+              `SELECT notification_id, unique_commenters 
+               FROM notifications 
+               WHERE users_id = $1 AND type = 'mention' AND thread_id = $2`,
+              [mentionedUserId, validThreadId]
+            );
 
-        let notificationMessage;
-        let uniqueCommenters = [];
+            if (existingMention.rows.length > 0) {
+              const existing = existingMention.rows[0];
+              let mentioners = existing.unique_commenters 
+                ? JSON.parse(existing.unique_commenters) 
+                : [];
 
-        if (existingNotification.rows.length > 0) {
-            const notification = existingNotification.rows[0];
-            uniqueCommenters = JSON.parse(notification.unique_commenters || '[]');
+              if (!mentioners.includes(validUserId)) {
+                mentioners.push(validUserId);
+              }
 
-            if (!uniqueCommenters.includes(userid)) {
-                uniqueCommenters.push(userid);
+              await client.query(
+                `UPDATE notifications SET
+                 message = $1,
+                 unique_commenters = $2,
+                 message_count = $3,
+                 latest_commenter = $4,
+                 is_read = FALSE,
+                 created_at = NOW()
+                 WHERE notification_id = $5`,
+                [
+                  mentioners.length > 1 
+                    ? `${user} and ${mentioners.length - 1} others mentioned you in "${threadTitle}"`
+                    : `${user} mentioned you in "${threadTitle}"`,
+                  JSON.stringify(mentioners),
+                  mentioners.length,
+                  user,
+                  existing.notification_id
+                ]
+              );
+            } else {
+              await client.query(
+                `INSERT INTO notifications 
+                 (users_id, type, entity_id, message, thread_id, 
+                  unique_commenters, message_count, latest_commenter) 
+                 VALUES ($1, 'mention', $2, $3, $4, $5, 1, $6)`,
+                [
+                  mentionedUserId,
+                  validUserId,
+                  `${user} mentioned you in "${threadTitle}"`,
+                  validThreadId,
+                  JSON.stringify([validUserId]),
+                  user
+                ]
+              );
             }
-
-            const uniqueCommentersCount = uniqueCommenters.length - 1;
-
-            notificationMessage = uniqueCommentersCount > 0 
-            ? `${user} + ${uniqueCommentersCount} others have commented on your thread.` 
-            : `${user} commented on your thread.`;
-
-            await pool.query(
-            'UPDATE notifications SET is_read = FALSE, latest_commenter = $1, unique_commenters = $2, message = $3 WHERE notification_id = $4',
-            [user, JSON.stringify(uniqueCommenters), notificationMessage, notification.notification_id]
-            );
-        } else {
-            uniqueCommenters.push(userid);
-            notificationMessage = `${user} commented on your thread.`;
-            await pool.query(
-            'INSERT INTO notifications (users_id, type, entity_id, message, latest_commenter, unique_commenters) VALUES($1, $2, $3, $4, $5, $6)',
-            [threadCreatorId, 'comment', thread_id, notificationMessage, user, JSON.stringify(uniqueCommenters)]
-            );
+          }
         }
+      }
     }
 
-    res.json(newForumcomment.rows[0]);
+    if (threadCreatorId && threadCreatorId !== validUserId && !mentionedUsers.has(threadCreatorId)) {
+      const existingNotification = await client.query(
+        `SELECT notification_id, unique_commenters 
+         FROM notifications 
+         WHERE users_id = $1 AND type = 'comment' AND entity_id = $2`,
+        [threadCreatorId, validThreadId]
+      );
+
+      if (existingNotification.rows.length > 0) {
+        const notification = existingNotification.rows[0];
+        let uniqueCommenters = notification.unique_commenters 
+          ? JSON.parse(notification.unique_commenters) 
+          : [];
+
+        if (!uniqueCommenters.includes(validUserId)) {
+          uniqueCommenters.push(validUserId);
+        }
+
+        await client.query(
+          `UPDATE notifications SET
+           message = $1,
+           is_read = FALSE,
+           latest_commenter = $2,
+           unique_commenters = $3,
+           message_count = $4,
+           thread_id = $5,
+           created_at = NOW()
+           WHERE notification_id = $6`,
+          [
+            uniqueCommenters.length > 1 
+              ? `${user} and ${uniqueCommenters.length - 1} others commented on your thread` 
+              : `${user} commented on your thread`,
+            user,
+            JSON.stringify(uniqueCommenters),
+            uniqueCommenters.length,
+            validThreadId,
+            notification.notification_id
+          ]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO notifications 
+           (users_id, type, entity_id, message, latest_commenter, 
+            unique_commenters, message_count, thread_id) 
+           VALUES ($1, 'comment', $2, $3, $4, $5, 1, $6)`,
+          [
+            threadCreatorId,
+            validThreadId,
+            `${user} commented on your thread`,
+            user,
+            JSON.stringify([validUserId]),
+            validThreadId
+          ]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      success: true,
+      comment_id: newComment.rows[0].comment_id,
+      mentions_processed: mentionedUsers.size
+    });
+
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    await client.query('ROLLBACK');
+    console.error('[Forum Comment Error]', err.message);
+    res.status(500).json({
+      error: 'Failed to post comment',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  } finally {
+    client.release();
   }
 });
 
 //get forumcomments
 app.get('/forumcomments/:thread_id', async (req, res) => {
-  try {
-    const { thread_id } = req.params
-    const forumcomments = await pool.query(
-      `SELECT fc.*, fu.character_name, fu.selected_skin
-       FROM forumcomments fc
-       JOIN forumusers fu ON fc.users_id = fu.users_id
-       WHERE fc.thread_id = $1
-         AND fc.is_deleted = FALSE
-         AND (fu.is_banned IS NULL OR fu.is_banned = FALSE)`,
-      [thread_id]
-    );
-    // console.log(forumcomments.rows)
-    res.json(forumcomments.rows)
-  } catch (err) {
-    console.error(err.message)
-  }
-})
+    try {
+        const { thread_id } = req.params;
+        const result = await pool.query(
+        `SELECT 
+            fc.*,
+            fu.character_name,
+            fu.selected_skin,
+            fu.role,
+            CASE 
+            WHEN fc.mentions IS NULL THEN '[]'::jsonb 
+            ELSE fc.mentions 
+            END AS mentions
+        FROM forumcomments fc
+        JOIN forumusers fu ON fc.users_id = fu.users_id
+        WHERE fc.thread_id = $1
+            AND fc.is_deleted = FALSE
+            AND (fu.is_banned IS NULL OR fu.is_banned = FALSE)
+        ORDER BY fc.timeposted DESC`,
+        [thread_id]
+        );
+        
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Database error:', err.message);
+        res.status(500).json({ 
+        error: 'Failed to fetch comments',
+        details: err.message 
+        });
+    }
+});
 
 app.get('/usercomments/:userid', async (req, res) => {
     try {
@@ -834,7 +1003,7 @@ app.post('/commentlikes', async (req, res) => {
 
         if (like.rows.length > 0) {
             await pool.query(`DELETE FROM commentlikes WHERE user_id = $1 AND comment_id = $2`, [userId, comment_id])
-            return res.status(200).send('Comment like removed');
+            return res.status(200).send('Like removed');
         }
 
         const dislike = await pool.query('SELECT * FROM commentdislikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
@@ -844,6 +1013,7 @@ app.post('/commentlikes', async (req, res) => {
         }
 
         await pool.query('INSERT INTO commentlikes (user_id, comment_id) VALUES ($1, $2)', [userId, comment_id]);
+
         res.status(200).json({ message: 'Post liked successfully.' });
     }
     catch (error) {
@@ -872,7 +1042,8 @@ app.post('/commentdislikes', async (req, res) => {
         await pool.query('INSERT INTO commentdislikes (user_id, comment_id) VALUES ($1, $2)', [userId, comment_id]);
 
         res.status(200).json({ message: 'Post disliked successfully.' });
-    } catch (error) {
+    } 
+    catch (error) {
         console.error('Error disliking post:', error);
         res.status(500).json({ error: 'An error occurred while disliking the post.' });
     }
@@ -943,22 +1114,61 @@ app.get('/forumdislikes', async (req, res) => {
     }
 })
 
-app.get('/userlikesdislikes', async (req, res) => {
+app.get('/commentlikesdislikes', async (req, res) => {
 
     const userid = req.query.userid;
     try {
-        const likes = await pool.query(`SELECT post_id FROM likes WHERE user_id = $1`, [userid])
-        const dislikes = await pool.query(`SELECT post_id FROM dislikes WHERE user_id = $1`, [userid])
+        const likes = await pool.query(`SELECT comment_id FROM commentlikes WHERE user_id = $1`, [userid])
+        const dislikes = await pool.query(`SELECT comment_id FROM commentdislikes WHERE user_id = $1`, [userid])
 
         const result = [
-            ...likes.rows.map(like => ({ thread_id: like.post_id, type: 'like' })),
-            ...dislikes.rows.map(dislike => ({ thread_id: dislike.post_id, type: 'dislike' }))
+            ...likes.rows.map(like => ({ comment_id: like.comment_id, type: 'like' })),
+            ...dislikes.rows.map(dislike => ({ comment_id: dislike.comment_id, type: 'dislike' }))
         ];
         res.json(result)
     } catch (err) {
         res.status(500).json({ error: 'Internal server error' });
     }
 })
+
+//////////////////////////////// REPORT SYSTEM ///////////////////////////////////////
+
+app.post('/threadreport', async (req, res) => {
+    try {
+        const { user_id, thread_id, reported_user, reason, report_desc } = req.body
+        console.log(user_id, thread_id, reported_user, reason, report_desc)
+
+        const result = await pool.query('INSERT INTO threadreports (reporting_uid, thread_id, reported_uid, reason, report_desc) VALUES ($1, $2, $3, $4, $5)', [user_id, thread_id, reported_user, reason, report_desc])
+        res.json(result.rows[0])
+
+    } catch (err){
+        res.status(500).json({error: 'Internal server error'});
+    }
+})
+
+app.get('/viewreports', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                report_id, reporting_uid, reported_uid, reason, report_desc, reported_at, is_reviewed, 'thread' AS report_type
+            FROM threadreports
+            WHERE is_reviewed = $1
+
+            UNION ALL
+
+            SELECT 
+                report_id, reporting_uid, reported_uid, reason, report_desc, reported_at, is_reviewed, 'comment' AS report_type
+            FROM commentreports
+            WHERE is_reviewed = $1
+        `, [false]);
+        console.log("RESULT: ", result)
+        res.json(result.rows)
+
+    } catch (err){
+        res.status(500).json({error: 'Internal server error'});
+    }
+})
+
 //////////////////////////////// RESET PASSWORD //////////////////////////////////////
 
 app.post('/passwordreset', async (req, res) => {
@@ -982,13 +1192,13 @@ app.post('/passwordreset', async (req, res) => {
         host: 'smtp.gmail.com',
         secure: false,
         auth: {
-            user: "pnwsmashhub@gmail.com",
+            user: "smashpointssb@gmail.com",
             pass: process.env.EMAIL_APP_PASS
         },
     })
     
     const mailOptions = {
-        from: 'pnwsmashhub@gmail.com',
+        from: 'smashpointssb@gmail.com',
         to: email,
         subject: 'Reset your password',
         text: `Your password reset code is: ${randomcode}. This code is valid for 24 hours.`,
@@ -1338,7 +1548,7 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
 
         return newMessage.rows[0];
     } catch (err) {
-        console.error("❌ Error saving message to DB:", err);
+        console.error("Error saving message to DB:", err);
         return null;
     }
 };
@@ -1348,7 +1558,7 @@ const getMessagesFromDB = async (userId, friendId) => {
     try {
         console.log("Hello World!")
         const result = await pool.query(
-            `SELECT sender_id, receiver_id, message_text, iv, timestamp 
+            `SELECT message_id, sender_id, receiver_id, message_text, iv, timestamp, is_deleted 
              FROM messages 
              WHERE (sender_id = $1 AND receiver_id = $2) 
                 OR (sender_id = $2 AND receiver_id = $1) 
@@ -1367,40 +1577,87 @@ const getMessagesFromDB = async (userId, friendId) => {
 io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("joinRoom", (userId) => {
-        socket.join(userId);
-        console.log(`User ${userId} joined their room`);
+    socket.on("joinRoom", ({ userId, friendId }) => {
+        const room = getDMRoomName(userId, friendId);
+        socket.join(room);
+        console.log(`User ${userId} joined room ${room}`);
     });
 
     socket.on("sendMessage", async (data) => {
-    const { sender_id, receiver_id, message_text, username } = data;
+        const { sender_id, receiver_id, message_text, username} = data;
+        try {
+            const savedMessage = await saveMessageToDB({
+                sender_id,
+                receiver_id,
+                message_text,
+                username,
+            });
 
-    const savedMessage = await saveMessageToDB({ sender_id, receiver_id, message_text, username });
+            if (!savedMessage) {
+                console.error("Failed to save message to DB");
+                return;
+            }
 
-    if (savedMessage) {
-        console.log("✅ Message stored:", savedMessage);
+            savedMessage.message_text = `${savedMessage.iv}:${savedMessage.message_text}`;
 
-        socket.to(receiver_id).emit("receiveMessage", data);
-    } else {
-        console.error("❌ Failed to save message, not emitting.");
-    }
+            const roomName = `dm-${sender_id}-${receiver_id}`;
+            io.to(roomName).emit("receiveMessage", savedMessage);
+            socket.emit("messageSent", savedMessage);
+        } catch (err) {
+            console.error("Error saving message:", err);
+        }
     });
 
-    socket.on('getMessageHistory', async ({ userId, friendId }) => {
+    socket.on("getMessageHistory", async ({ userId, friendId }) => {
         try {
-            const messages = await getMessagesFromDB(userId, friendId); // Fetch from DB
-            console.log(`Fetched messages for ${userId} & ${friendId}:`, messages);
-
-            socket.emit('messageHistory', { friendId, messages });
-            console.log(`✅ Sent message history to user ${userId}`);
+        const messages = await getMessagesFromDB(userId, friendId);
+        socket.emit('messageHistory', { friendId, messages });
         } catch (error) {
-            console.error('❌ Error retrieving message history:', error);
+        console.error('Error retrieving message history:', error);
+        }
+    });
+
+    socket.on("deleteMessage", async ({ messageId }) => {
+        try {
+            await pool.query(
+                `UPDATE messages SET is_deleted = true WHERE message_id = $1`,
+                [messageId]
+            );
+
+            const messageResult = await pool.query(
+                `SELECT sender_id, receiver_id FROM messages WHERE message_id = $1`,
+                [messageId]
+            );
+
+            if (messageResult.rows.length === 0) {
+                console.error("Message not found after delete.");
+                return;
+            }
+
+            const { sender_id, receiver_id } = messageResult.rows[0];
+            const room = getDMRoomName(sender_id, receiver_id);
+
+            io.to(room).emit("deleteMessage", {
+                message_id: messageId,
+                sender_id,
+                receiver_id,
+            });
+
+            console.log(`Message ${messageId} marked as deleted and broadcast to room ${room}`);
+        } catch (err) {
+            console.error("Error deleting message:", err);
         }
     });
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
     });
+
+    // Helper
+    function getDMRoomName(userId1, userId2) {
+        const sorted = [userId1, userId2].sort((a, b) => a - b);
+        return `dm-${sorted[0]}-${sorted[1]}`;
+    }
 });
 
 //Get notifications for user

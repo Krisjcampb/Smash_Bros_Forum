@@ -10,6 +10,7 @@ const Messaging = () => {
     const messageContainerRef = useRef(null);
     const [selectedUser, setSelectedUser] = useState(null)
     const [messageInput, setMessageInput] = useState('')
+    const [selectedMessageId, setSelectedMessageId] = useState(null);
     const [messages, setMessages] = useState([])
     const [user, setUser] = useState('')
     const [userid, setUserId] = useState('')
@@ -17,6 +18,7 @@ const Messaging = () => {
     const token = localStorage.getItem('token')
     const location = useLocation();
     const [config, setConfig] = useState(null)
+    const messageRefs = useRef({});
     const usernotif = useMemo(() => location.state?.entityID || null, [location.state]);
 
     window.Buffer = Buffer;
@@ -25,7 +27,7 @@ const Messaging = () => {
         setSelectedUser(user)
         fetchMessageHistory(user.id)
     }
-    
+
     const encrypt = (text) => {
         if (!config) {
             console.error('Config not defined');
@@ -56,10 +58,10 @@ const Messaging = () => {
         }
         const textParts = text.split(':');
         const iv = Buffer.from(textParts.shift(), 'hex');
-        console.log(text)
-        console.log("config: ", config)
-        console.log("key: ", key)
-        console.log("iv: ", iv)
+        // console.log(text)
+        // console.log("config: ", config)
+        // console.log("key: ", key)
+        // console.log("iv: ", iv)
         const encryptedText = Buffer.from(textParts.join(':'), 'hex');
         const decipher = crypto.createDecipheriv(config.algorithm, key, iv);
         const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
@@ -135,6 +137,47 @@ const Messaging = () => {
     }, [userid]);
 
     useEffect(() => {
+        const handleClickOutside = (event) => {
+            // If we have a selected message and the click is outside that message div
+            if (
+            selectedMessageId &&
+            messageRefs.current[selectedMessageId] &&
+            !messageRefs.current[selectedMessageId].contains(event.target)
+            ) {
+            setSelectedMessageId(null);
+            }
+        };
+
+        document.addEventListener("click", handleClickOutside);
+        return () => {
+            document.removeEventListener("click", handleClickOutside);
+        };
+    }, [selectedMessageId]);
+
+    useEffect(() => {
+        socket.on("connect", () => {
+            console.log("Socket connected:", socket.id);
+        });
+
+        return () => {
+            socket.off("connect");
+        };
+    }, []);
+    
+    useEffect(() => {
+        if (selectedUser && userid) {
+            const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
+            console.log("Emitting joinRoom with:", { userId: sorted[0], friendId: sorted[1] });
+            socket.emit("joinRoom", { userId: sorted[0], friendId: sorted[1] });
+            
+            // Fetch message history after joining the room
+            setTimeout(() => {
+                fetchMessageHistory(selectedUser.id);
+            }, 100); // Small delay to ensure room is joined
+        }
+    }, [selectedUser, userid, fetchMessageHistory]);
+
+    useEffect(() => {
         const fetchData = async () => {
             await fetchConfig();
             await authenticateUser();
@@ -148,10 +191,6 @@ const Messaging = () => {
     }, [authenticateUser, fetchConfig, fetchFriendsList, userid]);
 
     useEffect(() => {
-        console.log("🔄 Setting up WebSocket listener for `messageHistory`...");
-
-        console.log("🛠 Existing WebSocket Listeners:", socket._callbacks);
-
         const handleMessageHistory = (data) => {
             console.log("📩 Received `messageHistory` event:", data);
 
@@ -161,18 +200,34 @@ const Messaging = () => {
             }
 
             const { friendId, messages } = data;
-            console.log(`📨 Processing messages for friendId: ${friendId}`, messages);
-            console.log("config check: ", config)
-
+            
             const decryptedMessages = messages.map(msg => ({
                 ...msg,
                 message_text: decrypt(`${msg.iv}:${msg.message_text}`)
             }));
 
-            setMessages((prevMessages) => [
-                ...prevMessages,
-                { friendId, messages: decryptedMessages }
-            ]);
+            setMessages(prevMessages => {
+                const existingChatIndex = prevMessages.findIndex(
+                    chat => chat.friendId === friendId
+                );
+                
+                if (existingChatIndex !== -1) {
+                    const existingMessages = prevMessages[existingChatIndex].messages;
+                    const newMessages = decryptedMessages.filter(
+                        newMsg => !existingMessages.some(existingMsg => 
+                            existingMsg.message_id === newMsg.message_id
+                        )
+                    );
+                    
+                    return prevMessages.map((chat, index) =>
+                        index === existingChatIndex
+                            ? { ...chat, messages: [...chat.messages, ...newMessages] }
+                            : chat
+                    );
+                } else {
+                    return [...prevMessages, { friendId, messages: decryptedMessages }];
+                }
+            });
         };
 
         socket.on('messageHistory', handleMessageHistory);
@@ -181,7 +236,7 @@ const Messaging = () => {
             console.log("🧹 Cleaning up WebSocket listener for `messageHistory`");
             socket.off('messageHistory', handleMessageHistory);
         };
-    }, [socket, config]);
+    }, [config, decrypt]);
 
     useEffect(() => {
         if (!usernotif || listfriends.length === 0) return;
@@ -193,32 +248,70 @@ const Messaging = () => {
     }, [usernotif, listfriends]);
 
     useEffect(() => {
-    socket.on("receiveMessage", (message) => {
-        console.log("📩 Received message via WebSocket:", message);
+        console.log("Attaching socket listeners...");
 
-        setMessages((prevMessages) => {
-            return prevMessages.map(chat => {
-                if (chat.friendId === message.sender_id || chat.friendId === message.receiver_id) {
-                    return {
-                        ...chat,
-                        messages: [
-                            ...chat.messages,
-                            {
-                                sender_id: message.sender_id,
-                                message_text: decrypt(message.message_text),
-                            },
-                        ],
-                    };
-                }
-                return chat;
+        const handleReceive = (message) => {
+            console.log("Received message:", message);
+            
+            if (message.sender_id === userid) return;
+            
+            const decryptedMessage = {
+            message_id: message.message_id,
+            sender_id: message.sender_id,
+            message_text: decrypt(message.message_text),
+            is_deleted: false,
+            };
+
+            setMessages((prevMessages) => {
+            const chatIndex = prevMessages.findIndex(
+                (chat) =>
+                chat.friendId === message.sender_id ||
+                chat.friendId === message.receiver_id
+            );
+
+            if (chatIndex !== -1) {
+                return prevMessages.map((chat, index) =>
+                index === chatIndex
+                    ? { ...chat, messages: [...chat.messages, decryptedMessage] }
+                    : chat
+                );
+            } else {
+                const friendId =
+                message.sender_id === userid
+                    ? message.receiver_id
+                    : message.sender_id;
+
+                return [...prevMessages, { friendId, messages: [decryptedMessage] }];
+            }
             });
-        });
-    });
+        };
 
-    return () => {
-        socket.off("receiveMessage");
+    const handleDelete = ({ message_id, sender_id, receiver_id }) => {
+        setMessages((prevMessages) =>
+        prevMessages.map((chat) => {
+            if (chat.friendId === sender_id || chat.friendId === receiver_id) {
+            return {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                msg.message_id === message_id
+                    ? { ...msg, is_deleted: true }
+                    : msg
+                ),
+            };
+            }
+            return chat;
+        })
+        );
     };
-}, [userid]);
+
+    socket.on("receiveMessage", handleReceive);
+    socket.on("deleteMessage", handleDelete);
+
+  return () => {
+    socket.off("receiveMessage", handleReceive);
+    socket.off("deleteMessage", handleDelete);
+  };
+}, [decrypt, userid]);
 
     useEffect(() => {
         if (messageContainerRef.current) {
@@ -227,91 +320,148 @@ const Messaging = () => {
     }, [messages]);
 
     const handleSendMessage = () => {
+        const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
+        const room = `dm-${sorted[0]}-${sorted[1]}`;
+
         if (selectedUser && messageInput.trim() !== "") {
             const encryptedMessage = encrypt(messageInput);
 
-            const newMessage = {
+            setMessageInput("");
+
+            // Then send the actual encrypted message
+            socket.emit("sendMessage", {
+                room,
                 sender_id: userid,
                 receiver_id: selectedUser.id,
                 message_text: encryptedMessage,
                 username: user,
-            };
-
-            socket.emit("sendMessage", newMessage);
-
-            setMessageInput("");
+            });
         }
     };
 
+    useEffect(() => {
+        const handleMessageSent = (message) => {
+            setMessages((prevMessages) => {
+                // 1. Decrypt the server's message
+                const decryptedMessage = {
+                    ...message,
+                    message_text: decrypt(message.message_text),
+                    is_deleted: false,
+                };
+
+                // 2. Find and replace the temporary message
+                return prevMessages.map((chat) => {
+                    if (chat.friendId === message.sender_id || chat.friendId === message.receiver_id) {
+                        // Filter out any temporary message
+                        const filteredMessages = chat.messages.filter(
+                            msg => !(msg.message_id > Date.now() - 10000 && msg.sender_id === userid)
+                        );
+                        
+                        return {
+                            ...chat,
+                            messages: [...filteredMessages, decryptedMessage],
+                        };
+                    }
+                    return chat;
+                });
+            });
+        };
+
+        socket.on("messageSent", handleMessageSent);
+        return () => socket.off("messageSent", handleMessageSent);
+    }, [decrypt, userid]);
+
+    const handleDeleteMessage = (messageId) => {
+        socket.emit("deleteMessage", { messageId });
+    };
+
     return (
-      <Container fluid className='mt-5 messaging-page'>
-      <Row className='h-100'>
-        <Col sm={4} className='p-3 friends-list'>
-          <h4 className='mb-3'>Friends</h4>
-          <ListGroup variant='flush'>
-            {listfriends.map((user) => (
-              <ListGroup.Item
-                key={user.id}
-                action
-                active={user === selectedUser}
-                className='friend-item'
-                onClick={() => handleUserSelection(user)}
-              >
-                {user.name}
-              </ListGroup.Item>
-            ))}
-          </ListGroup>
-        </Col>
-        <Col sm={8} className='p-3 chat-area'>
-          {selectedUser ? (
-            <Card className='h-100 chat-card'>
-              <Card.Header className='d-flex justify-content-between align-items-center chat-header'>
-                <Link
-                  to={`/userprofile/${selectedUser.name}/${selectedUser.id}`}
-                  className='text-decoration-none text-dark'
-                >
-                  {selectedUser.name}
-                </Link>
-              </Card.Header>
-              <Card.Body className='chat-body'>
-                <div ref={messageContainerRef} className='messages-container'>
-                  {messages
-                    .find((friendMessages) => friendMessages.friendId === selectedUser.id)
-                    ?.messages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`message ${
-                          msg.sender_id === userid ? 'sent' : 'received'
-                        }`}
-                      >
-                        <p className='mb-0'>{msg.message_text}</p>
-                      </div>
+        <Container fluid className='mt-5 messaging-page'>
+            <Row className='h-100'>
+                <Col sm={4} className='p-3 friends-list'>
+                <h4 className='mb-3'>Friends</h4>
+                <ListGroup variant='flush'>
+                    {listfriends.map((user) => (
+                    <ListGroup.Item
+                        key={user.id}
+                        action
+                        active={user === selectedUser}
+                        className='friend-item'
+                        onClick={() => handleUserSelection(user)}
+                    >
+                        {user.name}
+                    </ListGroup.Item>
                     ))}
-                </div>
-              </Card.Body>
-              <Card.Footer className='chat-footer'>
-                <Form className='d-flex'>
-                  <Form.Control
-                    type='text'
-                    placeholder='Type your message...'
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    className='me-2'
-                  />
-                  <Button variant='primary' onClick={handleSendMessage}>
-                    Send
-                  </Button>
-                </Form>
-              </Card.Footer>
-            </Card>
-          ) : (
-            <div className='d-flex justify-content-center align-items-center h-100'>
-              <p className='text-center'>Select a user to start chatting</p>
-            </div>
-          )}
-        </Col>
-      </Row>
-    </Container>
+                </ListGroup>
+                </Col>
+                <Col sm={8} className='p-3 chat-area' >
+                {selectedUser ? (
+                    <Card className='h-100 chat-card'>
+                    <Card.Header className='d-flex justify-content-between align-items-center chat-header'>
+                        <Link
+                        to={`/userprofile/${selectedUser.name}/${selectedUser.id}`}
+                        className='text-decoration-none text-dark'
+                        >
+                        {selectedUser.name}
+                        </Link>
+                    </Card.Header>
+                    <Card.Body className='chat-body'>
+                        <div ref={messageContainerRef} className='messages-container'>
+                        {messages
+                        .find((friendMessages) => friendMessages.friendId === selectedUser.id)
+                        ?.messages.map((msg, index) => (
+                            <div
+                            key={index}
+                            ref={(el) => (messageRefs.current[msg.message_id] = el)}
+                            className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
+                            onClick={() => setSelectedMessageId(msg.message_id)}
+                            >
+                            <p className='mb-0'>
+                                {msg.is_deleted ? <i>Deleted Message</i> : msg.message_text}
+                            </p>
+
+                            {selectedMessageId === msg.message_id &&
+                                msg.sender_id === userid &&
+                                !msg.is_deleted && (
+                                <Button
+                                    variant="outline-danger"
+                                    size="sm"
+                                    className="mt-1"
+                                    onClick={(e) => {
+                                    e.stopPropagation(); // stop from selecting the message again
+                                    handleDeleteMessage(msg.message_id);
+                                    }}
+                                >
+                                    Delete
+                                </Button>
+                                )}
+                            </div>
+                        ))}
+                        </div>
+                    </Card.Body>
+                    <Card.Footer className='chat-footer'>
+                        <Form className='d-flex'>
+                        <Form.Control
+                            type='text'
+                            placeholder='Type your message...'
+                            value={messageInput}
+                            onChange={(e) => setMessageInput(e.target.value)}
+                            className='me-2'
+                        />
+                        <Button variant='primary' onClick={handleSendMessage}>
+                            Send
+                        </Button>
+                        </Form>
+                    </Card.Footer>
+                    </Card>
+                ) : (
+                    <div className='d-flex justify-content-center align-items-center h-100'>
+                    <p className='text-center'>Select a user to start chatting</p>
+                    </div>
+                )}
+                </Col>
+            </Row>
+        </Container>
     )
 }
 
