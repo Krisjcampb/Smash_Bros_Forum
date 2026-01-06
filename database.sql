@@ -1,4 +1,4 @@
-CREATE DATABASE pnwsmashdb;
+CREATE DATABASE smashpointdb;
 
 CREATE TABLE forumusers(
     users_id SERIAL PRIMARY KEY,
@@ -10,10 +10,9 @@ CREATE TABLE forumusers(
     is_banned BOOLEAN DEFAULT false,
     verified BOOLEAN DEFAULT false,
     character_name VARCHAR(100) DEFAULT 'Mario',
-    selected_skin INTEGER, 
+    selected_skin INTEGER DEFAULT 0, 
     location VARCHAR(30),
-    description VARCHAR(180),
-
+    description VARCHAR(180)
 );
 
 CREATE TABLE forumcontent(
@@ -25,6 +24,7 @@ CREATE TABLE forumcontent(
     username VARCHAR(255),
     postdate TIMESTAMPTZ,
     users_id INT NOT NULL REFERENCES forumusers(users_id)
+    is_deleted BOOLEAN DEFAULT false;
 );
 
 CREATE TABLE forumimages(
@@ -39,7 +39,8 @@ CREATE TABLE forumcomments(
     timeposted TIMESTAMPTZ,
     users_id INTEGER,
     comment_id INTEGER,
-    is_deleted BOOLEAN
+    is_deleted BOOLEAN,
+    mentions JSONB,
 );
 
 CREATE TABLE passwordreset (
@@ -129,9 +130,8 @@ CREATE TABLE notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     latest_commenter VARCHAR,
     unique_commenters TEXT,
-    message_counter INTEGER DEFAULT 1,
-    FOREIGN KEY (users_id) REFERENCES forumusers(users_id),
-
+    message_count INTEGER DEFAULT 1,
+    FOREIGN KEY (users_id) REFERENCES forumusers(users_id)
 );
 
 UPDATE forumusers
@@ -218,7 +218,8 @@ CREATE TABLE threadreports (
     reported_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_reviewed BOOLEAN DEFAULT FALSE,
     mod_notes TEXT,
-
+    resolution_status VARCHAR(20),
+    
     UNIQUE (reporting_uid, thread_id)
 );
 
@@ -232,7 +233,7 @@ CREATE TABLE commentreports (
     reported_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_reviewed BOOLEAN DEFAULT FALSE,
     mod_notes TEXT,
-
+    resolution_status VARCHAR(20),
     UNIQUE (reporting_uid, comment_id)
 );
 

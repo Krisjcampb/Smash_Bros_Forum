@@ -63,63 +63,65 @@ function authenticateToken(req, res, next) {
 
 //create a user
 app.post('/forumusers', async (req, res) => {
-    try {
-        const { username, email, hashedpassword, publicKey } = req.body;
+  try {
+    const { username, email, password, publicKey } = req.body; // <-- plain password from frontend
 
-        // Insert user into forumusers table
-        const newForumusers = await pool.query(
-            "INSERT INTO forumusers (username, email, password) VALUES ($1, $2, $3) RETURNING *", 
-            [username, email, hashedpassword]
-        );
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10); // saltRounds = 10
 
-        const userId = newForumusers.rows[0].users_id;
+    // Insert user into forumusers table
+    const newForumusers = await pool.query(
+      "INSERT INTO forumusers (username, email, password) VALUES ($1, $2, $3) RETURNING *",
+      [username, email, hashedPassword]
+    );
 
-        // Generate a random verification code
-        const generateRandomCode = () => {
-            const buffer = crypto.randomBytes(3);
-            const code = buffer.readUIntBE(0, 3);
-            return code % 1000000;
-        };
-        const randomcode = generateRandomCode();
+    const userId = newForumusers.rows[0].users_id;
 
-        // Set expiration time for the verification code
-        const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Generate a random verification code
+    const generateRandomCode = () => {
+      const buffer = crypto.randomBytes(3);
+      const code = buffer.readUIntBE(0, 3);
+      return code % 1000000;
+    };
+    const randomcode = generateRandomCode();
 
-        // Insert verification code into emailverify table
-        await pool.query('INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)', [userId, randomcode, expires_at, false]);
+    // Set expiration time for the verification code
+    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-        // Send verification email
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            host: 'smtp.gmail.com',
-            secure: false,
-            auth: {
-                user: 'pnwsmashhub@gmail.com',
-                pass: process.env.EMAIL_APP_PASS,
-            },
-        });
+    // Insert verification code into emailverify table
+    await pool.query(
+      'INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)',
+      [userId, randomcode, expires_at, false]
+    );
 
-        const mailOptions = {
-            from: 'pnwsmashhub@gmail.com',
-            to: email,
-            subject: 'Verify your email address',
-            text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
-        };
+    // Send verification email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      host: 'smtp.gmail.com',
+      secure: false,
+      auth: {
+        user: 'smashpointssb@gmail.com',
+        pass: process.env.EMAIL_APP_PASS,
+      },
+    });
 
-        transporter.sendMail(mailOptions, function (err, info) {
-            if (err) {
-                console.error('Error sending email:', err);
-            } else {
-                console.log('Email sent:', info.response);
-            }
-        });
+    const mailOptions = {
+      from: 'smashpointssb@gmail.com',
+      to: email,
+      subject: 'Verify your email address',
+      text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
+    };
 
-        res.status(201).json({ user: newForumusers.rows[0], message: 'User registered successfully' });
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) console.error('Error sending email:', err);
+      else console.log('Email sent:', info.response);
+    });
 
-    } catch (err) {
-        console.error('Error in /forumusers endpoint:', err.message);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+    res.status(201).json({ user: newForumusers.rows[0], message: 'User registered successfully' });
+  } catch (err) {
+    console.error('Error in /forumusers endpoint:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 app.put("/forumusers/updateVerified", async (req, res) => {
@@ -328,16 +330,74 @@ app.put("/resendcode", async (req, res) => {
 //update a forum user
 app.put("/forumusers", async (req, res) => {
     try {
-        const {hashedpassword, email} = req.body;
-        const updateForumusers = await pool.query("UPDATE forumusers SET password = $1 WHERE email = $2",
-        [hashedpassword, email]
+        const { email, password } = req.body;
+        console.log(email, password)
+        // Validate input
+        if (!email || !password) {
+            return res.status(400).json({ 
+                error: "Email, password, and verification code are required" 
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ 
+                error: "Password must be at least 8 characters" 
+            });
+        }
+
+        const lowerEmail = email.toLowerCase();
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        const resetResult = await pool.query(
+            `SELECT * FROM passwordreset 
+             WHERE LOWER(email) = $1 
+             AND used = false
+             AND expires_at > NOW()`,
+            [lowerEmail]
         );
 
-        res.json("Forumusers was updated!");
+        const resetRecord = resetResult.rows[0];
+        console.log(resetRecord)
+
+        // Update the user's password
+        const updateResult = await pool.query(
+            `UPDATE forumusers 
+             SET password = $1 
+             WHERE LOWER(email) = $2 
+             RETURNING users_id, username, email`,
+            [hashedPassword, lowerEmail]
+        );
+
+        if (updateResult.rows.length === 0) {
+            // This shouldn't happen if reset code exists, but handle it
+            return res.status(404).json({ 
+                error: "User not found" 
+            });
+        }
+
+        await pool.query(
+            `DELETE FROM passwordreset 
+             WHERE LOWER(email) = $1 
+             AND id != $2`,
+            [lowerEmail, resetRecord.id]
+        );
+
+        res.json({ 
+            success: true, 
+            message: "Password updated successfully",
+            user: {
+                id: updateResult.rows[0].users_id,
+                username: updateResult.rows[0].username,
+                email: updateResult.rows[0].email
+            }
+        });
+
     } catch (err) {
-        console.error(err.message)
+        console.error("Error updating password:", err.message);
+        res.status(500).json({ error: "Internal server error" });
     }
-}) 
+});
 
 app.put("/forumrole", async (req, res) => {
     try{
@@ -480,6 +540,7 @@ app.get('/forumcontent', async (req, res) => {
       LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
       JOIN forumusers fu ON fc.users_id = fu.users_id
       WHERE fu.is_banned = FALSE
+      AND fc.is_deleted = FALSE
       ORDER BY fc.postdate DESC
       LIMIT $1 OFFSET $2
     `;
@@ -708,6 +769,7 @@ app.get('/userlikesdislikes', async (req, res) => {
 
 app.post('/forumcomments', async (req, res) => {
   const client = await pool.connect();
+
   try {
     await client.query('BEGIN');
 
@@ -718,154 +780,175 @@ app.post('/forumcomments', async (req, res) => {
     };
 
     const { thread_id, comment, user, userid, mentions = [] } = req.body;
+
     const validThreadId = validateId(thread_id, 'thread_id');
     const validUserId = validateId(userid, 'userid');
 
+    /* -------------------- Insert Comment -------------------- */
     const newComment = await client.query(
-      `INSERT INTO forumcomments 
-       (thread_id, comment, username, timeposted, users_id, mentions) 
-       VALUES($1, $2, $3, NOW(), $4, $5) 
-       RETURNING *`,
+      `
+      INSERT INTO forumcomments 
+        (thread_id, comment, username, timeposted, users_id, mentions)
+      VALUES ($1, $2, $3, NOW(), $4, $5)
+      RETURNING comment_id
+      `,
       [validThreadId, comment, user, validUserId, JSON.stringify(mentions)]
     );
 
+    /* -------------------- Thread Info -------------------- */
     const threadResult = await client.query(
-      'SELECT title, users_id FROM forumcontent WHERE thread_id = $1',
+      `SELECT title, users_id FROM forumcontent WHERE thread_id = $1`,
       [validThreadId]
     );
-    const threadTitle = threadResult.rows[0]?.title || 'a thread';
+
+    const threadTitle = threadResult.rows[0]?.title ?? 'a thread';
     const threadCreatorId = threadResult.rows[0]?.users_id;
 
     const mentionedUsers = new Set();
 
-    if (mentions.length > 0) {
-      for (const { username } of mentions) {
-        const userResult = await client.query(
-          'SELECT users_id FROM forumusers WHERE username = $1',
-          [username]
-        );
-
-        if (userResult.rows[0]?.users_id) {
-          const mentionedUserId = validateId(userResult.rows[0].users_id, 'mentionedUserId');
-
-          if (mentionedUserId !== validUserId && !mentionedUsers.has(mentionedUserId)) {
-            mentionedUsers.add(mentionedUserId);
-
-            const existingMention = await client.query(
-              `SELECT notification_id, unique_commenters 
-               FROM notifications 
-               WHERE users_id = $1 AND type = 'mention' AND thread_id = $2`,
-              [mentionedUserId, validThreadId]
-            );
-
-            if (existingMention.rows.length > 0) {
-              const existing = existingMention.rows[0];
-              let mentioners = existing.unique_commenters 
-                ? JSON.parse(existing.unique_commenters) 
-                : [];
-
-              if (!mentioners.includes(validUserId)) {
-                mentioners.push(validUserId);
-              }
-
-              await client.query(
-                `UPDATE notifications SET
-                 message = $1,
-                 unique_commenters = $2,
-                 message_count = $3,
-                 latest_commenter = $4,
-                 is_read = FALSE,
-                 created_at = NOW()
-                 WHERE notification_id = $5`,
-                [
-                  mentioners.length > 1 
-                    ? `${user} and ${mentioners.length - 1} others mentioned you in "${threadTitle}"`
-                    : `${user} mentioned you in "${threadTitle}"`,
-                  JSON.stringify(mentioners),
-                  mentioners.length,
-                  user,
-                  existing.notification_id
-                ]
-              );
-            } else {
-              await client.query(
-                `INSERT INTO notifications 
-                 (users_id, type, entity_id, message, thread_id, 
-                  unique_commenters, message_count, latest_commenter) 
-                 VALUES ($1, 'mention', $2, $3, $4, $5, 1, $6)`,
-                [
-                  mentionedUserId,
-                  validUserId,
-                  `${user} mentioned you in "${threadTitle}"`,
-                  validThreadId,
-                  JSON.stringify([validUserId]),
-                  user
-                ]
-              );
-            }
-          }
-        }
-      }
-    }
-
-    if (threadCreatorId && threadCreatorId !== validUserId && !mentionedUsers.has(threadCreatorId)) {
-      const existingNotification = await client.query(
-        `SELECT notification_id, unique_commenters 
-         FROM notifications 
-         WHERE users_id = $1 AND type = 'comment' AND entity_id = $2`,
-        [threadCreatorId, validThreadId]
+    /* -------------------- Mention Notifications -------------------- */
+    for (const { username } of mentions) {
+      const userResult = await client.query(
+        `SELECT users_id FROM forumusers WHERE username = $1`,
+        [username]
       );
 
-      if (existingNotification.rows.length > 0) {
-        const notification = existingNotification.rows[0];
-        let uniqueCommenters = notification.unique_commenters 
-          ? JSON.parse(notification.unique_commenters) 
+      const mentionedUserId = userResult.rows[0]?.users_id;
+      if (!mentionedUserId) continue;
+
+      if (mentionedUserId === validUserId) continue;
+      if (mentionedUsers.has(mentionedUserId)) continue;
+
+      mentionedUsers.add(mentionedUserId);
+
+      const existingMention = await client.query(
+        `
+        SELECT notification_id, unique_commenters
+        FROM notifications
+        WHERE users_id = $1
+          AND type = 'mention'
+          AND entity_id = $2
+        `,
+        [mentionedUserId, validThreadId]
+      );
+
+      if (existingMention.rows.length > 0) {
+        const existing = existingMention.rows[0];
+        const commenters = existing.unique_commenters
+          ? JSON.parse(existing.unique_commenters)
           : [];
 
-        if (!uniqueCommenters.includes(validUserId)) {
-          uniqueCommenters.push(validUserId);
+        if (!commenters.includes(validUserId)) {
+          commenters.push(validUserId);
         }
 
         await client.query(
-          `UPDATE notifications SET
-           message = $1,
-           is_read = FALSE,
-           latest_commenter = $2,
-           unique_commenters = $3,
-           message_count = $4,
-           thread_id = $5,
-           created_at = NOW()
-           WHERE notification_id = $6`,
+          `
+          UPDATE notifications SET
+            message = $1,
+            unique_commenters = $2,
+            message_count = $3,
+            latest_commenter = $4,
+            is_read = FALSE,
+            created_at = NOW()
+          WHERE notification_id = $5
+          `,
           [
-            uniqueCommenters.length > 1 
-              ? `${user} and ${uniqueCommenters.length - 1} others commented on your thread` 
-              : `${user} commented on your thread`,
+            commenters.length > 1
+              ? `${user} and ${commenters.length - 1} others mentioned you in "${threadTitle}"`
+              : `${user} mentioned you in "${threadTitle}"`,
+            JSON.stringify(commenters),
+            commenters.length,
             user,
-            JSON.stringify(uniqueCommenters),
-            uniqueCommenters.length,
-            validThreadId,
-            notification.notification_id
+            existing.notification_id
           ]
         );
       } else {
         await client.query(
-          `INSERT INTO notifications 
-           (users_id, type, entity_id, message, latest_commenter, 
-            unique_commenters, message_count, thread_id) 
-           VALUES ($1, 'comment', $2, $3, $4, $5, 1, $6)`,
+          `
+          INSERT INTO notifications
+            (users_id, type, entity_id, message, unique_commenters, message_count, latest_commenter)
+          VALUES ($1, 'mention', $2, $3, $4, 1, $5)
+          `,
+          [
+            mentionedUserId,
+            validThreadId,
+            `${user} mentioned you in "${threadTitle}"`,
+            JSON.stringify([validUserId]),
+            user
+          ]
+        );
+      }
+    }
+
+    /* -------------------- Thread Owner Comment Notification -------------------- */
+    if (
+      threadCreatorId &&
+      threadCreatorId !== validUserId &&
+      !mentionedUsers.has(threadCreatorId)
+    ) {
+      const existingNotification = await client.query(
+        `
+        SELECT notification_id, unique_commenters
+        FROM notifications
+        WHERE users_id = $1
+          AND type = 'comment'
+          AND entity_id = $2
+        `,
+        [threadCreatorId, validThreadId]
+      );
+
+      if (existingNotification.rows.length > 0) {
+        const existing = existingNotification.rows[0];
+        const commenters = existing.unique_commenters
+          ? JSON.parse(existing.unique_commenters)
+          : [];
+
+        if (!commenters.includes(validUserId)) {
+          commenters.push(validUserId);
+        }
+
+        await client.query(
+          `
+          UPDATE notifications SET
+            message = $1,
+            latest_commenter = $2,
+            unique_commenters = $3,
+            message_count = $4,
+            is_read = FALSE,
+            created_at = NOW()
+          WHERE notification_id = $5
+          `,
+          [
+            commenters.length > 1
+              ? `${user} and ${commenters.length - 1} others commented on your thread`
+              : `${user} commented on your thread`,
+            user,
+            JSON.stringify(commenters),
+            commenters.length,
+            existing.notification_id
+          ]
+        );
+      } else {
+        await client.query(
+          `
+          INSERT INTO notifications
+            (users_id, type, entity_id, message, latest_commenter, unique_commenters, message_count)
+          VALUES ($1, 'comment', $2, $3, $4, $5, 1)
+          `,
           [
             threadCreatorId,
             validThreadId,
             `${user} commented on your thread`,
             user,
-            JSON.stringify([validUserId]),
-            validThreadId
+            JSON.stringify([validUserId])
           ]
         );
       }
     }
 
     await client.query('COMMIT');
+
     res.json({
       success: true,
       comment_id: newComment.rows[0].comment_id,
@@ -976,7 +1059,7 @@ app.delete('/forumcomments/:commentId', async (req, res) => {
 app.get('/edithistory/:commentId', async(req, res) => {
     try {
         const { commentId } = req.params
-const edithistory = await pool.query(
+        const edithistory = await pool.query(
             `SELECT ce.old_content, ce.new_content, u.username AS edited_by, 
                     TO_CHAR(ce.edited_at, 'YYYY-MM-DD HH24:MI:SS') AS edit_timestamp 
              FROM comment_edits ce
@@ -1146,28 +1229,129 @@ app.post('/threadreport', async (req, res) => {
     }
 })
 
+app.post('/commentreport', async (req, res) => {
+    try {
+        const { user_id, thread_id, reported_user, reason, report_desc } = req.body
+        const result = await pool.query('INSERT INTO commentreports (reporting uid, comment_id, reported_uid, reason, report desc) VLAUES ($1, $2, $3, $4, $5)', [user_id, thread_id, reported_user, reason, report_desc])
+        res.json(result.rows[0])
+
+    } catch (err){
+        res.status(500).json({error: 'Internal server error'});
+    }
+})
+
 app.get('/viewreports', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
-                report_id, reporting_uid, reported_uid, reason, report_desc, reported_at, is_reviewed, 'thread' AS report_type
-            FROM threadreports
-            WHERE is_reviewed = $1
+                tr.report_id, 
+                tr.reporting_uid, 
+                tr.reported_uid, 
+                tr.reason, 
+                tr.report_desc, 
+                tr.reported_at, 
+                tr.is_reviewed, 
+                tr.thread_id,
+                tr.resolution_status, 
+                COALESCE(tr.mod_notes, '') AS mod_notes, 
+                'thread' AS report_type, 
+                reporter.username AS reporter_username,
+                reported.username AS reported_username
+            FROM threadreports tr
+            JOIN forumusers reporter ON tr.reporting_uid = reporter.users_id
+            JOIN forumusers reported ON tr.reported_uid = reported.users_id
 
             UNION ALL
 
             SELECT 
-                report_id, reporting_uid, reported_uid, reason, report_desc, reported_at, is_reviewed, 'comment' AS report_type
-            FROM commentreports
-            WHERE is_reviewed = $1
-        `, [false]);
-        console.log("RESULT: ", result)
+                cr.report_id, 
+                cr.reporting_uid, 
+                cr.reported_uid, 
+                cr.reason, 
+                cr.report_desc, 
+                cr.reported_at, 
+                cr.is_reviewed, 
+                cr.comment_id,
+                cr.resolution_status, 
+                COALESCE(cr.mod_notes, '') AS mod_notes, 
+                'comment' AS report_type, 
+                reporter.username AS reporter_username,
+                reported.username AS reported_username
+            FROM commentreports cr
+            JOIN forumusers reporter ON cr.reporting_uid = reporter.users_id
+            JOIN forumusers reported ON cr.reported_uid = reported.users_id
+        `);
+        console.log("Reports: ", result)
         res.json(result.rows)
 
     } catch (err){
         res.status(500).json({error: 'Internal server error'});
     }
 })
+
+app.put('/resolvereport', async (req, res) => {
+    try {
+        const {
+            report_id,
+            resolution_status,
+            mod_notes,
+            report_type,
+            content_id
+        } = req.body;
+
+        if (!report_id || !resolution_status || !report_type) {
+            return res.status(400).json({
+                error: "report_id, resolution_status, and report_type are required"
+            });
+        }
+        if (resolution_status === "content_removed") {
+
+            if (!content_id) {
+                return res.status(400).json({
+                    error: "content_id is required when removing content"
+                });
+            }
+
+            if (report_type === "thread") {
+                await pool.query(`
+                    UPDATE forumcontent
+                    SET is_deleted = TRUE
+                    WHERE thread_id = $1
+                `, [content_id]);
+            }
+
+            if (report_type === "comment") {
+                await pool.query(`
+                    UPDATE forumcomments
+                    SET is_deleted = TRUE
+                    WHERE comment_id = $1
+                `, [content_id]);
+            }
+        }
+        const reportResult = await pool.query(`
+            UPDATE threadreports
+            SET
+                is_reviewed = TRUE,
+                resolution_status = $1,
+                mod_notes = $2
+            WHERE report_id = $3
+            RETURNING *;
+        `, [resolution_status, mod_notes, report_id]);
+
+        if (reportResult.rowCount === 0) {
+            return res.status(404).json({ error: "Report not found" });
+        }
+        
+        return res.json({
+            success: true,
+            report: reportResult.rows[0]
+        });
+
+    } catch (err) {
+        console.error("Resolve report error:", err);
+        return res.status(500).json({ error: err.message });
+    }
+});
 
 //////////////////////////////// RESET PASSWORD //////////////////////////////////////
 
@@ -1203,7 +1387,6 @@ app.post('/passwordreset', async (req, res) => {
         subject: 'Reset your password',
         text: `Your password reset code is: ${randomcode}. This code is valid for 24 hours.`,
     }
-    console.log(email)
     transporter.sendMail(mailOptions, function (err, info){
         if(err){
             console.log(err);
@@ -1556,7 +1739,6 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
 //Retrieves encrypted messages from database
 const getMessagesFromDB = async (userId, friendId) => {
     try {
-        console.log("Hello World!")
         const result = await pool.query(
             `SELECT message_id, sender_id, receiver_id, message_text, iv, timestamp, is_deleted 
              FROM messages 

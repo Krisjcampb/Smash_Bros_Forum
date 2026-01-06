@@ -5,7 +5,10 @@ const ModerationReports = () => {
     const [reports, setReports] = useState([]);
     const [selectedReport, setSelectedReport] = useState(null);
     const [showModal, setShowModal] = useState(false);
-    const [resolutionNotes, setResolutionNotes] = useState('');
+    const [reviewedCount, setReviewedCount] = useState(0);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [modNotes, setModNotes] = useState('');
+    const [allowResolutionChange, setAllowResolutionChange] = useState(false);
     const token = localStorage.getItem('token');
 
     // Fetch reports from backend
@@ -26,42 +29,71 @@ const ModerationReports = () => {
         }
     };
 
-    // Handle report resolution
-    const handleResolveReport = async (status) => {
-        try {
-            const response = await fetch(`http://localhost:5000/api/reports/${selectedReport.report_id}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    status: status,
-                    resolution_notes: resolutionNotes
-                })
-            });
-
-            if (response.ok) {
-                // Refresh reports list
-                fetchReports();
-                setShowModal(false);
-                setSelectedReport(null);
-                setResolutionNotes('');
-            }
-        } catch (error) {
-            console.error('Error resolving report:', error);
-        }
-    };
+    useEffect(() => {
+        console.log("reports: ", reports)
+        const count = reports.filter(report => report.is_reviewed === false).length 
+        setReviewedCount(count);
+        console.log(count)
+    }, [reports]);
 
     // Open report detail modal
     const handleViewReport = (report) => {
-        setSelectedReport(report);
-        setShowModal(true);
+        try{
+            setAllowResolutionChange(false)
+            setModNotes(report.mod_notes || '');
+            setSelectedReport(report);
+            setShowModal(true);
+        } catch (error) {
+            console.error('Error displaying details.');
+        }
     };
+    
+    const resolveReport = async (resolutionStatus, reportType) => {
+        if (!selectedReport) return;
+
+        const content_id =
+            selectedReport.thread_id ?? selectedReport.comment_id;
+
+        const response = await fetch('http://localhost:5000/resolvereport', {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                report_id: selectedReport.report_id,
+                resolution_status: resolutionStatus,
+                mod_notes: modNotes,
+                report_type: selectedReport.report_type,
+                content_id: content_id
+            })
+        });
+
+        if (response.ok) {
+            fetchReports();
+            setShowModal(false);
+            setSelectedReport(null);
+            setModNotes('');
+        }
+    };
+
+    // const banUser = async (report) => {
+    //     try{
+    //         const response = await fetch('')
+    //     }catch (error) {
+    //         console.error('Error banning user.')
+    //     }
+    // }
 
     useEffect(() => {
         fetchReports();
     }, []);
+
+    const RESOLUTION_LABELS = {
+        dismissed: 'Dismissed',
+        resolved: 'Resolved (No Action)',
+        content_removed: 'Content Removed',
+    };
 
     // Get badge color based on status
     const getStatusColor = (status) => {
@@ -69,16 +101,7 @@ const ModerationReports = () => {
             case 'pending': return 'warning';
             case 'resolved': return 'success';
             case 'dismissed': return 'secondary';
-            default: return 'secondary';
-        }
-    };
-
-    // Get badge color based on priority
-    const getPriorityColor = (priority) => {
-        switch (priority) {
-            case 'high': return 'danger';
-            case 'medium': return 'warning';
-            case 'low': return 'info';
+            case 'content_removed': return 'danger';
             default: return 'secondary';
         }
     };
@@ -87,10 +110,10 @@ const ModerationReports = () => {
         <Container className="mt-4">
             <Row>
                 <Col>
-                    <h2>Moderation Reports</h2>
+                    <h2 className='text-center'>Moderation Reports</h2>
                     
                     {/* Quick Stats */}
-                    <Row className="mb-4">
+                    <Row className="mb-4 justify-content-center">
                         <Col md={3}>
                             <Card className="text-center">
                                 <Card.Body>
@@ -104,17 +127,7 @@ const ModerationReports = () => {
                                 <Card.Body>
                                     <Card.Title>Pending</Card.Title>
                                     <h3 className="text-warning">
-                                        {reports.filter(r => r.status === 'pending').length}
-                                    </h3>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                        <Col md={3}>
-                            <Card className="text-center">
-                                <Card.Body>
-                                    <Card.Title>High Priority</Card.Title>
-                                    <h3 className="text-danger">
-                                        {reports.filter(r => r.priority === 'high').length}
+                                        {reviewedCount}
                                     </h3>
                                 </Card.Body>
                             </Card>
@@ -140,13 +153,12 @@ const ModerationReports = () => {
                             <h5 className="mb-0">All Reports</h5>
                         </Card.Header>
                         <Card.Body className="p-0">
-                            <Table striped hover responsive>
+                            <Table striped hover responsive className='text-center'>
                                 <thead>
                                     <tr>
                                         <th>ID</th>
                                         <th>Type</th>
                                         <th>Reason</th>
-                                        <th>Priority</th>
                                         <th>Status</th>
                                         <th>Reported By</th>
                                         <th>Date</th>
@@ -164,13 +176,13 @@ const ModerationReports = () => {
                                             </td>
                                             <td>{report.reason}</td>
                                             <td>
-                                                <Badge bg={getPriorityColor(report.priority)}>
-                                                    {report.priority}
-                                                </Badge>
-                                            </td>
-                                            <td>
-                                                <Badge bg={getStatusColor(report.status)}>
-                                                    {report.status}
+                                                <Badge bg={
+                                                    report.resolution_status === 'dismissed' ? 'secondary' :
+                                                    report.resolution_status === 'content_removed' ? 'danger' :
+                                                    report.resolution_status === 'resolved' ? 'success' :
+                                                    'warning'
+                                                }>
+                                                    {RESOLUTION_LABELS[report.resolution_status] ?? 'Pending'}
                                                 </Badge>
                                             </td>
                                             <td>{report.reported_uid}</td>
@@ -212,26 +224,21 @@ const ModerationReports = () => {
                         <Row>
                             <Col md={6}>
                                 <h6>Report Information</h6>
-                                <p><strong>Type:</strong> {selectedReport.reported_entity_type}</p>
-                                <p><strong>Entity ID:</strong> {selectedReport.reported_entity_id}</p>
+                                <p><strong>Type:</strong> {selectedReport.report_type}</p>
+                                <p><strong>Entity ID:</strong> {selectedReport.report_id}</p>
                                 <p><strong>Reason:</strong> {selectedReport.reason}</p>
-                                <p><strong>Description:</strong> {selectedReport.description || 'No additional description'}</p>
-                                <p><strong>Priority:</strong> 
-                                    <Badge bg={getPriorityColor(selectedReport.priority)} className="ms-2">
-                                        {selectedReport.priority}
-                                    </Badge>
-                                </p>
-                                <p><strong>Status:</strong> 
-                                    <Badge bg={getStatusColor(selectedReport.status)} className="ms-2">
-                                        {selectedReport.status}
+                                <p><strong>Description:</strong> {selectedReport.report_desc || 'No additional description'}</p>
+                                <p><strong>Status:</strong>
+                                    <Badge bg={getStatusColor(selectedReport.resolution_status)} className="ms-2">
+                                    {RESOLUTION_LABELS[selectedReport.resolution_status]}
                                     </Badge>
                                 </p>
                             </Col>
                             <Col md={6}>
                                 <h6>User Information</h6>
-                                <p><strong>Reported by:</strong> User {selectedReport.reporter_id}</p>
-                                <p><strong>Reported user:</strong> User {selectedReport.reported_user_id}</p>
-                                <p><strong>Date reported:</strong> {new Date(selectedReport.created_at).toLocaleString()}</p>
+                                <p><strong>Reported by:</strong> {selectedReport.reporter_username}</p>
+                                <p><strong>Reported user:</strong> {selectedReport.reported_username}</p>
+                                <p><strong>Date reported:</strong> {new Date(selectedReport.reported_at).toLocaleString()}</p>
                                 
                                 {selectedReport.resolved_at && (
                                     <p><strong>Resolved at:</strong> {new Date(selectedReport.resolved_at).toLocaleString()}</p>
@@ -245,36 +252,102 @@ const ModerationReports = () => {
                         <Form.Control
                             as="textarea"
                             rows={3}
-                            value={resolutionNotes}
-                            onChange={(e) => setResolutionNotes(e.target.value)}
+                            value={modNotes}
+                            onChange={(e) => setModNotes(e.target.value)}
                             placeholder="Add notes about how this report was handled..."
                         />
                     </Form.Group>
                 </Modal.Body>
+                <Modal.Footer className="flex-column align-items-stretch">
+                {(!selectedReport?.is_reviewed || allowResolutionChange) ? (
+                    <>
+                        <div>
+                            <Button
+                                variant="secondary"
+                                className="w-100"
+                                onClick={() => resolveReport('dismissed')}
+                            >
+                                Dismiss Report
+                            </Button>
+                            <div className="text-muted small">
+                                No violation found. Content remains unchanged.
+                            </div>
+                        </div>
+
+                        <div className="mt-2">
+                            <Button
+                                variant="warning"
+                                className="w-100"
+                                onClick={() => resolveReport('resolved')}
+                            >
+                                Mark Resolved
+                            </Button>
+                            <div className="text-muted small">
+                                Reviewed with no content action taken.
+                            </div>
+                        </div>
+
+                        <div className="mt-2">
+                            <Button
+                                variant="danger"
+                                className="w-100"
+                                onClick={() => setShowDeleteConfirm(true)}
+                            >
+                                Delete Content
+                            </Button>
+                            <div className="text-muted small">
+                                Confirms violation and removes content.
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="text-center text-muted mb-2">
+                            This report has already been reviewed.
+                        </div>
+
+                        <Button
+                            variant="outline-primary"
+                            className="w-100"
+                            onClick={() => setAllowResolutionChange(true)}
+                        >
+                            Change Resolution
+                        </Button>
+                    </>
+                )}
+            </Modal.Footer>
+            </Modal>
+            <Modal
+                show={showDeleteConfirm}
+                onHide={() => setShowDeleteConfirm(false)}
+                centered
+            >
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirm Content Deletion</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>
+                        This action will permanently remove the reported content.
+                    </p>
+                    <p className="text-danger mb-0">
+                        This cannot be undone.
+                    </p>
+                </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowModal(false)}>
-                        Close
-                    </Button>
-                    <Button 
-                        variant="success" 
-                        onClick={() => handleResolveReport('dismissed')}
+                    <Button
+                        variant="secondary"
+                        onClick={() => setShowDeleteConfirm(false)}
                     >
-                        Dismiss Report
+                        Cancel
                     </Button>
-                    <Button 
-                        variant="warning" 
-                        onClick={() => handleResolveReport('resolved')}
-                    >
-                        Mark Resolved
-                    </Button>
-                    <Button 
+                    <Button
                         variant="danger"
                         onClick={() => {
-                            // Add delete content logic here
-                            handleResolveReport('resolved');
+                            resolveReport('content_removed');
+                            setShowDeleteConfirm(false);
                         }}
                     >
-                        Delete Content
+                        Yes, Delete Content
                     </Button>
                 </Modal.Footer>
             </Modal>

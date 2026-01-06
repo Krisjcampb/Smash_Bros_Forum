@@ -482,7 +482,7 @@ function Userprofile() {
                             <NavLink to={`/threads/${post.thread_id}`} className="text-decoration-none text-dark">
                             <Card.Body>
                                 <div className="d-flex justify-content-between align-items-center mb-2">
-                                <span className="text-muted small">{new Date(post.timeposted).toLocaleString('en-US', {
+                                <span className="text-muted small">{new Date(post.postdate).toLocaleString('en-US', {
                                         timeZone: 'America/Los_Angeles',
                                         month: 'long',
                                         day: 'numeric',

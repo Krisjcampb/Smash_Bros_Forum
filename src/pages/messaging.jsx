@@ -2,8 +2,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Container, Row, Col, ListGroup, Card, Form, Button } from 'react-bootstrap'
 import { Link, useLocation } from 'react-router-dom'
-import crypto from 'crypto-browserify'
-import { Buffer } from 'buffer'
 import socket from "../websocket/socket";
 
 const Messaging = () => {
@@ -21,52 +19,75 @@ const Messaging = () => {
     const messageRefs = useRef({});
     const usernotif = useMemo(() => location.state?.entityID || null, [location.state]);
 
-    window.Buffer = Buffer;
-
     const handleUserSelection = (user) => {
         setSelectedUser(user)
         fetchMessageHistory(user.id)
     }
 
-    const encrypt = (text) => {
-        if (!config) {
-            console.error('Config not defined');
-            return '';
-        }
-        
-        const key = Buffer.from(config.secretKey, 'hex');
-        if (key.length !== 32) {
-            console.error('Invald secret key length:', key.length);
-            return '';
-        }
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipheriv(config.algorithm, key, iv);
-        const encrypted = Buffer.concat([cipher.update(text), cipher.final()]);
-        return iv.toString('hex') + ':' + encrypted.toString('hex');
-    }
+    // Convert string to Uint8Array
+    const str2ab = (str) => new TextEncoder().encode(str);
 
-    const decrypt = useCallback((text) => {
-        if (!config) {
-            console.error('Config not defined decrypt');
-            return '';
-        }
+    // Convert Uint8Array to hex
+    const buf2hex = (buffer) => Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
 
-        const key = Buffer.from(config.secretKey, 'hex');
-        if (key.length !== 32) {
-            console.error('Invalid secret key length:', key.length);
-            return '';
+    // Convert hex to Uint8Array
+    const hex2buf = (hex) => {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < bytes.length; i++) {
+            bytes[i] = parseInt(hex.substr(i*2, 2), 16);
         }
-        const textParts = text.split(':');
-        const iv = Buffer.from(textParts.shift(), 'hex');
-        // console.log(text)
-        // console.log("config: ", config)
-        // console.log("key: ", key)
-        // console.log("iv: ", iv)
-        const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-        const decipher = crypto.createDecipheriv(config.algorithm, key, iv);
-        const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
-        return decrypted.toString();
-    }, [config])
+        return bytes;
+    };
+
+    const encrypt = async (text) => {
+        if (!config) return '';
+
+        const keyHex = config.secretKey;
+        const keyBytes = hex2buf(keyHex);
+        const cryptoKey = await window.crypto.subtle.importKey(
+            'raw',
+            keyBytes,
+            { name: 'AES-GCM' },
+            false,
+            ['encrypt']
+        );
+
+        const iv = window.crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV
+        const encrypted = await window.crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            cryptoKey,
+            str2ab(text)
+        );
+
+        return buf2hex(iv) + ':' + buf2hex(encrypted);
+        };
+
+    const decrypt = useCallback(async (text) => {
+        if (!config) return '';
+
+        const keyHex = config.secretKey;
+        const keyBytes = hex2buf(keyHex);
+        const cryptoKey = await window.crypto.subtle.importKey(
+            'raw',
+            keyBytes,
+            { name: 'AES-GCM' },
+            false,
+            ['decrypt']
+        );
+
+        const [ivHex, encryptedHex] = text.split(':');
+        const iv = hex2buf(ivHex);
+        const encrypted = hex2buf(encryptedHex);
+
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv },
+            cryptoKey,
+            encrypted
+        );
+
+        return new TextDecoder().decode(decryptedBuffer);
+        }, [config]);
 
     const authenticateUser = useCallback(async () => {
         if(token) {
@@ -191,7 +212,7 @@ const Messaging = () => {
     }, [authenticateUser, fetchConfig, fetchFriendsList, userid]);
 
     useEffect(() => {
-        const handleMessageHistory = (data) => {
+        const handleMessageHistory = async (data) => {
             console.log("📩 Received `messageHistory` event:", data);
 
             if (!data || !data.messages || data.messages.length === 0) {
@@ -201,9 +222,9 @@ const Messaging = () => {
 
             const { friendId, messages } = data;
             
-            const decryptedMessages = messages.map(msg => ({
+            const decryptedMessages = messages.map(async (msg) => ({
                 ...msg,
-                message_text: decrypt(`${msg.iv}:${msg.message_text}`)
+                message_text: await decrypt(`${msg.iv}:${msg.message_text}`)
             }));
 
             setMessages(prevMessages => {
@@ -319,12 +340,12 @@ const Messaging = () => {
         }
     }, [messages]);
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
         const room = `dm-${sorted[0]}-${sorted[1]}`;
 
         if (selectedUser && messageInput.trim() !== "") {
-            const encryptedMessage = encrypt(messageInput);
+            const encryptedMessage = await encrypt(messageInput);
 
             setMessageInput("");
 
@@ -340,17 +361,18 @@ const Messaging = () => {
     };
 
     useEffect(() => {
-        const handleMessageSent = (message) => {
-            setMessages((prevMessages) => {
-                // 1. Decrypt the server's message
-                const decryptedMessage = {
-                    ...message,
-                    message_text: decrypt(message.message_text),
-                    is_deleted: false,
-                };
+        const handleMessageSent = async (message) => {
+            // 1. Decrypt the server's message
+            const decryptedText = await decrypt(message.message_text);
+            const decryptedMessage = {
+                ...message,
+                message_text: decryptedText,
+                is_deleted: false,
+            };
 
-                // 2. Find and replace the temporary message
-                return prevMessages.map((chat) => {
+            // 2. Find and replace the temporary message
+            setMessages((prevMessages) => 
+                prevMessages.map((chat) => {
                     if (chat.friendId === message.sender_id || chat.friendId === message.receiver_id) {
                         // Filter out any temporary message
                         const filteredMessages = chat.messages.filter(
@@ -363,8 +385,8 @@ const Messaging = () => {
                         };
                     }
                     return chat;
-                });
-            });
+                })
+            );
         };
 
         socket.on("messageSent", handleMessageSent);

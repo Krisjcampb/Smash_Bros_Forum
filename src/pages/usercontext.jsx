@@ -66,7 +66,9 @@ export const UserProvider = ({ children }) => {
     }, [userid]);
 
     useEffect(() => {
-        retrieveImage();
+        if (userid) {
+            retrieveImage();
+        }
     }, [userid, retrieveImage]);
 
     return (

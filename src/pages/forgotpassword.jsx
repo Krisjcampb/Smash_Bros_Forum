@@ -2,7 +2,6 @@ import React, {useState} from 'react'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Container} from 'react-bootstrap'
-import bcrypt from 'bcryptjs'
 
 function ForgotPassword() {
     const [confirmpass, setConfirmPass] = useState("")
@@ -31,25 +30,23 @@ function ForgotPassword() {
     }
 
     const handlePasswordReset = async (e) => {
-        e.preventDefault();
-        if(newpassword === confirmpass && !!newpassword){
-            try{
-                const hashedpassword = bcrypt.hashSync(newpassword, 10)
-                const body = { email, hashedpassword }
-                const response = await fetch(
-                'http://localhost:5000/forumusers',
-                {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-                }
-            )
-            console.log(response)          
-            } catch (err) {
-            console.log(err.message)
-            }
+      e.preventDefault();
+      if (newpassword === confirmpass && !!newpassword) {
+        try {
+          const body = { email, password: newpassword }; // send plain password
+          const response = await fetch('http://localhost:5000/forumusers', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+
+          const data = await response.json();
+          console.log(data);
+        } catch (err) {
+          console.error(err.message);
         }
-    }
+      }
+    };
     const handleEmailSubmit = async (e) => {
         e.preventDefault()
         if(re.test(email)){

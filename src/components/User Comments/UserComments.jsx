@@ -25,6 +25,9 @@ function UserComments({ userRole, userId, forumContent, renderMentions }) {
     const [initialComments, setInitialComments] = useState([]);
     const [sortMethod, setSortMethod] = useState('newest');
     const [showSortDropdown, setShowSortDropdown] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [reportedCommentId, setReportedCommentId] = useState(null);
     const contentInputRef = useRef(null);
 
     const sortOptions = [
@@ -33,6 +36,12 @@ function UserComments({ userRole, userId, forumContent, renderMentions }) {
         { value: 'top', label: 'Top Rated' },
         { value: 'controversial', label: 'Most Controversial' }
     ];
+
+    const handleReportComment = (commentId) => {
+        setReportedCommentId(commentId);
+        setReportReason('');
+        setShowReportModal(true);
+    };
 
     const sortComments = (comments, likesData, method) => {
         const merged = comments.map(comment => {
@@ -175,6 +184,29 @@ function UserComments({ userRole, userId, forumContent, renderMentions }) {
             console.error('Error banning user:', err.message);
         }
     };
+
+    const submitCommentReport = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/commentreport', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                token: localStorage.getItem('token')
+            },
+            body: JSON.stringify({
+                report_type: 'comment',
+                comment_id: reportedCommentId,
+                reason: reportReason
+            })
+            });
+
+            if (!res.ok) throw new Error('Failed to submit report');
+
+            setShowReportModal(false);
+        } catch (err) {
+            console.error('Report error:', err);
+        }
+        };
 
     const fetchData = async () => {
         try {
@@ -358,7 +390,10 @@ function UserComments({ userRole, userId, forumContent, renderMentions }) {
         return `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${characterName}/chara_0_${characterName.toLowerCase()}_0${selectedSkin}.png`;
     };
 
-    const handleEditComment = (commentId) => {
+    const handleEditComment = (commentId, commentContent) => {
+        setCommentId(commentId);
+        setContent(commentContent);
+        setCurrComment(commentContent);
         setShowEditModal(true);
     };
 
@@ -370,6 +405,7 @@ function UserComments({ userRole, userId, forumContent, renderMentions }) {
         setCommentId(commentId)
         setContent(currcomment)
         setCurrComment(currcomment)
+        
         if(option === 'Option 1'){
             getEditHistory(commentId)
             setShowHistoryModal(true)
@@ -396,135 +432,143 @@ function UserComments({ userRole, userId, forumContent, renderMentions }) {
         }
     }, [showEditModal]);
 
-return (
-  <>
-    <div className="d-flex justify-content-end mb-4">
-      <Dropdown className="sort-dropdown">
-        <Dropdown.Toggle variant="outline-secondary" id="dropdown-sort">
-          <span className="me-2">Sort:</span> 
-          {sortOptions.find(opt => opt.value === sortMethod)?.label || 'Newest First'}
-        </Dropdown.Toggle>
-        <Dropdown.Menu>
-          {sortOptions.map((option) => (
-            <Dropdown.Item 
-              key={option.value}
-              active={sortMethod === option.value}
-              onClick={() => setSortMethod(option.value)}
-            >
-              {option.label}
-            </Dropdown.Item>
-          ))}
-        </Dropdown.Menu>
-      </Dropdown>
-    </div>
-
-    <div className="comments-container">
-      {comments && Array.isArray(comments) 
-        ? sortComments(comments, likesdislikes || [], sortMethod).map((comment) => (
-            <div key={comment.comment_id} className="comment-card">
-              <div className="comment-header">
-                <Link 
-                  to={`/userprofile/${comment.username}/${comment.users_id}`} 
-                  className="text-white text-decoration-none"
+    return (
+    <>
+        <div className="d-flex justify-content-end mb-4">
+        <Dropdown className="sort-dropdown">
+            <Dropdown.Toggle variant="outline-secondary" id="dropdown-sort">
+            <span className="me-2">Sort:</span> 
+            {sortOptions.find(opt => opt.value === sortMethod)?.label || 'Newest First'}
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+            {sortOptions.map((option) => (
+                <Dropdown.Item 
+                key={option.value}
+                active={sortMethod === option.value}
+                onClick={() => setSortMethod(option.value)}
                 >
-                  <strong>{comment.username}</strong>
-                </Link>
-                <span className="comment-meta">{updatedNums(comment.timeposted)}</span>
-              </div>
-
-              <div className="comment-body">
-                <div className="vote-section">
-                  <button
-                    className={`vote-button like-button ${likedStatus[comment.comment_id] ? 'active-like' : ''}`}
-                    onClick={() => handleLike(comment.comment_id)}
-                  >
-                    {likedStatus[comment.comment_id] ? (
-                      <PiArrowFatUpFill size={20} />
-                    ) : (
-                      <PiArrowFatUp size={20} />
-                    )}
-                  </button>
-                  <span className="vote-count">{comment.net_likes ?? 0}</span>
-                  <button
-                    className={`vote-button dislike-button ${dislikedStatus[comment.comment_id] ? 'active-dislike' : ''}`}
-                    onClick={() => handleDislike(comment.comment_id)}
-                  >
-                    {dislikedStatus[comment.comment_id] ? (
-                      <PiArrowFatDownFill size={20} />
-                    ) : (
-                      <PiArrowFatDown size={20} />
-                    )}
-                  </button>
-                </div>
-
-                <div className="user-section">
-                  <Image
-                    src={getProfileImageUrl(comment.character_name, comment.selected_skin)}
-                    alt="User Profile"
-                    className="user-avatar"
-                  />
-                    <span className={`badge role-badge ${comment.role}`}>
-                    {comment.role.charAt(0).toUpperCase() + comment.role.slice(1)}
-                    </span>
-                </div>
-
-                <div className="comment-content">
-                  {renderMentions && typeof comment.comment === 'string' ? 
-                    renderMentions(comment.comment, comment.mentions || []) : 
-                    comment.comment
-                  }
-                </div>
-              </div>
-
-<div className="comment-footer">
-  <div className="footer-content">
-    {UsersCommentCheck(comment.users_id) && (
-      <div className="action-buttons">
-        <button 
-          className="action-button btn-edit"
-          onClick={() => handleEditComment(comment.comment_id)}
-        >
-          <FaEdit size={14} /> Edit
-        </button>
-        <button
-          className="action-button btn-delete"
-          onClick={() => handleDeleteComment(comment.comment_id)}
-        >
-          <FaTrash size={14} /> Delete
-        </button>
-      </div>
-    )}
-    
-    {UserPermissions(userRole) && (
-      <div className="moderation-tools">
-        <Dropdown>
-          <Dropdown.Toggle as={Button} variant="link" className="action-button">
-            <FaCog size={14} /> Mod Tools
-          </Dropdown.Toggle>
-          <Dropdown.Menu>
-            <Dropdown.Item onClick={() => handleModerationOption('Option 1', comment.comment_id, comment.comment)}>
-              View Edit History
-            </Dropdown.Item>
-            <Dropdown.Item onClick={() => handleModerationOption('Option 2', comment.comment_id, comment.comment)}>
-              Edit Comment
-            </Dropdown.Item>
-            <Dropdown.Item onClick={() => handleModerationOption('Option 3', comment.comment_id, comment.comment)}>
-              Delete Comment
-            </Dropdown.Item>
-            <Dropdown.Item onClick={() => handleModerationOption('Option 4', comment.users_id, comment.username)}>
-              Ban User
-            </Dropdown.Item>
-          </Dropdown.Menu>
+                {option.label}
+                </Dropdown.Item>
+            ))}
+            </Dropdown.Menu>
         </Dropdown>
-      </div>
-    )}
-  </div>
-</div>
+        </div>
+
+        <div className="comments-container">
+        {comments && Array.isArray(comments) 
+            ? sortComments(comments, likesdislikes || [], sortMethod).map((comment) => (
+                <div key={comment.comment_id} className="comment-card">
+                    <div className="comment-header">
+                        <Link 
+                        to={`/userprofile/${comment.username}/${comment.users_id}`} 
+                        className="text-white text-decoration-none"
+                        >
+                        <strong>{comment.username}</strong>
+                        </Link>
+                        <span className="comment-meta">{updatedNums(comment.timeposted)}</span>
+                    </div>
+
+                    <div className="comment-body">
+                        <div className="vote-section">
+                            <button
+                                className={`vote-button like-button ${likedStatus[comment.comment_id] ? 'active-like' : ''}`}
+                                onClick={() => handleLike(comment.comment_id)}
+                            >
+                                {likedStatus[comment.comment_id] ? (
+                                <PiArrowFatUpFill size={20} />
+                                ) : (
+                                <PiArrowFatUp size={20} />
+                                )}
+                            </button>
+                            <span className="vote-count">{comment.net_likes ?? 0}</span>
+                            <button
+                                className={`vote-button dislike-button ${dislikedStatus[comment.comment_id] ? 'active-dislike' : ''}`}
+                                onClick={() => handleDislike(comment.comment_id)}
+                            >
+                                {dislikedStatus[comment.comment_id] ? (
+                                <PiArrowFatDownFill size={20} />
+                                ) : (
+                                <PiArrowFatDown size={20} />
+                                )}
+                            </button>
+                        </div>
+
+                        <div className="user-section">
+                        <Image
+                            src={getProfileImageUrl(comment.character_name, comment.selected_skin)}
+                            alt="User Profile"
+                            className="user-avatar"
+                        />
+                            <span className={`badge role-badge ${comment.role}`}>
+                            {comment.role.charAt(0).toUpperCase() + comment.role.slice(1)}
+                            </span>
+                        </div>
+
+                        <div className="comment-content">
+                        {renderMentions && typeof comment.comment === 'string' ? 
+                            renderMentions(comment.comment, comment.mentions || []) : 
+                            comment.comment
+                        }
+                        </div>
+                    </div>
+
+                <div className="comment-footer">
+                    <div className="footer-content">
+                        {UsersCommentCheck(comment.users_id) && (
+                        <div className="action-buttons">
+                            <button 
+                            className="action-button btn-edit"
+                            onClick={() => handleEditComment(comment.comment_id, comment.comment)}
+                            >
+                            <FaEdit size={14} /> Edit
+                            </button>
+                            <button
+                            className="action-button btn-delete"
+                            onClick={() => handleDeleteComment(comment.comment_id)}
+                            >
+                            <FaTrash size={14} /> Delete
+                            </button>
+                            
+                        </div>
+                        )}
+                        {comment.users_id !== userId && (
+                        <button
+                            className="action-button btn-report"
+                            onClick={() => handleReportComment(comment.comment_id)}
+                        >
+                            Report
+                        </button>
+                        )}
+                        
+                        {UserPermissions(userRole) && (
+                        <div className="moderation-tools">
+                            <Dropdown>
+                            <Dropdown.Toggle as={Button} variant="link" className="action-button">
+                                <FaCog size={14} /> Mod Tools
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu>
+                                <Dropdown.Item onClick={() => handleModerationOption('Option 1', comment.comment_id, comment.comment)}>
+                                View Edit History
+                                </Dropdown.Item>
+                                <Dropdown.Item onClick={() => handleModerationOption('Option 2', comment.comment_id, comment.comment)}>
+                                Edit Comment
+                                </Dropdown.Item>
+                                <Dropdown.Item onClick={() => handleModerationOption('Option 3', comment.comment_id, comment.comment)}>
+                                Delete Comment
+                                </Dropdown.Item>
+                                <Dropdown.Item onClick={() => handleModerationOption('Option 4', comment.users_id, comment.username)}>
+                                Ban User
+                                </Dropdown.Item>
+                            </Dropdown.Menu>
+                            </Dropdown>
+                        </div>
+                        )}
+                    </div>
+                </div>
             </div>
-          ))
-        : <div className="text-center py-5 text-muted">No comments found</div>
-      }
-    </div>
+            )) : <div className="text-center py-5 text-muted">No comments found</div>
+        }
+        </div>
             {/* Edit Comment Modal */}
             <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
                 <Form onSubmit={(e) => {
@@ -680,6 +724,42 @@ return (
                         <Button type='submit' variant='danger' style={{ flex: 1 }}>
                             Confirm Ban
                         </Button>
+                    </Modal.Footer>
+                </Form>
+            </Modal>
+            {/* Report Comment Modal */}
+            <Modal show={showReportModal} onHide={() => setShowReportModal(false)}>
+                <Form
+                    onSubmit={(e) => {
+                    e.preventDefault();
+                    submitCommentReport();
+                    }}
+                >
+                    <Modal.Header closeButton>
+                    <Modal.Title>Report Comment</Modal.Title>
+                    </Modal.Header>
+
+                    <Modal.Body>
+                    <Form.Group>
+                        <Form.Label>Reason for report</Form.Label>
+                        <Form.Control
+                        as="textarea"
+                        rows={4}
+                        value={reportReason}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        placeholder="Explain why this comment violates the rules"
+                        required
+                        />
+                    </Form.Group>
+                    </Modal.Body>
+
+                    <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowReportModal(false)}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" variant="danger">
+                        Submit Report
+                    </Button>
                     </Modal.Footer>
                 </Form>
             </Modal>

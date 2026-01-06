@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Container, Alert, Modal, Row, Col, Button, Form, InputGroup } from 'react-bootstrap'
 import { saveAs } from 'file-saver';
-import bcrypt from 'bcryptjs'
 import { useNavigate } from 'react-router-dom'
 import { BsX, BsEye, BsEyeSlash } from 'react-icons/bs'
 import Filter from 'bad-words';
@@ -215,8 +214,7 @@ function BasicExample() {
         }
 
         try {
-            const hashedpassword = bcrypt.hashSync(password, 10);
-            const body = { email, username, hashedpassword };
+            const body = { email, username, password };
             const response = await fetch('http://localhost:5000/forumusers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
