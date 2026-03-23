@@ -234,80 +234,80 @@ function Calendar() {
                     )}
 
                     <Form.Group className="mb-3">
-                        <Form.Label style={labelStyle}>Title</Form.Label>
+                        <Form.Label >Title</Form.Label>
                         <InputGroup>
-                            <InputGroup.Text style={iconGroupStyle}><BsCalendarEventFill size={14} /></InputGroup.Text>
+                            <InputGroup.Text ><BsCalendarEventFill size={14} /></InputGroup.Text>
                             <Form.Control
                                 type="text"
                                 placeholder="Event title"
                                 value={title}
                                 onChange={e => setTitle(e.target.value)}
                                 maxLength={100}
-                                style={inputStyle}
+                                
                             />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label style={labelStyle}>Start Time</Form.Label>
+                        <Form.Label >Start Time</Form.Label>
                         <InputGroup>
-                            <InputGroup.Text style={iconGroupStyle}><BsClock size={14} /></InputGroup.Text>
+                            <InputGroup.Text ><BsClock size={14} /></InputGroup.Text>
                             <Form.Control
                                 type="time"
                                 value={startTime}
                                 onChange={e => setStartTime(e.target.value)}
-                                style={inputStyle}
+                                
                             />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label style={labelStyle}>
+                        <Form.Label >
                             End Time{' '}
                             <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
                         </Form.Label>
                         <InputGroup>
-                            <InputGroup.Text style={iconGroupStyle}><BsClock size={14} /></InputGroup.Text>
+                            <InputGroup.Text ><BsClock size={14} /></InputGroup.Text>
                             <Form.Control
                                 type="time"
                                 value={endTime}
                                 onChange={e => setEndTime(e.target.value)}
-                                style={inputStyle}
+                                
                             />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label style={labelStyle}>
+                        <Form.Label >
                             Location{' '}
                             <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
                         </Form.Label>
                         <InputGroup>
-                            <InputGroup.Text style={iconGroupStyle}><BsGeoAltFill size={14} /></InputGroup.Text>
+                            <InputGroup.Text ><BsGeoAltFill size={14} /></InputGroup.Text>
                             <Form.Control
                                 type="text"
                                 placeholder="Where is it?"
                                 value={location}
                                 onChange={e => setLocation(e.target.value)}
                                 maxLength={200}
-                                style={inputStyle}
+                                
                             />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group>
-                        <Form.Label style={labelStyle}>
+                        <Form.Label >
                             URL{' '}
                             <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
                         </Form.Label>
                         <InputGroup>
-                            <InputGroup.Text style={iconGroupStyle}><BsLink45Deg size={14} style={{ flexShrink: 0, color: '#393933' }} /></InputGroup.Text>
+                            <InputGroup.Text ><BsLink45Deg size={14} style={{ flexShrink: 0, color: '#393933' }} /></InputGroup.Text>
                             <Form.Control
                                 type="url"
                                 placeholder="https://..."
                                 value={url}
                                 onChange={e => setUrl(e.target.value)}
-                                style={inputStyle}
+                                
                             />
                         </InputGroup>
                     </Form.Group>
