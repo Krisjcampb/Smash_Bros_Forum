@@ -12,7 +12,8 @@ CREATE TABLE forumusers(
     character_name VARCHAR(100) DEFAULT 'Mario',
     selected_skin INTEGER DEFAULT 0, 
     location VARCHAR(30),
-    description VARCHAR(180)
+    description VARCHAR(180),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE forumcontent(
@@ -23,24 +24,25 @@ CREATE TABLE forumcontent(
     comments INTEGER,
     username VARCHAR(255),
     postdate TIMESTAMPTZ,
-    users_id INT NOT NULL REFERENCES forumusers(users_id)
+    users_id INT NOT NULL REFERENCES forumusers(users_id),
     is_deleted BOOLEAN DEFAULT false;
 );
 
 CREATE TABLE forumimages(
     image_id SERIAL PRIMARY KEY,
-    filepath TEXT NOT NULL
+    filepath TEXT NOT NULL,
+    thread_id INTEGER REFERENCES forumcontent(thread_id) ON DELETE CASCADE
 );
 
-CREATE TABLE forumcomments(
-    thread_id INTEGER,
-    comment VARCHAR(8000),
-    username VARCHAR(16),
-    timeposted TIMESTAMPTZ,
-    users_id INTEGER,
-    comment_id INTEGER,
-    is_deleted BOOLEAN,
-    mentions JSONB,
+CREATE TABLE forumcomments (
+    comment_id SERIAL PRIMARY KEY,
+    thread_id  INTEGER NOT NULL REFERENCES forumcontent(thread_id) ON DELETE CASCADE,
+    comment    VARCHAR(8000) NOT NULL,
+    username   VARCHAR(255) NOT NULL,
+    timeposted TIMESTAMPTZ DEFAULT NOW(),
+    users_id   INTEGER NOT NULL REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    is_deleted BOOLEAN DEFAULT false,
+    mentions   JSONB DEFAULT '[]'::jsonb
 );
 
 CREATE TABLE passwordreset (
@@ -57,7 +59,8 @@ CREATE TABLE messages (
     receiver_id INT REFERENCES forumusers(users_id) NOT NULL,
     message_text TEXT NOT NULL,
     timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN DEFAULT false
+    is_deleted BOOLEAN DEFAULT false,
+    iv TEXT NOT NULL
 )
 
 CREATE TABLE friendships (
@@ -237,4 +240,76 @@ CREATE TABLE commentreports (
     UNIQUE (reporting_uid, comment_id)
 );
 
+CREATE TABLE contact_messages (
+    contact_id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE forumfeedback (
+    feedback_id SERIAL PRIMARY KEY,
+    users_id INTEGER REFERENCES forumusers(users_id),
+    issue TEXT NOT NULL,
+    problem TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE SEQUENCE report_id_sequence START 1;
+
+CREATE TABLE forumuser_encrypted_keys (
+     users_id    INTEGER PRIMARY KEY REFERENCES forumusers(users_id) ON DELETE CASCADE,
+     encrypted_key TEXT NOT NULL,
+     salt          TEXT NOT NULL,
+     iv            TEXT NOT NULL,
+     updated_at    TIMESTAMPTZ DEFAULT NOW()
+ );
+
+ CREATE TABLE blocks (
+    block_id SERIAL PRIMARY KEY,
+    blocker_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    blocked_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(blocker_id, blocked_id)
+);
+
+CREATE TABLE calendar_events (
+    event_id SERIAL PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP,
+    location VARCHAR(200),
+    url VARCHAR(500),
+    created_by INTEGER REFERENCES forumusers(users_id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_events_start_date ON calendar_events(start_date);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_created_by ON calendar_events(created_by);
+
+CREATE INDEX IF NOT EXISTS idx_friendships_user_id1 ON friendships(user_id1);
+CREATE INDEX IF NOT EXISTS idx_friendships_user_id2 ON friendships(user_id2);
+CREATE INDEX IF NOT EXISTS idx_friendships_both ON friendships(user_id1, user_id2);
+ 
+-- Block status is checked on profile load and before every friend request
+CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
+CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id);
+CREATE INDEX IF NOT EXISTS idx_blocks_both ON blocks(blocker_id, blocked_id);
+ 
+-- Notifications are fetched on every header load so this matters a lot
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(users_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(users_id, is_read);
+ 
+-- Messages are fetched by sender and receiver pair frequently
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_id, receiver_id);
+ 
+-- Forum content is sorted and filtered often
+CREATE INDEX IF NOT EXISTS idx_forumcontent_user ON forumcontent(users_id);
+CREATE INDEX IF NOT EXISTS idx_forumcontent_date ON forumcontent(postdate DESC);
+ 
+-- Comments are fetched by thread and by user
+CREATE INDEX IF NOT EXISTS idx_forumcomments_thread ON forumcomments(thread_id);
+CREATE INDEX IF NOT EXISTS idx_forumcomments_user ON forumcomments(users_id);

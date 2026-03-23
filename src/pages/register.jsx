@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Container, Alert, Modal, Row, Col, Button, Form, InputGroup } from 'react-bootstrap'
+import { Container, Alert, Modal, Button, Form, InputGroup } from 'react-bootstrap'
 import { saveAs } from 'file-saver';
 import { useNavigate } from 'react-router-dom'
-import { BsX, BsEye, BsEyeSlash } from 'react-icons/bs'
+import { BsX, BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsPersonFill, BsEnvelopeFill, BsLockFill, BsKeyFill } from 'react-icons/bs'
 import Filter from 'bad-words';
-import forge from 'node-forge';
+import { encryptPrivateKey } from '../components/Utilities/passphraseUtils';
+import { API } from '../components/Utilities/apiUrl';
 
-function BasicExample() {
+function Registration() {
     const [email, setEmail] = useState('')
     const [username, setUserName] = useState('')
     const [password, setPassword] = useState('')
@@ -25,13 +26,23 @@ function BasicExample() {
     const [step, setStep] = useState(1);
     const [resendCount, setResendCount] = useState(1);
     const [secondsRemaining, setSecondsRemaining] = useState(3)
+
+    // Key and passphrase state
     const [showKeyModal, setShowKeyModal] = useState(false);
     const [privateKey, setPrivateKey] = useState('');
+    const [passphrase, setPassphrase] = useState('');
+    const [confirmPassphrase, setConfirmPassphrase] = useState('');
+    const [showPassphrase, setShowPassphrase] = useState(false);
+    const [passphraseError, setPassphraseError] = useState('');
+    const [isSavingKey, setIsSavingKey] = useState(false);
+    const [keyModalStep, setKeyModalStep] = useState('passphrase');
+
     const navigate = useNavigate();
     const profanityFilter = new Filter();
+    // Regex for basic email format check before hitting the server
     const re =
       /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
-    
+
     const validatePassword = (pass) => {
         const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
         const isValid = regex.test(pass);
@@ -42,9 +53,7 @@ function BasicExample() {
     const handlePasswordChange = (e) => {
         const newPassword = e.target.value;
         setPassword(newPassword);
-        
         validatePassword(newPassword);
-        
         if (confirmpass) {
             setPasswordsMatchError(newPassword === confirmpass ? '' : 'Passwords do not match');
         }
@@ -53,49 +62,45 @@ function BasicExample() {
     const handleConfirmPasswordChange = (e) => {
         const newConfirmPass = e.target.value;
         setConfirmPass(newConfirmPass);
-        
         setPasswordsMatchError(password === newConfirmPass ? '' : 'Passwords do not match');
     };
 
     const getUserDetails = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/forumusers')
-        const jsonData = await response.json()
-
-        setUserData(jsonData)
-      } catch (err) {
-        console.error(err.message)
-      }
+        try {
+            const response = await fetch(`${API}/forumusers`)
+            const jsonData = await response.json()
+            setUserData(jsonData)
+        } catch (err) {
+            console.error(err.message)
+        }
     }
-    useEffect(() => {
-      getUserDetails()
-    }, [])
 
+    useEffect(() => { getUserDetails() }, [])
+
+    // Email uniqueness check waits 500ms after typing stops to avoid spamming the server
     useEffect(() => {
         let timer;
-        if (email !== ''){
+        if (email !== '') {
             timer = setTimeout(() => {
                 const usercheck = userData.find((user) => user.email === email)
                 if (usercheck) {
-                  setEmailError('Email is already taken')
-                  setShowError(true)
+                    setEmailError('Email is already taken')
+                    setShowError(true)
                 } else {
-                  setEmailError('')
-                  setShowError(false)
-                }       
-            }, 500)   ;  
-        } else{
+                    setEmailError('')
+                    setShowError(false)
+                }
+            }, 500);
+        } else {
             setEmailError('')
             setShowError(false);
         }
         return () => clearTimeout(timer)
     }, [email, userData])
 
+    // Countdown timer that starts after successful registration then redirects to sign in
     useEffect(() => {
-        if (step < 3) {
-            return;
-        }
-
+        if (step < 3) return;
         const timer = setTimeout(() => {
             if (secondsRemaining === 0) {
                 navigate('/signin');
@@ -103,128 +108,162 @@ function BasicExample() {
                 setSecondsRemaining(secondsRemaining - 1);
             }
         }, 1000);
-
         return () => clearTimeout(timer);
     }, [step, secondsRemaining, navigate]);
 
     const onResendCode = async () => {
-        if(resendCount < 3) {
+        // Cap resends at 3 to prevent abuse then lock them out with step 4
+        if (resendCount < 3) {
             try {
-            await fetch("http://localhost:5000/resendcode", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email }),
-            });
-            console.log("Code resent successfully");
+                await fetch(`${API}/resendcode`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email }),
+                });
             } catch (err) {
                 console.error(err);
             }
-            setResendCount(resendCount+1)
-        }
-        else{
+            setResendCount(resendCount + 1)
+        } else {
             setStep(4)
         }
     }
 
     const onVerifyEmail = async (e) => {
         e.preventDefault();
-        if (re.test(email)) {
-            try {
-                const response = await fetch("http://localhost:5000/emailverify", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ emailCode, email }),
+        if (!re.test(email)) return;
+        try {
+            const response = await fetch(`${API}/emailverify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ emailCode, email }),
+            });
+            const data = await response.json();
+
+            if (data === true) {
+                await fetch(`${API}/forumusers/updateVerified`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
                 });
-                const data = await response.json();
-                console.log(data);
-                if (data === true) {
-                    const updateResponse = await fetch('http://localhost:5000/forumusers/updateVerified', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email }),
-                    });
 
-                    if (!updateResponse.ok) {
-                        console.error('Failed to update user verification status');
+                // Generate the keypair in a worker so the page doesn't freeze during the RSA operation
+                const result = await new Promise((resolve, reject) => {
+                    const worker = new Worker(
+                        new URL('../workers/keygenWorker.js', import.meta.url),
+                        { type: 'module' }
+                    );
+                    worker.onmessage = (event) => {
+                        worker.terminate();
+                        if (event.data.success) {
+                            resolve({
+                                publicKeyPem: event.data.publicKeyPem,
+                                privateKeyPem: event.data.privateKeyPem
+                            });
+                        } else {
+                            reject(new Error(event.data.error));
+                        }
+                    };
+                    worker.onerror = (err) => {
+                        worker.terminate();
+                        reject(err);
+                    };
+                    worker.postMessage('generate');
+                });
+
+                const { publicKeyPem, privateKeyPem: privKeyPem } = result;
+
+                const saveKeyResponse = await fetch(`${API}/forumusers/savePublicKey`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, publicKey: publicKeyPem }),
+                });
+
+                if (!saveKeyResponse.ok) {
+                    console.error('Failed to save public key');
                     return;
-                    }
-                    // Generate RSA key pair
-                    const { publicKey, privateKey } = forge.pki.rsa.generateKeyPair(2048);
-
-                    const publicKeyPem = forge.pki.publicKeyToPem(publicKey);
-                    const privateKeyPem = forge.pki.privateKeyToPem(privateKey);
-
-                    const saveKeyResponse = await fetch('http://localhost:5000/forumusers/savePublicKey', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, publicKey: publicKeyPem }),
-                    });
-
-                    if (saveKeyResponse.ok) {
-                        localStorage.setItem('privateKey', privateKeyPem);
-                        setPrivateKey(privateKeyPem)
-
-                        setShowKeyModal(true);
-                    } else {
-                        console.error('Failed to save public key');
-                    }
-                } else {
-                    setValidCode(false);
-                    setEmailCode('');
                 }
-            } catch (err) {
-                console.error(err);
+
+                setPrivateKey(privKeyPem);
+                setKeyModalStep('passphrase');
+                setShowKeyModal(true);
+            } else {
+                setValidCode(false);
+                setEmailCode('');
             }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const validatePassphrase = (p) => {
+        if (p.length < 10) return 'Passphrase must be at least 10 characters';
+        return '';
+    };
+
+    const handleSetPassphrase = async () => {
+        const error = validatePassphrase(passphrase);
+        if (error) { setPassphraseError(error); return; }
+        if (passphrase !== confirmPassphrase) {
+            setPassphraseError('Passphrases do not match');
+            return;
+        }
+        setIsSavingKey(true);
+        setPassphraseError('');
+        try {
+            // The private key is encrypted client side before being sent
+            // the passphrase never leaves the browser
+            const { encryptedKey, salt, iv } = await encryptPrivateKey(privateKey, passphrase);
+            const response = await fetch(`${API}/save-encrypted-key`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, encryptedKey, salt, iv }),
+            });
+            if (!response.ok) {
+                setPassphraseError('Failed to save encrypted key. Please try again.');
+                return;
+            }
+            setKeyModalStep('download');
+        } catch (err) {
+            console.error('Error encrypting private key:', err);
+            setPassphraseError('Something went wrong. Please try again.');
+        } finally {
+            setIsSavingKey(false);
         }
     };
 
     const handleDownloadPrivateKey = () => {
         const blob = new Blob([privateKey], { type: 'text/plain;charset=utf-8' });
-        saveAs(blob, 'privateKey.txt');
-        setShowKeyModal(false);
-        setStep(3)
-    }
+        saveAs(blob, 'smashpoint_private_key.txt');
+    };
 
-    const handleSkipDownload = () => {
+    const handleFinish = () => {
         setShowKeyModal(false);
-        setStep(3)
-    }
+        setStep(3);
+    };
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
         setValidated(true);
         setNameError('');
-        
         const isPasswordValid = validatePassword(password);
         const doPasswordsMatch = password === confirmpass;
-        
-        if (!doPasswordsMatch) {
-            setPasswordsMatchError('Passwords do not match');
-        }
-
+        if (!doPasswordsMatch) setPasswordsMatchError('Passwords do not match');
         if (profanityFilter.isProfane(username)) {
             setNameError('Username cannot contain profanity');
-            setValidated(true);
             return;
         }
-
-        if (!isPasswordValid || !doPasswordsMatch || !username.trim()) {
-            setValidated(true);
-            return;
-        }
-
+        if (!isPasswordValid || !doPasswordsMatch || !username.trim()) return;
         try {
-            const body = { email, username, password };
-            const response = await fetch('http://localhost:5000/forumusers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+            const response = await fetch(`${API}/forumusers`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, username, password }),
             });
-
             if (response.ok) {
-            setStep(2);
+                setStep(2);
             } else {
-            console.error('Failed to submit form');
+                console.error('Failed to submit form');
             }
         } catch (err) {
             console.error(err.message);
@@ -233,208 +272,326 @@ function BasicExample() {
 
     const handleUsernameChange = (e) => {
         const { value } = e.target;
-        if (value.length <= 20) {
-            setUserName(value);
-        } 
-    }
+        // Hard cap at 20 characters rather than relying solely on maxLength
+        if (value.length <= 20) setUserName(value);
+    };
+
+    // Shared input styles to keep things consistent across all fields
+    const inputStyle = {
+        border: '1.5px solid #e0e0dc',
+        borderLeft: 'none',
+        background: '#f5f5f3',
+        fontSize: '0.9rem',
+        padding: '0.6rem 0.9rem',
+    };
+
+    const iconGroupStyle = {
+        background: '#f5f5f3',
+        border: '1.5px solid #e0e0dc',
+        borderRight: 'none',
+        color: '#393933',
+    };
+
+    const labelStyle = {
+        fontWeight: '600',
+        fontSize: '0.85rem',
+        color: '#393933',
+    };
+
+    const submitButtonStyle = {
+        width: '100%',
+        background: '#393933',
+        border: 'none',
+        borderRadius: '10px',
+        padding: '0.75rem',
+        fontWeight: '700',
+        fontSize: '0.95rem',
+        letterSpacing: '0.03em',
+        color: '#FFD443',
+        transition: 'all 0.2s ease',
+    };
+
+    const cardHeader = (badge, title, subtitle) => (
+        <div style={{
+            background: '#393933',
+            borderRadius: '16px 16px 0 0',
+            padding: '2rem 2.5rem 1.5rem',
+            borderBottom: '4px solid #FFD443',
+        }}>
+            <div style={{
+                display: 'inline-block',
+                background: '#FFD443',
+                borderRadius: '6px',
+                padding: '3px 10px',
+                fontSize: '0.68rem',
+                fontWeight: '700',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: '#393933',
+                marginBottom: '0.75rem',
+            }}>
+                {badge}
+            </div>
+            <h2 style={{ color: '#ffffff', fontWeight: '800', fontSize: '1.75rem', margin: 0, letterSpacing: '-0.02em' }}>
+                {title}
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '0.4rem', marginBottom: 0 }}>
+                {subtitle}
+            </p>
+        </div>
+    );
+
+    const cardBody = (children) => (
+        <div style={{
+            background: '#ffffff',
+            borderRadius: '0 0 16px 16px',
+            padding: '2rem 2.5rem 2.5rem',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+        }}>
+            {children}
+        </div>
+    );
+
+    const centeredWrapper = (children) => (
+        <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem 1rem',
+        }}>
+            <div style={{ width: '100%', maxWidth: '480px' }}>
+                {children}
+            </div>
+        </div>
+    );
 
     return (
         <Container>
-            {step === 1 && (
-            <Container className='register-container'>
-                <div className='text-center h3 form-title'>Create Your Account</div>
-                <Container className='d-flex justify-content-center'>
-                    <Form
-                        noValidate
-                        validated={validated}
-                        className='rounded bg-info p-80'
-                        onSubmit={onSubmitForm}
-                        style={{ width: '100%', maxWidth: '600px' }}
-                    >
-                    <div style={{ maxWidth: '260px', margin: '0 auto'}}>
-                        <Form.Group className='mb-3'>
-                        <Form.Label>Email address</Form.Label>
-                        <Form.Control
-                            type='email'
-                            placeholder='Enter email'
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                        {showError && <Alert variant="danger" className="p-4 m-4">{emailError}</Alert>}
-                        </Form.Group>
-                        <Form.Group className='mb-3'>
-                        <Form.Label>Username</Form.Label>
-                        <Form.Control
-                            type='text'
-                            placeholder='Enter username'
-                            value={username}
-                            onChange={handleUsernameChange}
-                            required
-                        />
-                        {nameError && <Alert variant="danger">{nameError}</Alert>}
-                        <Form.Text className='text-muted'>
-                            This will be your display name.
-                        </Form.Text>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                        <Form.Label>Password</Form.Label>
-                            <InputGroup hasValidation>
-                                <Form.Control
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={handlePasswordChange}
-                                required
-                                isInvalid={validated && !!passwordRequirementsError}
-                                />
-                                <InputGroup.Text>
-                                <Button
-                                    variant="link"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="p-0"
-                                >
-                                    {showPassword ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
-                                </Button>
-                                </InputGroup.Text>
-                                {validated && passwordRequirementsError && (
-                                <Form.Control.Feedback type="invalid">
-                                    {passwordRequirementsError}
-                                </Form.Control.Feedback>
-                                )}
-                            </InputGroup>                        
-                            <div style={{ minHeight: '1.5rem' }}>
-                                {validated && passwordRequirementsError ? (
-                                <div className="text-danger small">{!passwordRequirementsError}</div>
-                                ) : (
-                                <Form.Text className="text-muted">
-                                    Minimum 8 characters with at least 1 number and 1 special character
-                                </Form.Text>
-                                )}
-                            </div>
-                        </Form.Group>
+            {/* Step 1 — account details */}
+            {step === 1 && centeredWrapper(
+                <>
+                    {cardHeader('New Player', 'Create Your Account', 'Join the SmashPoint community')}
+                    {cardBody(
+                        <Form noValidate validated={validated} onSubmit={onSubmitForm}>
+                            <Form.Group className="mb-3">
+                                <Form.Label style={labelStyle}>Email Address</Form.Label>
+                                <InputGroup>
+                                    <InputGroup.Text style={iconGroupStyle}><BsEnvelopeFill size={14} /></InputGroup.Text>
+                                    <Form.Control type='email' placeholder='you@example.com' value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
+                                </InputGroup>
+                                {showError && <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#d00000', fontWeight: '500' }}>{emailError}</div>}
+                            </Form.Group>
 
-                        <Form.Group className="mb-3">
-                        <Form.Label>Confirm Password</Form.Label>
-                            <InputGroup hasValidation>
-                                <Form.Control
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                value={confirmpass}
-                                onChange={handleConfirmPasswordChange}
-                                required
-                                isInvalid={validated && !!passwordsMatchError}
-                                />
-                                <InputGroup.Text>
-                                <Button
-                                    variant="link"
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    className="p-0"
-                                >
-                                    {showConfirmPassword ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
-                                </Button>
-                                </InputGroup.Text>
-                                {validated && passwordsMatchError && (
-                                <Form.Control.Feedback type="invalid">
-                                    {passwordsMatchError}
-                                </Form.Control.Feedback>
-                                )}
-                            </InputGroup>
-                        </Form.Group>
-                        <Row className="mt-3 justify-content-center">
-                            <Col xs={12} md={10} lg={8}>
-                                <Form.Text className="text-muted text-center d-block" style={{ fontSize: '0.9rem' }}>
-                                By creating an account for <strong>SmashPoint</strong>, you agree to our{' '}
-                                <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> and{' '}
-                                <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
-                                </Form.Text>
-                            </Col>
-                        </Row>
+                            <Form.Group className="mb-3">
+                                <Form.Label style={labelStyle}>Username</Form.Label>
+                                <InputGroup>
+                                    <InputGroup.Text style={iconGroupStyle}><BsPersonFill size={14} /></InputGroup.Text>
+                                    <Form.Control type='text' placeholder='Your display name' value={username} onChange={handleUsernameChange} required style={inputStyle} />
+                                </InputGroup>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.3rem' }}>
+                                    {nameError
+                                        ? <span style={{ fontSize: '0.8rem', color: '#d00000', fontWeight: '500' }}>{nameError}</span>
+                                        : <span style={{ fontSize: '0.78rem', color: '#999' }}>This will be your public display name</span>
+                                    }
+                                    {/* Counter turns orange when close to the limit */}
+                                    <span style={{ fontSize: '0.78rem', color: username.length >= 18 ? '#e39647' : '#bbb', fontWeight: username.length >= 18 ? '600' : '400' }}>
+                                        {username.length}/20
+                                    </span>
+                                </div>
+                            </Form.Group>
 
-                        <Button variant='primary' type='submit' className='mt-24'>
-                        Submit
-                        </Button>
+                            <Form.Group className="mb-3">
+                                <Form.Label style={labelStyle}>Password</Form.Label>
+                                <InputGroup hasValidation>
+                                    <InputGroup.Text style={iconGroupStyle}><BsLockFill size={14} /></InputGroup.Text>
+                                    <Form.Control type={showPassword ? 'text' : 'password'} placeholder='Min 8 chars with number and symbol' value={password} onChange={handlePasswordChange} required isInvalid={validated && !!passwordRequirementsError} style={{ ...inputStyle, borderRight: 'none' }} />
+                                    <InputGroup.Text onClick={() => setShowPassword(!showPassword)} style={{ ...iconGroupStyle, borderLeft: 'none', borderRight: '1.5px solid #e0e0dc', cursor: 'pointer' }}>
+                                        {showPassword ? <BsEyeSlash size={15} /> : <BsEye size={15} />}
+                                    </InputGroup.Text>
+                                    {validated && passwordRequirementsError && <Form.Control.Feedback type="invalid">{passwordRequirementsError}</Form.Control.Feedback>}
+                                </InputGroup>
+                            </Form.Group>
+
+                            <Form.Group className="mb-4">
+                                <Form.Label style={labelStyle}>Confirm Password</Form.Label>
+                                <InputGroup hasValidation>
+                                    <InputGroup.Text style={iconGroupStyle}><BsLockFill size={14} /></InputGroup.Text>
+                                    <Form.Control type={showConfirmPassword ? 'text' : 'password'} placeholder='Repeat your password' value={confirmpass} onChange={handleConfirmPasswordChange} required isInvalid={validated && !!passwordsMatchError} style={{ ...inputStyle, borderRight: 'none' }} />
+                                    <InputGroup.Text onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ ...iconGroupStyle, borderLeft: 'none', borderRight: '1.5px solid #e0e0dc', cursor: 'pointer' }}>
+                                        {showConfirmPassword ? <BsEyeSlash size={15} /> : <BsEye size={15} />}
+                                    </InputGroup.Text>
+                                    {validated && passwordsMatchError && <Form.Control.Feedback type="invalid">{passwordsMatchError}</Form.Control.Feedback>}
+                                </InputGroup>
+                            </Form.Group>
+
+                            <Button type='submit' style={submitButtonStyle}
+                                onMouseEnter={e => { e.target.style.background = '#FFD443'; e.target.style.color = '#393933'; }}
+                                onMouseLeave={e => { e.target.style.background = '#393933'; e.target.style.color = '#FFD443'; }}>
+                                Create Account
+                            </Button>
+
+                            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#999', marginTop: '1rem', marginBottom: 0 }}>
+                                By signing up you agree to our{' '}
+                                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#393933', fontWeight: '600' }}>Terms</a>
+                                {' '}and{' '}
+                                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#393933', fontWeight: '600' }}>Privacy Policy</a>
+                            </p>
+                            <p style={{ textAlign: 'center', fontSize: '0.82rem', color: '#888', marginTop: '0.75rem', marginBottom: 0 }}>
+                                Already have an account?{' '}
+                                <a href="/signin" style={{ color: '#393933', fontWeight: '700', textDecoration: 'none' }}>Sign in</a>
+                            </p>
+                        </Form>
+                    )}
+                </>
+            )}
+
+            {/* Step 2 — email verification matching the same card design as step 1 */}
+            {step === 2 && centeredWrapper(
+                <>
+                    {cardHeader('Step 2 of 2', 'Verify Your Email', 'Enter the code we sent to ' + email)}
+                    {cardBody(
+                        <Form noValidate validated={validated} onSubmit={onVerifyEmail}>
+                            {!validCode && (
+                                <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fff0f0', border: '1.5px solid #d00000', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.85rem', color: '#d00000', fontWeight: '500' }}>Invalid verification code</span>
+                                    <BsX size={18} style={{ cursor: 'pointer', color: '#d00000' }} onClick={() => setValidCode(true)} />
+                                </div>
+                            )}
+
+                            <Form.Group className="mb-4">
+                                <Form.Label style={labelStyle}>Verification Code</Form.Label>
+                                <InputGroup>
+                                    <InputGroup.Text style={iconGroupStyle}><BsKeyFill size={14} /></InputGroup.Text>
+                                    <Form.Control
+                                        type='text'
+                                        placeholder='Enter your code'
+                                        value={emailCode}
+                                        onChange={(e) => setEmailCode(e.target.value)}
+                                        required
+                                        isInvalid={!validCode}
+                                        style={inputStyle}
+                                    />
+                                </InputGroup>
+                            </Form.Group>
+
+                            <Button type='submit' style={submitButtonStyle}
+                                onMouseEnter={e => { e.target.style.background = '#FFD443'; e.target.style.color = '#393933'; }}
+                                onMouseLeave={e => { e.target.style.background = '#393933'; e.target.style.color = '#FFD443'; }}>
+                                Verify Email
+                            </Button>
+
+                            <p style={{ textAlign: 'center', fontSize: '0.82rem', color: '#888', marginTop: '1rem', marginBottom: 0 }}>
+                                Didn't receive it?{' '}
+                                <span onClick={onResendCode} style={{ color: '#393933', fontWeight: '700', cursor: 'pointer' }}>
+                                    Resend code
+                                </span>
+                            </p>
+                        </Form>
+                    )}
+                </>
+            )}
+
+            {/* Step 3 — success countdown to redirect */}
+            {step === 3 && centeredWrapper(
+                <>
+                    {cardHeader('All Done', 'Account Created', 'Welcome to SmashPoint')}
+                    {cardBody(
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
+                            <p style={{ color: '#555', marginBottom: '0.5rem' }}>Your account has been created successfully.</p>
+                            <p style={{ color: '#999', fontSize: '0.85rem' }}>Redirecting in {secondsRemaining} seconds...</p>
                         </div>
-                    </Form>
-                    
-                </Container>
-            </Container>
-            )}
-            {step === 2 && (
-            <Container>
-                <div className='text-center h5 mt-96'>A verification code has been sent to your email</div>
-                <Container className='d-inline-flex justify-content-center'>
-                    <Form
-                        noValidate
-                        validated={validated}
-                        className='rounded bg-info p-80'
-                        onSubmit={onVerifyEmail}
-                    >
-                        <div className='mt-2' style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={onResendCode}>
-                            Resend Code
-                        </div>
-                        { !validCode && (
-                            <div className="alert alert-danger" role="alert">
-                                Invalid validation code
-                                <Button variant="link" onClick={() => setValidCode(true)}>
-                                    <BsX />
-                                </Button>
-                            </div>
-                        )}
-                        <Form.Group className='mb-3'>
-                            <Form.Label>Enter your code</Form.Label>
-                            <Form.Control
-                                type='emailcode'
-                                placeholder='Enter email code'
-                                value={emailCode}
-                                onChange={(e) => setEmailCode(e.target.value)}
-                                required
-                                isInvalid={!validCode}
-                            />
-                        </Form.Group>
-                        <Button variant='primary' type='submit' className='mt-24'>
-                            Submit
-                        </Button>
-                    </Form>
-                </Container>
-            </Container>
-            )}
-            {step === 3 && (
-            <Container>
-                <div className='text-center h5 mt-96'>Success! You will be redirected in {secondsRemaining} seconds...</div>
-            </Container>
-            )}
-            {step === 4 && (
-            <Container>
-                <div className='text-center h5 mt-96'>Too many resend requests. Please try again later.</div>
-            </Container>
-            )}
-            {step === 5 && (
-            <Container>
-                <div className='text-center h5 mt-96'>Too many verification attempts. Please try again later.</div>
-            </Container>
+                    )}
+                </>
             )}
 
-            <Modal show={showKeyModal} onHide={handleSkipDownload}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Important: Download Your Private Key</Modal.Title>
+            {step === 4 && centeredWrapper(
+                <>
+                    {cardHeader('Limit Reached', 'Too Many Attempts', 'Please try again later')}
+                    {cardBody(
+                        <p style={{ color: '#555', textAlign: 'center', marginBottom: 0 }}>
+                            You have requested too many verification codes. Please wait a while before trying again.
+                        </p>
+                    )}
+                </>
+            )}
+
+            {step === 5 && centeredWrapper(
+                <>
+                    {cardHeader('Limit Reached', 'Too Many Attempts', 'Please try again later')}
+                    {cardBody(
+                        <p style={{ color: '#555', textAlign: 'center', marginBottom: 0 }}>
+                            Too many failed verification attempts. Please try registering again.
+                        </p>
+                    )}
+                </>
+            )}
+
+            {/* Forced modal — user must set a passphrase and optionally download their key before continuing */}
+            <Modal show={showKeyModal} onHide={() => {}} backdrop="static" keyboard={false}>
+                <Modal.Header>
+                    <Modal.Title>
+                        <BsShieldLock className="me-2" />
+                        {keyModalStep === 'passphrase' ? 'Set Your Messaging Passphrase' : 'Back Up Your Private Key'}
+                    </Modal.Title>
                 </Modal.Header>
-                <Modal.Body>
-                    <p>
-                        Your private key is essential for providing account security. Please download it and keep it
-                        safe. If you lose your private key, you may lose access to certain features.
-                    </p>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="primary" onClick={handleDownloadPrivateKey}>
-                        Download Now
-                    </Button>
-                    <Button variant="secondary" onClick={handleSkipDownload}>
-                        Skip
-                    </Button>
-                </Modal.Footer>
-            </Modal>
 
+                {/* Step A — set the passphrase that protects their private key */}
+                {keyModalStep === 'passphrase' && (
+                    <>
+                        <Modal.Body>
+                            <Alert variant="info">
+                                <strong>What is this?</strong> Your messages are end-to-end encrypted.
+                                Your private key unlocks them and your passphrase protects that key.
+                                You will enter this passphrase each time you log in to read your messages.
+                            </Alert>
+                            <Alert variant="warning">
+                                <strong>Important:</strong> If you forget your passphrase your message
+                                history cannot be recovered. There is no reset option.
+                            </Alert>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Passphrase</Form.Label>
+                                <InputGroup>
+                                    <Form.Control type={showPassphrase ? 'text' : 'password'} placeholder="At least 10 characters" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} />
+                                    <InputGroup.Text>
+                                        <Button variant="link" onClick={() => setShowPassphrase(!showPassphrase)} className="p-0">
+                                            {showPassphrase ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
+                                        </Button>
+                                    </InputGroup.Text>
+                                </InputGroup>
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Confirm Passphrase</Form.Label>
+                                <Form.Control type={showPassphrase ? 'text' : 'password'} placeholder="Repeat your passphrase" value={confirmPassphrase} onChange={(e) => setConfirmPassphrase(e.target.value)} />
+                            </Form.Group>
+                            {passphraseError && <Alert variant="danger">{passphraseError}</Alert>}
+                        </Modal.Body>
+                        <Modal.Footer>
+                            <Button variant="primary" onClick={handleSetPassphrase} disabled={isSavingKey || !passphrase || !confirmPassphrase}>
+                                {isSavingKey ? 'Saving...' : 'Set Passphrase'}
+                            </Button>
+                        </Modal.Footer>
+                    </>
+                )}
+
+                {/* Step B — offer a plaintext backup in case they ever forget their passphrase */}
+                {keyModalStep === 'download' && (
+                    <>
+                        <Modal.Body>
+                            <Alert variant="success"><strong>Passphrase set!</strong> Your private key is now protected.</Alert>
+                            <p>We strongly recommend downloading a backup of your raw private key and storing it somewhere safe like a password manager or USB drive.</p>
+                            <p>If you ever forget your passphrase this backup file is your only way to recover your messages.</p>
+                        </Modal.Body>
+                        <Modal.Footer>
+                            <Button variant="primary" onClick={handleDownloadPrivateKey}><BsDownload className="me-2" />Download Backup Key</Button>
+                            <Button variant="secondary" onClick={handleFinish}>Skip (not recommended)</Button>
+                        </Modal.Footer>
+                    </>
+                )}
+            </Modal>
         </Container>
-    )
+    );
 }
 
-export default BasicExample
+export default Registration;

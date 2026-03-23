@@ -11,52 +11,61 @@ const crypto = require("crypto")
 const bcrypt = require("bcrypt")
 const http = require('http');
 const { Server } = require('socket.io');
+const { verifyToken, verifyRole } = require('./auth');
 
-const server = http.createServer(app);  // Create an HTTP server
+const server = http.createServer(app);
+
+// In production, FRONTEND_URL is set to frontend domain
+// In development its localhost:3000
+const allowedOrigins = [
+  'http://localhost:3000',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-    }
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+  }
 });
 
-//storage
 const Storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        cb(null, 'public/uploads/');
-    },
-    filename: function(req, file, cb) {
-        cb(null, file.originalname);
-    }
-})
-const upload = multer({ 
-    storage: Storage 
-})
+  destination: function(req, file, cb) {
+    cb(null, 'public/uploads/');
+  },
+  filename: function(req, file, cb) {
+    cb(null, file.originalname);
+  }
+});
+const upload = multer({ storage: Storage });
 
-//middleware
-app.use(cors());
-app.use(express.json()); //req.body
-app.use('/public/uploads', express.static('public/uploads'))
-
+app.use(express.json());
+app.use('/public/uploads', express.static('public/uploads'));
 
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (token == null) {
-        return res.sendStatus(401);
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token == null) return res.sendStatus(401);
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      console.error(err);
+      return res.sendStatus(403);
     }
-
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            console.error(err)
-            return res.sendStatus(403)
-        }
-        req.user = user
-        next();
-    })
-
+    req.user = user;
+    next();
+  });
 }
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
 //ROUTES//
 
 //USERS ACCOUNT
@@ -173,7 +182,7 @@ app.post('/userlogin', async (req, res) => {
             }
             else if(response){
                 console.log(response)
-                const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username}, process.env.JWT_SECRET)
+                const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username, role: user.rows[0].role}, process.env.JWT_SECRET)
                 res.json({ success: true, token: token });
             }
             else{
@@ -187,6 +196,25 @@ app.post('/userlogin', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 })
+
+app.get('/get-public-key/:userid', authenticateToken, async (req, res) => {
+    try {
+        const { userid } = req.params;
+        const result = await pool.query(
+            'SELECT public_key FROM forumuser_public_keys WHERE users_id = $1',
+            [userid]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Public key not found for this user' });
+        }
+
+        res.json({ publicKey: result.rows[0].public_key });
+    } catch (err) {
+        console.error('Error fetching public key:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 //user authentication
 app.get('/userauthenticate', authenticateToken, (req, res) => {
@@ -242,6 +270,50 @@ app.get("/forumusers/:id", async (req, res) => {
     }
 });
 
+// Edit forum user
+// Only accessible by admins and moderators
+app.put('/forumusers/edit/:userId', authenticateToken, async (req, res) => {
+    const { userId } = req.params;
+    const { username, location, description } = req.body;
+
+    // Check role directly from the JWT since authenticateToken already decoded it
+    const requestingRole = req.user.role;
+    if (requestingRole !== 'admin' && requestingRole !== 'moderator') {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    try {
+        if (username) {
+            const existing = await pool.query(
+                'SELECT users_id FROM forumusers WHERE username = $1 AND users_id != $2',
+                [username, userId]
+            );
+            if (existing.rows.length > 0) {
+                return res.status(409).json({ error: 'Username is already taken' });
+            }
+        }
+
+        const result = await pool.query(
+            `UPDATE forumusers
+             SET username = COALESCE($1, username),
+                 location = COALESCE($2, location),
+                 description = COALESCE($3, description)
+             WHERE users_id = $4
+             RETURNING users_id, username, location, description`,
+            [username || null, location || null, description || null, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ success: true, user: result.rows[0] });
+    } catch (err) {
+        console.error('Error updating user:', err.message);
+        res.status(500).send('Server error');
+    }
+});
+
 //get a forum user by name
 app.get("/forumusers/get-user/:username", async (req, res) => {
     try {
@@ -268,6 +340,93 @@ app.get("/forumusers/get-user/:username", async (req, res) => {
     } catch (err) {
         console.error("Error fetching forum users by username:", err.message);
         res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// Save encrypted private key blob
+app.post('/save-encrypted-key', async (req, res) => {
+    try {
+        const { email, encryptedKey, salt, iv } = req.body;
+
+        if (!email || !encryptedKey || !salt || !iv) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const userResult = await pool.query(
+            'SELECT users_id FROM forumusers WHERE email = $1',
+            [email]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const userId = userResult.rows[0].users_id;
+
+        // Upsert — handles re-registration edge cases
+        await pool.query(
+            `INSERT INTO forumuser_encrypted_keys (users_id, encrypted_key, salt, iv)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (users_id) DO UPDATE
+             SET encrypted_key = $2, salt = $3, iv = $4, updated_at = NOW()`,
+            [userId, encryptedKey, salt, iv]
+        );
+
+        res.status(201).json({ success: true });
+    } catch (err) {
+        console.error('Error saving encrypted key:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+
+// Retrieve encrypted private key blob for the logged-in user (called at login)
+app.get('/get-encrypted-key', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.users_id;
+
+        const result = await pool.query(
+            'SELECT encrypted_key, salt, iv FROM forumuser_encrypted_keys WHERE users_id = $1',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'No encrypted key found for this user' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error fetching encrypted key:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+
+// Update encrypted key blob (called when user changes their passphrase)
+app.put('/update-encrypted-key', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.users_id;
+        const { encryptedKey, salt, iv } = req.body;
+
+        if (!encryptedKey || !salt || !iv) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const result = await pool.query(
+            `UPDATE forumuser_encrypted_keys
+             SET encrypted_key = $1, salt = $2, iv = $3, updated_at = NOW()
+             WHERE users_id = $4`,
+            [encryptedKey, salt, iv, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'No key found to update' });
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error updating encrypted key:', err.message);
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -437,27 +596,40 @@ app.delete("/forumusers/:userId", async (req, res) =>{
 /////////////////////////////////// FORUM IMAGES //////////////////////////////////////
 
 app.post('/forumimages', upload.single('image'), (req, res) => {
-    const {path} = req.file;
-    const {thread_id} = req.body;
-
-    if(!thread_id){
-        return res.status(400).send('thread_id is required');
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    console.log(req.file)
+    const { thread_id } = req.body;
+    if (!thread_id) {
+      return res.status(400).json({ error: 'thread_id is required' });
+    }
+
+    // Normalize path for URLs
+    const filepath = req.file.path.replaceAll('\\', '/');
+
     pool.query(
       'INSERT INTO forumimages (filepath, thread_id) VALUES ($1, $2)',
-      [path.replaceAll('\\', '/'), thread_id],
-      (error, results) => {
+      [filepath, thread_id],
+      (error) => {
         if (error) {
-          console.log(error)
-          res.sendStatus(500)
-        } else {
-          res.send('File uploaded successfully')
+          console.error('DB insert error:', error);
+          return res.status(500).json({ error: 'Failed to save image record' });
         }
+
+        res.status(200).json({
+          success: true,
+          filepath,
+          thread_id
+        });
       }
-    )
-})
+    );
+  } catch (err) {
+    console.error('Unexpected error in /forumimages:', err);
+    res.status(500).json({ error: 'Unexpected server error' });
+  }
+});
 
 //get all forum images
 
@@ -513,21 +685,6 @@ app.post('/forumcontent', async (req, res) => {
   }
 })
 
-//get all forum threads
-// app.get('/forumcontent', async (req, res) => {
-//   try {
-//     const allForumcontent = await pool.query(`
-//       SELECT fc.*
-//       FROM forumcontent fc
-//       JOIN forumusers fu ON fc.users_id = fu.users_id
-//       WHERE fu.is_banned = FALSE
-//     `);
-//     res.json(allForumcontent.rows);
-//   } catch (err) {
-//     console.error(err.message);
-//   }
-// });
-
 app.get('/forumcontent', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -535,10 +692,21 @@ app.get('/forumcontent', async (req, res) => {
     const offset = (page - 1) * limit;
 
     const paginatedQuery = `
-      SELECT fc.*, fi.filepath
+      SELECT
+        fc.*,
+        fi.filepath,
+        fu.character_name,
+        fu.selected_skin,
+        COALESCE(cc.comment_count, 0) AS comment_count
       FROM forumcontent fc
       LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
       JOIN forumusers fu ON fc.users_id = fu.users_id
+      LEFT JOIN (
+        SELECT thread_id, COUNT(*) AS comment_count
+        FROM forumcomments
+        WHERE is_deleted = FALSE
+        GROUP BY thread_id
+      ) cc ON fc.thread_id = cc.thread_id
       WHERE fu.is_banned = FALSE
       AND fc.is_deleted = FALSE
       ORDER BY fc.postdate DESC
@@ -636,7 +804,7 @@ app.delete('/forumcontent/:id', async (req, res) => {
       'DELETE FROM forumcontent WHERE thread_id = $1',
       [id]
     )
-    res.json('Forumcontent was deleted!')
+    res.json(deleteForumcontent.rows)
   } catch (err) {
     console.log(err.message)
   }
@@ -779,20 +947,36 @@ app.post('/forumcomments', async (req, res) => {
       return num;
     };
 
-    const { thread_id, comment, user, userid, mentions = [] } = req.body;
+    const { thread_id, comment, user, userid } = req.body;
 
     const validThreadId = validateId(thread_id, 'thread_id');
     const validUserId = validateId(userid, 'userid');
 
-    /* -------------------- Insert Comment -------------------- */
+    /* -------------------- Extract Mentions From Comment -------------------- */
+    const extractMentions = (text) => {
+    const regex = /@([a-zA-Z0-9_]+)/g;
+    const matches = [...text.matchAll(regex)];
+
+    return matches.map(match => ({
+        username: match[1],
+        position: match.index,
+        length: match[0].length
+    }));
+    };
+
+    const mentionMatches = extractMentions(comment);
+    const mentionObjects = [];
+    const mentionedUsers = new Set();
+
+    /* -------------------- Insert Comment (temporarily empty mentions) -------------------- */
     const newComment = await client.query(
-      `
-      INSERT INTO forumcomments 
+    `
+    INSERT INTO forumcomments 
         (thread_id, comment, username, timeposted, users_id, mentions)
-      VALUES ($1, $2, $3, NOW(), $4, $5)
-      RETURNING comment_id
-      `,
-      [validThreadId, comment, user, validUserId, JSON.stringify(mentions)]
+    VALUES ($1, $2, $3, NOW(), $4, $5)
+    RETURNING comment_id
+    `,
+    [validThreadId, comment, user, validUserId, JSON.stringify([])]
     );
 
     /* -------------------- Thread Info -------------------- */
@@ -804,10 +988,9 @@ app.post('/forumcomments', async (req, res) => {
     const threadTitle = threadResult.rows[0]?.title ?? 'a thread';
     const threadCreatorId = threadResult.rows[0]?.users_id;
 
-    const mentionedUsers = new Set();
-
     /* -------------------- Mention Notifications -------------------- */
-    for (const { username } of mentions) {
+    for (const mention of mentionMatches) {
+      const { username, position, length } = mention;
       const userResult = await client.query(
         `SELECT users_id FROM forumusers WHERE username = $1`,
         [username]
@@ -819,7 +1002,7 @@ app.post('/forumcomments', async (req, res) => {
       if (mentionedUserId === validUserId) continue;
       if (mentionedUsers.has(mentionedUserId)) continue;
 
-      mentionedUsers.add(mentionedUserId);
+      mentionObjects.push({ username, position, length });
 
       const existingMention = await client.query(
         `
@@ -946,7 +1129,14 @@ app.post('/forumcomments', async (req, res) => {
         );
       }
     }
-
+    await client.query(
+    `
+    UPDATE forumcomments
+    SET mentions = $1
+    WHERE comment_id = $2
+    `,
+    [JSON.stringify(mentionObjects), newComment.rows[0].comment_id]
+    );
     await client.query('COMMIT');
 
     res.json({
@@ -1013,32 +1203,127 @@ app.get('/usercomments/:userid', async (req, res) => {
 })
 
 app.put('/forumcomments/:commentId', async (req, res) => {
+  const client = await pool.connect();
+
   try {
+    await client.query('BEGIN');
+
     const { commentId } = req.params;
     const { content, userId } = req.body;
 
-    await pool.query('BEGIN');
+    /* -------------------- Get Old Comment -------------------- */
+    const oldResult = await client.query(
+      `SELECT comment, mentions, thread_id 
+       FROM forumcomments 
+       WHERE comment_id = $1`,
+      [commentId]
+    );
 
-    const getOldContentQuery = 'SELECT comment FROM forumcomments WHERE comment_id = $1';
-    const oldContentResult = await pool.query(getOldContentQuery, [commentId]);
-    const oldContent = oldContentResult.rows[0].comment;
+    if (oldResult.rows.length === 0) {
+      throw new Error('Comment not found');
+    }
 
-    const insertEditHistoryQuery = `
+    const oldContent = oldResult.rows[0].comment;
+    const oldMentions = oldResult.rows[0].mentions || [];
+    const threadId = oldResult.rows[0].thread_id;
+
+    /* -------------------- Extract Mentions From New Content -------------------- */
+    const extractMentions = (text) => {
+        const regex = /@([a-zA-Z0-9_]+)/g;
+        const matches = [...text.matchAll(regex)];
+
+        return matches.map(match => ({
+            username: match[1],
+            position: match.index,
+            length: match[0].length // includes @
+        }));
+    };
+
+    const mentionMatches = extractMentions(content);
+
+    /* -------------------- Resolve Mentioned Users -------------------- */
+    const mentionedUsers = new Set();
+    const mentionObjects = [];
+
+    for (const mention of mentionMatches) {
+      const { username, position, length } = mention;
+      console.log(`Processing mention: ${username} at position ${position} with length ${length}`);
+      const userResult = await client.query(
+        `SELECT users_id FROM forumusers WHERE username = $1`,
+        [username]
+      );
+
+      const mentionedUserId = userResult.rows[0]?.users_id;
+      if (!mentionedUserId) continue;
+      if (mentionedUserId === userId) continue;
+      if (mentionedUsers.has(mentionedUserId)) continue;
+
+      mentionedUsers.add(mentionedUserId);
+      mentionObjects.push({ username, position, length });
+
+      /* ---- Only Notify If Newly Added ---- */
+      const wasMentionedBefore = oldMentions.some(
+        m => m.username === username
+      );
+
+      if (!wasMentionedBefore) {
+        const threadResult = await client.query(
+          `SELECT title FROM forumcontent WHERE thread_id = $1`,
+          [threadId]
+        );
+
+        const threadTitle = threadResult.rows[0]?.title ?? 'a thread';
+
+        await client.query(
+          `
+          INSERT INTO notifications
+            (users_id, type, entity_id, message, unique_commenters, message_count, latest_commenter)
+          VALUES ($1, 'mention', $2, $3, $4, 1, $5)
+          `,
+          [
+            mentionedUserId,
+            threadId,
+            `You were mentioned in "${threadTitle}" (edited comment)`,
+            JSON.stringify([userId]),
+            userId
+          ]
+        );
+      }
+    }
+
+    /* -------------------- Save Edit History -------------------- */
+    await client.query(
+      `
       INSERT INTO comment_edits (comment_id, old_content, new_content, edited_by)
       VALUES ($1, $2, $3, $4)
-    `;
-    await pool.query(insertEditHistoryQuery, [commentId, oldContent, content, userId]);
+      `,
+      [commentId, oldContent, content, userId]
+    );
 
-    const updateCommentQuery = 'UPDATE forumcomments SET comment = $1 WHERE comment_id = $2';
-    await pool.query(updateCommentQuery, [content, commentId]);
+    /* -------------------- Update Comment + Mentions -------------------- */
+    await client.query(
+        `
+        UPDATE forumcomments
+        SET comment = $1,
+            mentions = $2
+        WHERE comment_id = $3
+        `,
+        [content, JSON.stringify(mentionObjects), commentId]
+    );
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
 
-    res.json('Comment was updated and history recorded!');
+    res.json({
+      success: true,
+      new_mentions_added: mentionedUsers.size
+    });
+
   } catch (err) {
-    await pool.query('ROLLBACK');
-    console.error(err.message);
-    res.status(500).send('Server error');
+    await client.query('ROLLBACK');
+    console.error('[Edit Comment Error]', err.message);
+    res.status(500).json({ error: 'Failed to edit comment' });
+  } finally {
+    client.release();
   }
 });
 
@@ -1073,10 +1358,6 @@ app.get('/edithistory/:commentId', async(req, res) => {
         console.error(err.message)
     }
 })
-server.listen(5000, () => {
-    console.log("server has started on port 5000");
-
-});
 
 //FORUM COMMENT LIKES AND DISLIKES
 app.post('/commentlikes', async (req, res) => {
@@ -1231,8 +1512,10 @@ app.post('/threadreport', async (req, res) => {
 
 app.post('/commentreport', async (req, res) => {
     try {
-        const { user_id, thread_id, reported_user, reason, report_desc } = req.body
-        const result = await pool.query('INSERT INTO commentreports (reporting uid, comment_id, reported_uid, reason, report desc) VLAUES ($1, $2, $3, $4, $5)', [user_id, thread_id, reported_user, reason, report_desc])
+        const { user_id, comment_id, reported_user, reason, report_desc } = req.body
+        console.log(user_id, comment_id, reported_user, reason, report_desc)
+
+        const result = await pool.query('INSERT INTO commentreports (reporting_uid, comment_id, reported_uid, reason, report_desc) VALUES ($1, $2, $3, $4, $5)', [user_id, comment_id, reported_user, reason, report_desc])
         res.json(result.rows[0])
 
     } catch (err){
@@ -1289,31 +1572,35 @@ app.get('/viewreports', async (req, res) => {
     }
 })
 
-app.put('/resolvereport', async (req, res) => {
+app.put('/resolvereport', verifyToken, verifyRole(['admin', 'moderator']), async (req, res) => {
+    const client = await pool.connect();
+
     try {
         const {
             report_id,
             resolution_status,
             mod_notes,
             report_type,
-            content_id
+            content_id,
         } = req.body;
+
+        const moderator_id = req.userId
 
         if (!report_id || !resolution_status || !report_type) {
             return res.status(400).json({
                 error: "report_id, resolution_status, and report_type are required"
             });
         }
-        if (resolution_status === "content_removed") {
 
+        await client.query('BEGIN');
+
+        if (resolution_status === "content_removed") {
             if (!content_id) {
-                return res.status(400).json({
-                    error: "content_id is required when removing content"
-                });
+                throw new Error("content_id is required when removing content");
             }
 
             if (report_type === "thread") {
-                await pool.query(`
+                await client.query(`
                     UPDATE forumcontent
                     SET is_deleted = TRUE
                     WHERE thread_id = $1
@@ -1321,35 +1608,60 @@ app.put('/resolvereport', async (req, res) => {
             }
 
             if (report_type === "comment") {
-                await pool.query(`
+                await client.query(`
                     UPDATE forumcomments
                     SET is_deleted = TRUE
                     WHERE comment_id = $1
                 `, [content_id]);
             }
         }
-        const reportResult = await pool.query(`
-            UPDATE threadreports
-            SET
-                is_reviewed = TRUE,
-                resolution_status = $1,
-                mod_notes = $2
-            WHERE report_id = $3
-            RETURNING *;
-        `, [resolution_status, mod_notes, report_id]);
+
+        let reportResult;
+
+        if (report_type === "comment") {
+            reportResult = await client.query(`
+                UPDATE commentreports
+                SET
+                    is_reviewed = TRUE,
+                    resolution_status = $1,
+                    mod_notes = $2,
+                    reviewed_by = $3
+                WHERE report_id = $4
+                RETURNING *;
+            `, [resolution_status, mod_notes, moderator_id, report_id]);
+        } else {
+            reportResult = await client.query(`
+                UPDATE threadreports
+                SET
+                    is_reviewed = TRUE,
+                    resolution_status = $1,
+                    mod_notes = $2,
+                    reviewed_by = $3
+                WHERE report_id = $4
+                RETURNING *;
+            `, [resolution_status, mod_notes, moderator_id, report_id]);
+        }
 
         if (reportResult.rowCount === 0) {
-            return res.status(404).json({ error: "Report not found" });
+            throw new Error("Report not found");
         }
-        
+
+        await client.query('COMMIT');
+
         return res.json({
             success: true,
             report: reportResult.rows[0]
         });
 
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error("Resolve report error:", err);
-        return res.status(500).json({ error: err.message });
+
+        return res.status(500).json({
+            error: err.message
+        });
+    } finally {
+        client.release();
     }
 });
 
@@ -1401,29 +1713,29 @@ app.post('/passwordverify', async (req, res) => {
     const verificationcode = req.body.code
     try {    
         const getcode = await pool.query(
-          'SELECT reset_code, expires_at, used FROM passwordreset WHERE reset_code = $1',
-          [verificationcode]
+            'SELECT reset_code, expires_at, used FROM passwordreset WHERE reset_code = $1',
+            [verificationcode]
         )
-        if (getcode.rows.length > 0) {
-            const codeRow = getcode.rows[0]
-            if (codeRow.used) {
-                console.log('Code has already been used.')
-            } else if (codeRow.expires_at < new Date()) {
-                console.log('Code is expired.')
-            } else {
-                console.log('Code is valid.')
-                
-                await pool.query('UPDATE passwordreset SET used = true WHERE reset_code = $1',[verificationcode])
-
-                console.log('Code usage status updated in the database.')
-            }
-        } else {
-            console.log('Code is invalid.')
+        if (getcode.rows.length === 0) {
+            return res.json({ success: false, error: 'Invalid code' })
         }
+
+        const codeRow = getcode.rows[0]
+
+        if (codeRow.used) {
+            return res.json({ success: false, error: 'Code has already been used' })
+        }
+        if (codeRow.expires_at < new Date()) {
+            return res.json({ success: false, error: 'Code has expired' })
+        }
+
+        await pool.query('UPDATE passwordreset SET used = true WHERE reset_code = $1', [verificationcode])
+        return res.json({ success: true })
+
     } catch (error) {
-        console.log(verificationcode)
+        console.error(error)
+        res.status(500).json({ success: false, error: 'Server error' })
     }
-    res.json(verificationcode)
 })
 
 //////////////////////////////// VERIFY EMAIL //////////////////////////////////////
@@ -1455,101 +1767,127 @@ app.post('/emailverify', async (req, res) => {
 //////////////////////////////// FRIENDS LIST //////////////////////////////////////
 
 //Add friend
-app.post('/add-friend/:usersid/:friendsid', async (req, res) => {
-    const users_id = parseInt(req.params.usersid, 10)
-    const friends_id = parseInt(req.params.friendsid, 10)
+app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
+    const users_id = req.user.users_id;
+    const friends_id = parseInt(req.params.friendsid, 10);
+
+    if (users_id === friends_id) {
+        return res.status(400).json({ error: "You cannot add yourself." });
+    }
+
+    // Reject the request if a block exists in either direction
 
     try {
-        const { isRequest } = req.body;
+        const blockCheck = await pool.query(
+            `SELECT block_id FROM blocks 
+            WHERE (blocker_id = $1 AND blocked_id = $2)
+                OR (blocker_id = $2 AND blocked_id = $1)`,
+            [users_id, friends_id]
+        );
 
-        const currentStatusQuery = `
-            SELECT status
-            FROM friendships
-            WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1);
-        `
+        if (blockCheck.rows.length > 0) {
+            return res.status(403).json({ error: 'Cannot send friend request to this user' });
+        }
 
-        const currentStatusResult = await pool.query(currentStatusQuery, [users_id, friends_id]);
-        const currentStatus = currentStatusResult.rows.length > 0 ? currentStatusResult.rows[0].status : null;
+        const existing = await pool.query(`
+            SELECT * FROM friendships
+            WHERE (user_id1 = $1 AND user_id2 = $2)
+               OR (user_id1 = $2 AND user_id2 = $1)
+        `, [users_id, friends_id]);
 
-        let newStatus;
-        if (currentStatus) {
-            newStatus = 'accepted';
-            const updateStatusQuery = `
+        if (existing.rows.length === 0) {
+            await pool.query(`
+                INSERT INTO friendships (user_id1, user_id2, status)
+                VALUES ($1, $2, 'pending')
+            `, [users_id, friends_id]);
+
+            return res.json({ newStatus: 'pending' });
+        }
+
+        const currentStatus = existing.rows[0].status;
+
+        if (currentStatus === 'pending') {
+            await pool.query(`
                 UPDATE friendships
                 SET status = 'accepted'
-                WHERE (user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1)
-            `;
-            await pool.query(updateStatusQuery, [users_id, friends_id]);
-        } else {
-            newStatus = isRequest ? 'pending' : 'accepted';
-            const addFriendQuery = `
-                INSERT INTO friendships (user_id1, user_id2, status)
-                VALUES ($1, $2, 'pending');
-            `
-            await pool.query(addFriendQuery, [users_id, friends_id])
+                WHERE (user_id1 = $1 AND user_id2 = $2)
+                   OR (user_id1 = $2 AND user_id2 = $1)
+            `, [users_id, friends_id]);
+
+            return res.json({ newStatus: 'accepted' });
         }
-        
-        res.json({ success: true, newStatus });
+
+        return res.json({ newStatus: currentStatus });
+
     } catch (error) {
         console.error('Error updating friend status:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
 //Remove friend
-app.post('/remove-friend/:usersid/:friendsid', async (req, res) => {
-  const users_id = parseInt(req.params.usersid, 10);
-  const friends_id = parseInt(req.params.friendsid, 10);
+app.post('/remove-friend/:friendsid', authenticateToken, async (req, res) => {
+    const users_id = req.user.users_id;
+    const friends_id = parseInt(req.params.friendsid, 10);
 
-  try {
-    const removeFriendQuery = `
-      DELETE FROM friendships
-      WHERE (
-        (user_id1 = $1 AND user_id2 = $2) OR
-        (user_id1 = $2 AND user_id2 = $1)
-      )
-      AND status = 'accepted';
-    `;
+    try {
+        const result = await pool.query(`
+            DELETE FROM friendships
+            WHERE (
+                (user_id1 = $1 AND user_id2 = $2) OR
+                (user_id1 = $2 AND user_id2 = $1)
+            )
+        `, [users_id, friends_id]);
 
-    await pool.query(removeFriendQuery, [users_id, friends_id]);
+        console.log("Rows deleted:", result.rowCount);
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error removing friend:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Friendship not found." });
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error removing friend:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
 
 //Get all friends
-app.get('/all-friends/:userid', async (req, res) => {
-    const users_id = parseInt(req.params.userid, 10)
-    
+app.get('/all-friends', authenticateToken, async (req, res) => {
+    const users_id = req.user.users_id;
+
     try {
         const allFriendsQuery = `
-        SELECT
-            CASE
-                WHEN user_id1 = $1 THEN user_id2
-                ELSE user_id1
-            END AS friend_id,
-            forumusers.username
-        FROM friendships
-        JOIN forumusers ON friendships.user_id1 = forumusers.users_id OR friendships.user_id2 = forumusers.users_id
-        WHERE (($1 IN (user_id1, user_id2)) AND status = 'accepted') AND forumusers.users_id != $1;
-        `
+        SELECT 
+            f.friend_id,
+            u.username
+        FROM (
+            SELECT 
+                CASE 
+                    WHEN user_id1 = $1 THEN user_id2
+                    ELSE user_id1
+                END AS friend_id
+            FROM friendships
+            WHERE $1 IN (user_id1, user_id2)
+            AND status = 'accepted'
+        ) f
+        JOIN forumusers u ON u.users_id = f.friend_id;
+        `;
 
-       const friends = await pool.query(allFriendsQuery, [users_id])
-
-        if(friends.rows.length === 0) {
-            res.json({ friends: 'no_friends', users_id })
-        } else {
-            res.json(friends.rows)
+        const friends = await pool.query(allFriendsQuery, [users_id]);
+        console.log("Friends retrieved:", friends.rows);
+        if (friends.rows.length === 0) {
+            return res.json({ friends: "no_friends" });
         }
+
+        res.json(friends.rows);
+
     } catch (error) {
-        console.error('Error retrieving friends:', error)
-        res.status(500).json({ error: 'Internal Server Error', details: error.message });
-     }
-})
+        console.error("Error retrieving friends:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
 
 //Get friendship status
 app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
@@ -1572,14 +1910,86 @@ app.get('/get-friendship-status/:userid/:friendid', async (req, res) => {
         } else {
             const row = result.rows[0];
             res.json({
-                status: row.status,
-                user_id1: parseInt(row.user_id1, 10),
-                user_id2: parseInt(row.user_id2, 10),
+                status: row ? row.status : 'not_friends',
+                user_id1: row ? row.user_id1 : null
             });
         }
     } catch (error) {
         console.error('Error fetching friendship status:', error);
         res.status(500).json({ error: 'Internal server error'});
+    }
+});
+
+app.post('/block/:blockedId', authenticateToken, async (req, res) => {
+    const blockerId = req.user.users_id;
+    const { blockedId } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        await client.query(
+            `INSERT INTO blocks (blocker_id, blocked_id) 
+             VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [blockerId, blockedId]
+        );
+
+        // Remove friendship in both directions
+        await client.query(
+            `DELETE FROM friendships 
+             WHERE (user_id1 = $1 AND user_id2 = $2) 
+                OR (user_id1 = $2 AND user_id2 = $1)`,
+            [blockerId, blockedId]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error blocking user:', err);
+        res.status(500).json({ error: 'Failed to block user' });
+    } finally {
+        client.release();
+    }
+});
+
+// Unblock a user
+app.post('/unblock/:blockedId', authenticateToken, async (req, res) => {
+    const blockerId = req.user.id;
+    const { blockedId } = req.params;
+    try {
+        await pool.query(
+            `DELETE FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+            [blockerId, blockedId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error unblocking user:', err);
+        res.status(500).json({ error: 'Failed to unblock user' });
+    }
+});
+
+// Check block status between two users
+app.get('/block-status/:userId/:targetId', async (req, res) => {
+    const { userId, targetId } = req.params;
+    try {
+        const result = await pool.query(
+            `SELECT blocker_id FROM blocks 
+             WHERE (blocker_id = $1 AND blocked_id = $2)
+                OR (blocker_id = $2 AND blocked_id = $1)`,
+            [userId, targetId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ blocked: false, blockedByMe: false, blockedByThem: false });
+        }
+
+        const blockedByMe = result.rows.some(r => parseInt(r.blocker_id) === parseInt(userId));
+        const blockedByThem = result.rows.some(r => parseInt(r.blocker_id) === parseInt(targetId));
+
+        res.json({ blocked: true, blockedByMe, blockedByThem });
+    } catch (err) {
+        console.error('Error checking block status:', err);
+        res.status(500).json({ error: 'Failed to check block status' });
     }
 });
 
@@ -1676,15 +2086,49 @@ app.get('/retrieve-image/:userid', async (req, res) => {
     }
 })
 
+app.get('/user-stats/:userid', async (req, res) => {
+  const { userid } = req.params;
 
-const algorithm = process.env.ALGORITHM;
-const secretKey = process.env.SECRET_KEY;
+  try {
+    const result = await pool.query(
+        `
+            SELECT
+                u.users_id,
+                u.created_at AS join_date,
 
-app.get('/config', authenticateToken, (req, res) => {
-    res.json({
-        algorithm: process.env.ALGORITHM,
-        secretKey: process.env.SECRET_KEY
-    });
+                -- threads created
+                (SELECT COUNT(*)
+                FROM forumcontent fc
+                WHERE fc.users_id = u.users_id) AS thread_count,
+
+                -- comments posted
+                (SELECT COUNT(*)
+                FROM forumcomments c
+                WHERE c.users_id = u.users_id) AS comment_count,
+
+                -- thread likes received
+                (SELECT COUNT(*)
+                FROM likes l
+                JOIN forumcontent fc ON fc.thread_id = l.post_id
+                WHERE fc.users_id = u.users_id) AS thread_likes,
+
+                -- comment likes received
+                (SELECT COUNT(*)
+                FROM commentlikes cl
+                JOIN forumcomments c ON c.comment_id = cl.comment_id
+                WHERE c.users_id = u.users_id) AS comment_likes
+
+            FROM forumusers u
+            WHERE u.users_id = $1;
+        `,
+        [userid]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching user stats:', err);
+    res.status(500).json({ error: 'Failed to fetch user stats' });
+  }
 });
 
 //Saves encrypted messages to database
@@ -1692,8 +2136,8 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
     try {
         console.log("📩 Storing message:", message_text);
 
-        const [iv, content] = message_text.split(":");
-        if (!iv || !content) {
+        const parts = message_text.split("|");
+        if (parts.length !== 4) {
             console.error("❌ Invalid encrypted message format:", message_text);
             return null;
         }
@@ -1701,7 +2145,7 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
         const newMessage = await pool.query(
             `INSERT INTO messages (sender_id, receiver_id, message_text, iv) 
              VALUES($1, $2, $3, $4) RETURNING *`,
-            [sender_id, receiver_id, content, iv]
+            [sender_id, receiver_id, message_text, 'v2']
         );
 
         const existingNotification = await pool.query(
@@ -1736,7 +2180,6 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
     }
 };
 
-//Retrieves encrypted messages from database
 const getMessagesFromDB = async (userId, friendId) => {
     try {
         const result = await pool.query(
@@ -1748,7 +2191,12 @@ const getMessagesFromDB = async (userId, friendId) => {
             [userId, friendId]
         );
 
-        return result.rows;
+        return result.rows.map(msg => ({
+            ...msg,
+            message_text: msg.iv === 'v2'
+                ? msg.message_text
+                : `${msg.iv}:${msg.message_text}`
+        }));
     } catch (error) {
         console.error("Error retrieving messages from database:", error);
         return [];
@@ -1760,6 +2208,11 @@ io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
     socket.on("joinRoom", ({ userId, friendId }) => {
+        if (!userId || !friendId) {
+            console.error("Invalid joinRoom payload:", { userId, friendId });
+            return;
+        }
+
         const room = getDMRoomName(userId, friendId);
         socket.join(room);
         console.log(`User ${userId} joined room ${room}`);
@@ -1780,11 +2233,17 @@ io.on("connection", (socket) => {
                 return;
             }
 
-            savedMessage.message_text = `${savedMessage.iv}:${savedMessage.message_text}`;
+            // ✅ Fix - send clean payload to room, echo tempKey back to sender
+            const roomName = getDMRoomName(sender_id, receiver_id);
 
-            const roomName = `dm-${sender_id}-${receiver_id}`;
+            // receiveMessage goes to the whole room (including recipient) — keep message_text clean
             io.to(roomName).emit("receiveMessage", savedMessage);
-            socket.emit("messageSent", savedMessage);
+
+            // messageSent only goes back to the sender — echo tempKey so they can look up plaintext
+            socket.emit("messageSent", {
+                ...savedMessage,
+                tempKey: data.tempKey, // ✅ echo back so frontend can retrieve plaintext from ref
+            });
         } catch (err) {
             console.error("Error saving message:", err);
         }
@@ -1793,7 +2252,13 @@ io.on("connection", (socket) => {
     socket.on("getMessageHistory", async ({ userId, friendId }) => {
         try {
         const messages = await getMessagesFromDB(userId, friendId);
-        socket.emit('messageHistory', { friendId, messages });
+        const formatted = messages.map(msg => ({
+            ...msg,
+            message_text: msg.iv === 'v2' 
+                ? msg.message_text
+                : `${msg.iv}:${msg.message_text}`
+        }));
+        socket.emit('messageHistory', { friendId, messages: formatted });
         } catch (error) {
         console.error('Error retrieving message history:', error);
         }
@@ -1855,12 +2320,15 @@ app.get('/notifications/:userid', async (req, res) => {
     }
 });
 
-//Post feedback info to database
+// Post feedback info to database
 app.post('/feedback', async (req, res) => {
     try {
-        const {issue, message} = req.body;
+        const { issue, message, userId } = req.body;
+
+        // Fixed: was passing 3 values into a query with only 2 placeholders
         await pool.query(
-            'INSERT INTO user_feedback (issue, problem) VALUES ($1, $2)', [issue, message]
+            'INSERT INTO forumfeedback (users_id, issue, problem) VALUES ($1, $2, $3)',
+            [userId, issue, message]
         );
 
         res.json({ success: true })
@@ -1869,6 +2337,22 @@ app.post('/feedback', async (req, res) => {
         res.status(500).send('Server error');
     }
 })
+
+app.post('/contact', async (req, res) => {
+    try {
+        const { email, name, message } = req.body;
+
+        await pool.query(
+            'INSERT INTO contact_messages (email, name, message) VALUES ($1, $2, $3)',
+            [email, name, message]
+        );
+
+        res.json({ success: true })
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
 
 //Set unread notification to read
 app.post('/notifications/mark-read', authenticateToken, async (req, res) => {
@@ -1886,3 +2370,72 @@ app.post('/notifications/mark-read', authenticateToken, async (req, res) => {
     }
 });
 
+// Get all calendar events
+app.get('/calendar-events', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT event_id, title, start_date, end_date, location, url
+             FROM calendar_events
+             ORDER BY start_date ASC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching calendar events:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Create a new event — admins and moderators only
+app.post('/calendar-events', authenticateToken, async (req, res) => {
+    const { role, users_id } = req.user;
+    if (role !== 'admin' && role !== 'moderator') {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const { title, start_date, end_date, location, url } = req.body;
+
+    if (!title || !start_date) {
+        return res.status(400).json({ error: 'Title and start date are required' });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO calendar_events (title, start_date, end_date, location, url, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING *`,
+            [title, start_date, end_date || null, location || null, url || null, users_id]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Error creating calendar event:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Delete an event — admins and moderators only
+app.delete('/calendar-events/:eventId', authenticateToken, async (req, res) => {
+    const { role } = req.user;
+    if (role !== 'admin' && role !== 'moderator') {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const { eventId } = req.params;
+    try {
+        const result = await pool.query(
+            'DELETE FROM calendar_events WHERE event_id = $1 RETURNING event_id',
+            [eventId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error deleting calendar event:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal server error' });
+});

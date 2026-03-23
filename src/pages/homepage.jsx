@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Container, Row, Col } from 'react-bootstrap'
+import { Container, Row, Col, InputGroup, Form } from 'react-bootstrap'
 import Button from 'react-bootstrap/Button'
 import Modal from 'react-bootstrap/Modal'
-import Form from 'react-bootstrap/Form'
 import { NavLink } from 'react-router-dom'
+import { BsTextLeft, BsCardHeading, BsImageFill } from 'react-icons/bs'
 import ListContent from '../components/Search Bar/ListContent'
 import axios from 'axios';
+import { API } from '../components/Utilities/apiUrl';
 
 function Homepage() {
     const [title, setTitle] = useState('')
@@ -16,18 +17,20 @@ function Homepage() {
     const [username, setUsername] = useState('')
     const [usersId, setUsersId] = useState('')
     const [userRole, setUserRole] = useState('')
+    // Incrementing this key forces ListContent to re-fetch after a new post is created
     const [refreshKey, setRefreshKey] = useState(0)
 
     const changeOpen = () => setShow(true)
-    const changeClose = () => setShow(false)
+    const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); }
 
     const handleFileChange = (event) => {
         setFile(event.target.files[0])
     }
 
+    // We need the username and id to attach to the post on submit
     useEffect(() => {
         if (token) {
-            fetch('http://localhost:5000/userauthenticate', {
+            fetch(`${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -46,61 +49,89 @@ function Homepage() {
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
-
         const postdate = new Date().toLocaleString();
-
         try {
             const body = { title, content, username, postdate, usersId };
-            const response = await fetch('http://localhost:5000/forumcontent', {
+            const response = await fetch(`${API}/forumcontent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to create forum content');
-            }
+            if (!response.ok) throw new Error('Failed to create forum content');
 
             const newThread = await response.json();
             const { thread_id } = newThread;
 
+            // Bump the key so ListContent re-fetches and shows the new post immediately
             setRefreshKey(prevKey => prevKey + 1);
 
+            // Image upload is separate from thread creation since it needs the thread_id first
             if (file) {
                 const formData = new FormData();
                 formData.append('image', file);
                 formData.append('thread_id', thread_id);
-                
                 const imageUploadResponse = await axios({
                     method: 'POST',
-                    url: 'http://localhost:5000/forumimages',
+                    url: `${API}/forumimages`,
                     data: formData,
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
-
-                if (imageUploadResponse.status === 200) {
-                    console.log('Image uploaded successfully', imageUploadResponse);
-                } else {
-                    throw new Error('Failed to upload image');
-                }
+                if (imageUploadResponse.status !== 200) throw new Error('Failed to upload image');
             }
+            changeClose();
         } catch (err) {
             console.log('Error:', err.message);
         }
     };
 
+    const inputStyle = {
+        border: '1.5px solid #e0e0dc',
+        borderLeft: 'none',
+        background: '#f5f5f3',
+        fontSize: '0.9rem',
+        padding: '0.6rem 0.9rem',
+    };
+
+    const iconGroupStyle = {
+        background: '#f5f5f3',
+        border: '1.5px solid #e0e0dc',
+        borderRight: 'none',
+        color: '#393933',
+    };
+
+    const labelStyle = {
+        fontWeight: '600',
+        fontSize: '0.85rem',
+        color: '#393933',
+    };
+
     return (
-        <Container className='hello'>
-            <Container className='d-flex flex-column'>
-                <Row className='mt-24 ms-24 me-24 text-center'>
+        <Container fluid className='hello'>
+            <Container className="create-post-container d-flex flex-column">
+                <Row className='mt-24 text-center'>
                     <Col>
+                        {/* Redirect guests to sign in rather than showing a broken create form */}
                         {token ? (
-                            <Button variant='secondary' onClick={changeOpen} className='w-25'>
+                            <Button
+                                onClick={changeOpen}
+                                style={{
+                                    background: '#393933',
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    padding: '0.6rem 2rem',
+                                    fontWeight: '700',
+                                    color: '#FFD443',
+                                    transition: 'all 0.2s ease',
+                                }}
+                                onMouseEnter={e => { e.target.style.background = '#FFD443'; e.target.style.color = '#393933'; }}
+                                onMouseLeave={e => { e.target.style.background = '#393933'; e.target.style.color = '#FFD443'; }}
+                            >
                                 Create A New Post
                             </Button>
                         ) : (
                             <NavLink to='/signin'>
-                                <Button variant='secondary' className='w-25'>
+                                <Button variant='secondary' style={{ borderRadius: '10px', padding: '0.6rem 2rem', fontWeight: '600' }}>
                                     Sign In to Create a Post
                                 </Button>
                             </NavLink>
@@ -108,51 +139,125 @@ function Homepage() {
                     </Col>
                 </Row>
             </Container>
-            <Modal show={show} onHide={changeClose}>
-                <Modal.Header closeButton>
-                    <div className='w-100 text-center'>
-                        <Modal.Title className='text-dark' text-center>Creating a Thread</Modal.Title>
+
+            <Modal show={show} onHide={changeClose} centered>
+                {/* Dark header band matching the rest of the site */}
+                <div style={{
+                    background: '#393933',
+                    borderRadius: '8px 8px 0 0',
+                    padding: '1.5rem 2rem 1.25rem',
+                    borderBottom: '4px solid #FFD443',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                }}>
+                    <div>
+                        <div style={{
+                            display: 'inline-block',
+                            background: '#FFD443',
+                            borderRadius: '6px',
+                            padding: '2px 8px',
+                            fontSize: '0.65rem',
+                            fontWeight: '700',
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                            color: '#393933',
+                            marginBottom: '0.5rem',
+                        }}>
+                            New Thread
+                        </div>
+                        <h5 style={{ color: '#ffffff', fontWeight: '800', margin: 0, letterSpacing: '-0.01em' }}>
+                            Create a Post
+                        </h5>
                     </div>
-                </Modal.Header>
+                    <button
+                        onClick={changeClose}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}
+                    >
+                        ×
+                    </button>
+                </div>
+
                 <Form onSubmit={onSubmitForm}>
-                    <Modal.Body>
+                    <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                        <Form.Group className="mb-3">
+                            <Form.Label style={labelStyle}>Title</Form.Label>
+                            <InputGroup>
+                                <InputGroup.Text style={iconGroupStyle}><BsCardHeading size={14} /></InputGroup.Text>
+                                <Form.Control
+                                    type='text'
+                                    value={title}
+                                    placeholder='Give your thread a title'
+                                    maxLength={69}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    required
+                                    style={inputStyle}
+                                />
+                            </InputGroup>
+                            {/* Counter turns orange when close to the limit */}
+                            <div style={{ textAlign: 'right', fontSize: '0.75rem', color: title.length >= 55 ? '#e39647' : '#bbb', marginTop: '0.25rem' }}>
+                                {title.length}/69
+                            </div>
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label style={labelStyle}>Content</Form.Label>
+                            <InputGroup style={{ alignItems: 'flex-start' }}>
+                                <InputGroup.Text style={{ ...iconGroupStyle, paddingTop: '0.65rem' }}><BsTextLeft size={14} /></InputGroup.Text>
+                                <Form.Control
+                                    as='textarea'
+                                    rows={4}
+                                    value={content}
+                                    placeholder='What do you want to share?'
+                                    onChange={(e) => setContent(e.target.value)}
+                                    style={{ ...inputStyle, resize: 'none' }}
+                                />
+                            </InputGroup>
+                        </Form.Group>
+
                         <Form.Group>
-                            <Form.Label>Title</Form.Label>
-                            <br />
-                            <Form.Control
-                                type='text'
-                                value={title}
-                                placeholder='Title'
-                                maxLength={70}
-                                onChange={(e) => setTitle(e.target.value)}
-                            />
-                            <Form.Label>Thread Content</Form.Label>
-                            <br />
-                            <Form.Control
-                                type='text'
-                                value={content}
-                                placeholder='Content'
-                                onChange={(e) => setContent(e.target.value)}
-                            />
-                            <Form.Label>File Upload</Form.Label>
-                            <br />
-                            <Form.Control
-                                type='file'
-                                placeholder='Image'
-                                onChange={handleFileChange}
-                            />
+                            <Form.Label style={labelStyle}>
+                                Image{' '}
+                                <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
+                            </Form.Label>
+                            <InputGroup>
+                                <InputGroup.Text style={iconGroupStyle}><BsImageFill size={14} /></InputGroup.Text>
+                                <Form.Control
+                                    type='file'
+                                    accept='image/*'
+                                    onChange={handleFileChange}
+                                    style={{ ...inputStyle, paddingTop: '0.45rem' }}
+                                />
+                            </InputGroup>
                         </Form.Group>
                     </Modal.Body>
-                    <Modal.Footer>
-                        <Button type='submit' onClick={changeClose}>
-                            Add to List
+
+                    <Modal.Footer style={{ borderTop: '1px solid #e0e0dc', padding: '1rem 2rem' }}>
+                        <Button
+                            variant='outline-secondary'
+                            onClick={changeClose}
+                            style={{ borderRadius: '8px', fontWeight: '600' }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type='submit'
+                            style={{
+                                background: '#393933',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: '700',
+                                color: '#FFD443',
+                                padding: '0.5rem 1.5rem',
+                            }}
+                        >
+                            Post Thread
                         </Button>
                     </Modal.Footer>
                 </Form>
             </Modal>
-            <Container>
-                <ListContent key={refreshKey} userRole={userRole} usersId={usersId}/>
-            </Container>
+
+            <ListContent key={refreshKey} userRole={userRole} usersId={usersId} />
         </Container>
     )
 }

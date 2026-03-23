@@ -1,19 +1,24 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Container, Form, Dropdown, DropdownButton, Button, Alert, Row, Col } from 'react-bootstrap'
+import { API } from '../components/Utilities/apiUrl';
 
 function Feedback() {
 
     const [problem, setProblem] = useState("Select Your Issue")
     const [message, setMessage] = useState("")
+    const [user, setUser] = useState("")
+    const [userId, setUserId] = useState(null)
     const [errorMessage, setErrorMessage] = useState("")
     const [feedbacksubmit, setFeedbackSubmit] = useState(false)
 
     const changeProblem = (selectedissue) => {
         setProblem(selectedissue)
+        // Clear any previous error when the user makes a new selection
         setErrorMessage("")
     }
 
     const SubmitFeedback = async () => {
+        // Make sure the user actually picked a category before submitting
         if (problem === "Select Your Issue") {
             setErrorMessage("Please select an issue from the dropdown.")
             return
@@ -27,10 +32,10 @@ function Feedback() {
             return
         }
         try {
-            const response = await fetch('http://localhost:5000/feedback', {
+            const response = await fetch(`${API}/feedback`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({issue: problem, message}),
+                body: JSON.stringify({issue: problem, message, userId}),
             })
             const data = await response.json();
 
@@ -47,12 +52,33 @@ function Feedback() {
         }
     } 
 
+    // Grab the user's id so we can attach it to the feedback submission
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            fetch(`${API}/userauthenticate`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const { id, name } = data;
+                    setUser(name);
+                    setUserId(id)
+                })
+        }
+    }, [user])
+
     return (
         <Container className="mt-5">
             <Row className="justify-content-center">
                 <Col xs={12} md={10} lg={8}>
                     <div className='text-center' style={{ fontSize: '24px', fontWeight: 'bold' }}>Feedback Form</div>
 
+                    {/* Swap the form out for a success message once submitted */}
                     {feedbacksubmit ? (
                         <div className="d-flex justify-content-center">
                             <Alert variant="success" className="mb-3" style={{ width: 'auto' }}>
@@ -85,7 +111,6 @@ function Feedback() {
                                 </DropdownButton>
                             </Form.Group>
 
-
                             <Form.Group className="mb-24" style={{ position: 'relative' }}>
                                 <Form.Label>Describe the Issue</Form.Label>
                                 <Form.Control 
@@ -99,6 +124,7 @@ function Feedback() {
                                         margin: '0 auto',
                                     }}
                                 />
+                                {/* Character counter turns red when approaching the limit */}
                                 <span 
                                     style={{
                                         position: 'absolute',

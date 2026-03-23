@@ -1,8 +1,9 @@
-// src/components/messaging.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Container, Row, Col, ListGroup, Card, Form, Button } from 'react-bootstrap'
 import { Link, useLocation } from 'react-router-dom'
 import socket from "../websocket/socket";
+import forge from 'node-forge';
+import { API } from '../components/Utilities/apiUrl';
 
 const Messaging = () => {
     const messageContainerRef = useRef(null);
@@ -11,377 +12,263 @@ const Messaging = () => {
     const [selectedMessageId, setSelectedMessageId] = useState(null);
     const [messages, setMessages] = useState([])
     const [user, setUser] = useState('')
-    const [userid, setUserId] = useState('')
+    const [userid, setUserId] = useState(null)
     const [listfriends, setListFriends] = useState([])
     const token = localStorage.getItem('token')
     const location = useLocation();
-    const [config, setConfig] = useState(null)
     const messageRefs = useRef({});
     const usernotif = useMemo(() => location.state?.entityID || null, [location.state]);
 
-    const handleUserSelection = (user) => {
-        setSelectedUser(user)
-        fetchMessageHistory(user.id)
-    }
+    // Stores plaintext by tempKey while waiting for the servers messageSent confirmation
+    const pendingPlaintexts = useRef({});
 
-    // Convert string to Uint8Array
-    const str2ab = (str) => new TextEncoder().encode(str);
-
-    // Convert Uint8Array to hex
-    const buf2hex = (buffer) => Array.from(new Uint8Array(buffer))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
-
-    // Convert hex to Uint8Array
-    const hex2buf = (hex) => {
-        const bytes = new Uint8Array(hex.length / 2);
-        for (let i = 0; i < bytes.length; i++) {
-            bytes[i] = parseInt(hex.substr(i*2, 2), 16);
-        }
-        return bytes;
+    // Derive the senders public key locally rather than fetching it from the server
+    const getSenderPublicKey = () => {
+        const privateKeyPem = sessionStorage.getItem('privateKey');
+        if (!privateKeyPem) throw new Error('Private key not found in localStorage');
+        const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+        return forge.pki.setRsaPublicKey(privateKey.n, privateKey.e);
     };
 
-    const encrypt = async (text) => {
-        if (!config) return '';
+    const fetchRecipientPublicKey = useCallback(async (recipientId) => {
+        const response = await fetch(`${API}/get-public-key/${recipientId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to fetch recipient public key');
+        const { publicKey } = await response.json();
+        return forge.pki.publicKeyFromPem(publicKey);
+    }, [token]);
 
-        const keyHex = config.secretKey;
-        const keyBytes = hex2buf(keyHex);
-        const cryptoKey = await window.crypto.subtle.importKey(
-            'raw',
-            keyBytes,
-            { name: 'AES-GCM' },
-            false,
-            ['encrypt']
-        );
+    const encrypt = useCallback(async (plaintext, recipientId) => {
+        const recipientPublicKey = await fetchRecipientPublicKey(recipientId);
+        const senderPublicKey = getSenderPublicKey();
 
-        const iv = window.crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV
-        const encrypted = await window.crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv },
-            cryptoKey,
-            str2ab(text)
-        );
+        const aesKey = forge.random.getBytesSync(32);
+        const iv = forge.random.getBytesSync(12);
 
-        return buf2hex(iv) + ':' + buf2hex(encrypted);
-        };
+        const cipher = forge.cipher.createCipher('AES-GCM', aesKey);
+        cipher.start({ iv });
+        cipher.update(forge.util.createBuffer(plaintext, 'utf8'));
+        cipher.finish();
+        const ciphertext = cipher.output.getBytes();
+        const tag = cipher.mode.tag.getBytes();
 
-    const decrypt = useCallback(async (text) => {
-        if (!config) return '';
+        const ciphertextWithTag = ciphertext + tag;
 
-        const keyHex = config.secretKey;
-        const keyBytes = hex2buf(keyHex);
-        const cryptoKey = await window.crypto.subtle.importKey(
-            'raw',
-            keyBytes,
-            { name: 'AES-GCM' },
-            false,
-            ['decrypt']
-        );
+        const encryptedForSender = senderPublicKey.encrypt(aesKey, 'RSA-OAEP');
+        const encryptedForRecipient = recipientPublicKey.encrypt(aesKey, 'RSA-OAEP');
 
-        const [ivHex, encryptedHex] = text.split(':');
-        const iv = hex2buf(ivHex);
-        const encrypted = hex2buf(encryptedHex);
+        return [
+            forge.util.encode64(encryptedForSender),
+            forge.util.encode64(encryptedForRecipient),
+            forge.util.encode64(iv),
+            forge.util.encode64(ciphertextWithTag)
+        ].join('|');
+    }, [fetchRecipientPublicKey]);
 
-        const decryptedBuffer = await window.crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv },
-            cryptoKey,
-            encrypted
-        );
+    const decrypt = useCallback((payload, senderId) => {
+        try {
+            const privateKeyPem = sessionStorage.getItem('privateKey');
+            if (!privateKeyPem) return '[Private key missing — upload your key in Settings]';
 
-        return new TextDecoder().decode(decryptedBuffer);
-        }, [config]);
+            const parts = payload.split('|');
+            if (parts.length !== 4) return '[Invalid message format]';
+
+            const [senderKeyB64, recipientKeyB64, ivB64, ciphertextB64] = parts;
+
+            const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+
+            // Pick whichever copy of the AES key was encrypted for us
+            const encryptedAESKeyB64 = senderId === userid ? senderKeyB64 : recipientKeyB64;
+            const encryptedAESKey = forge.util.decode64(encryptedAESKeyB64);
+
+            const aesKey = privateKey.decrypt(encryptedAESKey, 'RSA-OAEP');
+
+            const iv = forge.util.decode64(ivB64);
+            const ciphertextWithTag = forge.util.decode64(ciphertextB64);
+
+            // Last 16 bytes are the GCM authentication tag
+            const ciphertext = ciphertextWithTag.slice(0, -16);
+            const tag = ciphertextWithTag.slice(-16);
+
+            const decipher = forge.cipher.createDecipher('AES-GCM', aesKey);
+            decipher.start({ iv, tag: forge.util.createBuffer(tag) });
+            decipher.update(forge.util.createBuffer(ciphertext));
+            const ok = decipher.finish();
+
+            if (!ok) return '[Decryption failed — message may be corrupted]';
+
+            return decipher.output.toString('utf8');
+        } catch (err) {
+            console.error('Decryption error:', err);
+            return '[Could not decrypt — check your private key]';
+        }
+    }, [userid]);
+
+    // AUTH + DATA FETCHING
 
     const authenticateUser = useCallback(async () => {
-        if(token) {
-            fetch('http://localhost:5000/userauthenticate', {
+        if (!token) return;
+        try {
+            const response = await fetch(`${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + token
                 },
-            })
-            .then(response => response.json())
-            .then(data => {
-                const { id, name } = data;
-                setUserId(id);
-                setUser(name);
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
             });
-        }
-    }, [token])
-
-    const fetchConfig = useCallback(async () => {
-        try{
-            if(token) {
-                const response = await fetch('http://localhost:5000/config', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    }
-                })
-                if (!response.ok) {
-                    throw new Error('Failed to fetch config');
-                }
-                const data = await response.json();
-                console.log("Config: ", data)
-                setConfig(data);
-            }
+            const data = await response.json();
+            // id comes back as a string from the JWT parse it so === comparisons dont silently fail
+            setUserId(Number(data.id));
+            setUser(data.name);
         } catch (error) {
-            console.error('Error fetching config: ', error);
+            console.error('Error fetching user:', error);
         }
-    }, [token])
-    
-    const fetchMessageHistory = useCallback((friendId) => {
-        if (userid && friendId) {
-            console.log(`Requesting message history for friendId: ${friendId}`);
-            socket.emit('getMessageHistory', { userId: userid, friendId });
+    }, [token]);
+
+    const checkBlockBeforeSend = useCallback(async (targetId) => {
+        if (!userid || !targetId) return false;
+        try {
+            const response = await fetch(`${API}/block-status/${userid}/${targetId}`);
+            const data = await response.json();
+            return data.blocked;
+        } catch {
+            return false;
         }
     }, [userid]);
 
     const fetchFriendsList = useCallback(async () => {
-        if (userid !== null && Number.isInteger(userid)) {
-            try {
-                const response = await fetch(`http://localhost:5000/all-friends/${userid}`);
-                const data = await response.json();
+        try {
+            const response = await fetch(`${API}/all-friends`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await response.json();
 
-                const fetchedUsers = data.map((friend) => ({
+            if (data.friends === "no_friends") {
+                setListFriends([]);
+            } else {
+                setListFriends(data.map(friend => ({
                     id: friend.friend_id,
-                    name: friend.username,
-                }));
-
-                setListFriends(fetchedUsers);
-            } catch (error) {
-                console.error('Error fetching friends list:', error);
+                    name: friend.username
+                })));
             }
+        } catch (error) {
+            console.error("Error fetching friends list:", error);
+        }
+    }, [token]);
+
+    const fetchMessageHistory = useCallback((friendId) => {
+        if (userid && friendId) {
+            socket.emit('getMessageHistory', { userId: userid, friendId });
         }
     }, [userid]);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            // If we have a selected message and the click is outside that message div
-            if (
-            selectedMessageId &&
-            messageRefs.current[selectedMessageId] &&
-            !messageRefs.current[selectedMessageId].contains(event.target)
-            ) {
-            setSelectedMessageId(null);
-            }
-        };
+    const handleUserSelection = (user) => {
+        setSelectedUser(user);
+        fetchMessageHistory(user.id);
+    };
 
-        document.addEventListener("click", handleClickOutside);
-        return () => {
-            document.removeEventListener("click", handleClickOutside);
-        };
-    }, [selectedMessageId]);
+
+    // SOCKET EVENTS
 
     useEffect(() => {
-        socket.on("connect", () => {
-            console.log("Socket connected:", socket.id);
-        });
-
-        return () => {
-            socket.off("connect");
-        };
+        socket.on("connect", () => console.log("Socket connected:", socket.id));
+        return () => socket.off("connect");
     }, []);
-    
+
     useEffect(() => {
         if (selectedUser && userid) {
             const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
-            console.log("Emitting joinRoom with:", { userId: sorted[0], friendId: sorted[1] });
             socket.emit("joinRoom", { userId: sorted[0], friendId: sorted[1] });
-            
-            // Fetch message history after joining the room
-            setTimeout(() => {
-                fetchMessageHistory(selectedUser.id);
-            }, 100); // Small delay to ensure room is joined
+            // Small delay to make sure the room join completes before requesting history
+            setTimeout(() => fetchMessageHistory(selectedUser.id), 100);
         }
     }, [selectedUser, userid, fetchMessageHistory]);
 
+    // Message history from server — decrypt everything up front so the render stays simple
     useEffect(() => {
-        const fetchData = async () => {
-            await fetchConfig();
-            await authenticateUser();
-            await fetchFriendsList();
-        };
-        fetchData();
-
-        if (userid) {
-            socket.emit('joinRoom', userid);
-        }
-    }, [authenticateUser, fetchConfig, fetchFriendsList, userid]);
-
-    useEffect(() => {
-        const handleMessageHistory = async (data) => {
-            console.log("📩 Received `messageHistory` event:", data);
-
-            if (!data || !data.messages || data.messages.length === 0) {
-                console.warn("⚠️ No messages received from backend");
-                return;
-            }
+        const handleMessageHistory = (data) => {
+            if (!data?.messages?.length) return;
 
             const { friendId, messages } = data;
-            
-            const decryptedMessages = messages.map(async (msg) => ({
+
+            const decryptedMessages = messages.map((msg) => ({
                 ...msg,
-                message_text: await decrypt(`${msg.iv}:${msg.message_text}`)
+                message_text: msg.is_deleted
+                    ? null
+                    : decrypt(msg.message_text, msg.sender_id)
             }));
 
             setMessages(prevMessages => {
-                const existingChatIndex = prevMessages.findIndex(
-                    chat => chat.friendId === friendId
-                );
-                
-                if (existingChatIndex !== -1) {
-                    const existingMessages = prevMessages[existingChatIndex].messages;
-                    const newMessages = decryptedMessages.filter(
-                        newMsg => !existingMessages.some(existingMsg => 
-                            existingMsg.message_id === newMsg.message_id
-                        )
+                const existingIndex = prevMessages.findIndex(c => c.friendId === friendId);
+
+                if (existingIndex !== -1) {
+                    // Only append messages we havent seen yet avoids duplicates on re-focus
+                    const existing = prevMessages[existingIndex].messages;
+                    const newMsgs = decryptedMessages.filter(
+                        m => !existing.some(e => e.message_id === m.message_id)
                     );
-                    
-                    return prevMessages.map((chat, index) =>
-                        index === existingChatIndex
-                            ? { ...chat, messages: [...chat.messages, ...newMessages] }
+                    return prevMessages.map((chat, i) =>
+                        i === existingIndex
+                            ? { ...chat, messages: [...chat.messages, ...newMsgs] }
                             : chat
                     );
-                } else {
-                    return [...prevMessages, { friendId, messages: decryptedMessages }];
                 }
+
+                return [...prevMessages, { friendId, messages: decryptedMessages }];
             });
         };
 
         socket.on('messageHistory', handleMessageHistory);
+        return () => socket.off('messageHistory', handleMessageHistory);
+    }, [decrypt]);
 
-        return () => {
-            console.log("🧹 Cleaning up WebSocket listener for `messageHistory`");
-            socket.off('messageHistory', handleMessageHistory);
-        };
-    }, [config, decrypt]);
-
+    // Real time incoming message from the other person
     useEffect(() => {
-        if (!usernotif || listfriends.length === 0) return;
-
-        const selectedUserFromNotif = listfriends.find(user => user.id === usernotif);
-        if (selectedUserFromNotif) {
-            setSelectedUser(selectedUserFromNotif);
-        }
-    }, [usernotif, listfriends]);
-
-    useEffect(() => {
-        console.log("Attaching socket listeners...");
-
-        const handleReceive = (message) => {
-            console.log("Received message:", message);
-            
+        const handleReceive = async (message) => {
+            // The server broadcasts to the whole room so filter out our own echoes here
             if (message.sender_id === userid) return;
-            
+
             const decryptedMessage = {
-            message_id: message.message_id,
-            sender_id: message.sender_id,
-            message_text: decrypt(message.message_text),
-            is_deleted: false,
+                message_id: message.message_id,
+                sender_id: message.sender_id,
+                receiver_id: message.receiver_id,
+                message_text: await Promise.resolve(
+                    decrypt(message.message_text, message.sender_id)
+                ),
+                is_deleted: false,
             };
 
             setMessages((prevMessages) => {
-            const chatIndex = prevMessages.findIndex(
-                (chat) =>
-                chat.friendId === message.sender_id ||
-                chat.friendId === message.receiver_id
-            );
-
-            if (chatIndex !== -1) {
-                return prevMessages.map((chat, index) =>
-                index === chatIndex
-                    ? { ...chat, messages: [...chat.messages, decryptedMessage] }
-                    : chat
+                const chatIndex = prevMessages.findIndex(
+                    chat => chat.friendId === message.sender_id || chat.friendId === message.receiver_id
                 );
-            } else {
-                const friendId =
-                message.sender_id === userid
+
+                if (chatIndex !== -1) {
+                    return prevMessages.map((chat, i) =>
+                        i === chatIndex
+                            ? { ...chat, messages: [...chat.messages, decryptedMessage] }
+                            : chat
+                    );
+                }
+
+                const friendId = message.sender_id === userid
                     ? message.receiver_id
                     : message.sender_id;
 
                 return [...prevMessages, { friendId, messages: [decryptedMessage] }];
-            }
             });
         };
 
-    const handleDelete = ({ message_id, sender_id, receiver_id }) => {
-        setMessages((prevMessages) =>
-        prevMessages.map((chat) => {
-            if (chat.friendId === sender_id || chat.friendId === receiver_id) {
-            return {
-                ...chat,
-                messages: chat.messages.map((msg) =>
-                msg.message_id === message_id
-                    ? { ...msg, is_deleted: true }
-                    : msg
-                ),
-            };
-            }
-            return chat;
-        })
-        );
-    };
-
-    socket.on("receiveMessage", handleReceive);
-    socket.on("deleteMessage", handleDelete);
-
-  return () => {
-    socket.off("receiveMessage", handleReceive);
-    socket.off("deleteMessage", handleDelete);
-  };
-}, [decrypt, userid]);
-
-    useEffect(() => {
-        if (messageContainerRef.current) {
-            messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
-        }
-    }, [messages]);
-
-    const handleSendMessage = async () => {
-        const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
-        const room = `dm-${sorted[0]}-${sorted[1]}`;
-
-        if (selectedUser && messageInput.trim() !== "") {
-            const encryptedMessage = await encrypt(messageInput);
-
-            setMessageInput("");
-
-            // Then send the actual encrypted message
-            socket.emit("sendMessage", {
-                room,
-                sender_id: userid,
-                receiver_id: selectedUser.id,
-                message_text: encryptedMessage,
-                username: user,
-            });
-        }
-    };
-
-    useEffect(() => {
-        const handleMessageSent = async (message) => {
-            // 1. Decrypt the server's message
-            const decryptedText = await decrypt(message.message_text);
-            const decryptedMessage = {
-                ...message,
-                message_text: decryptedText,
-                is_deleted: false,
-            };
-
-            // 2. Find and replace the temporary message
-            setMessages((prevMessages) => 
-                prevMessages.map((chat) => {
-                    if (chat.friendId === message.sender_id || chat.friendId === message.receiver_id) {
-                        // Filter out any temporary message
-                        const filteredMessages = chat.messages.filter(
-                            msg => !(msg.message_id > Date.now() - 10000 && msg.sender_id === userid)
-                        );
-                        
+        const handleDelete = ({ message_id, sender_id, receiver_id }) => {
+            setMessages(prevMessages =>
+                prevMessages.map(chat => {
+                    if (chat.friendId === sender_id || chat.friendId === receiver_id) {
                         return {
                             ...chat,
-                            messages: [...filteredMessages, decryptedMessage],
+                            messages: chat.messages.map(msg =>
+                                msg.message_id === message_id ? { ...msg, is_deleted: true } : msg
+                            ),
                         };
                     }
                     return chat;
@@ -389,102 +276,229 @@ const Messaging = () => {
             );
         };
 
+        socket.on("receiveMessage", handleReceive);
+        socket.on("deleteMessage", handleDelete);
+        return () => {
+            socket.off("receiveMessage", handleReceive);
+            socket.off("deleteMessage", handleDelete);
+        };
+    }, [decrypt, userid]);
+
+    // Server confirmation that our sent message was saved
+    useEffect(() => {
+        const handleMessageSent = (message) => {
+            const plaintext = message.tempKey
+                ? pendingPlaintexts.current[message.tempKey]
+                : null;
+
+            if (message.tempKey) delete pendingPlaintexts.current[message.tempKey];
+
+            const decryptedMessage = {
+                ...message,
+                message_text: plaintext ?? '[Message sent — reload to view]',
+                is_deleted: false,
+            };
+
+            setMessages(prevMessages => {
+                const chatIndex = prevMessages.findIndex(
+                    chat => chat.friendId === message.sender_id || chat.friendId === message.receiver_id
+                );
+
+                if (chatIndex !== -1) {
+                    const filtered = prevMessages[chatIndex].messages.filter(
+                        msg => !(msg.message_id > Date.now() - 10000 && msg.sender_id === userid)
+                    );
+                    return prevMessages.map((chat, i) =>
+                        i === chatIndex
+                            ? { ...chat, messages: [...filtered, decryptedMessage] }
+                            : chat
+                    );
+                }
+
+                // First message in a new conversation — create the chat entry
+                const friendId = message.receiver_id === userid ? message.sender_id : message.receiver_id;
+                return [...prevMessages, { friendId, messages: [decryptedMessage] }];
+            });
+        };
+
         socket.on("messageSent", handleMessageSent);
         return () => socket.off("messageSent", handleMessageSent);
     }, [decrypt, userid]);
+
+    // SEND + DELETE
+
+    const handleSendMessage = async () => {
+        if (!selectedUser || !messageInput.trim()) return;
+
+        const isBlocked = await checkBlockBeforeSend(selectedUser.id);
+        if (isBlocked) {
+            alert('You cannot message this user');
+            return;
+        }
+        
+        const plaintextMessage = messageInput;
+        setMessageInput('');
+
+        try {
+            const encryptedMessage = await encrypt(plaintextMessage, selectedUser.id);
+
+            const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
+            const room = `dm-${sorted[0]}-${sorted[1]}`;
+
+            // Store the plaintext locally so we can display it immediately when the
+            // server echoes back the messageSent event without needing to redecrypt
+            const tempKey = `${selectedUser.id}-${Date.now()}`;
+            pendingPlaintexts.current[tempKey] = plaintextMessage;
+
+            socket.emit("sendMessage", {
+                room,
+                sender_id: userid,
+                receiver_id: selectedUser.id,
+                message_text: encryptedMessage,
+                username: user,
+                tempKey,
+            });
+        } catch (err) {
+            console.error('Failed to encrypt and send message:', err);
+            alert('Could not send message. Make sure your private key is loaded in Settings.');
+        }
+    };
 
     const handleDeleteMessage = (messageId) => {
         socket.emit("deleteMessage", { messageId });
     };
 
+    // MISC EFFECTS
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (
+                selectedMessageId &&
+                messageRefs.current[selectedMessageId] &&
+                !messageRefs.current[selectedMessageId].contains(event.target)
+            ) {
+                setSelectedMessageId(null);
+            }
+        };
+        document.addEventListener("click", handleClickOutside);
+        return () => document.removeEventListener("click", handleClickOutside);
+    }, [selectedMessageId]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            await authenticateUser();
+            await fetchFriendsList();
+        };
+        fetchData();
+    }, [authenticateUser, fetchFriendsList]);
+
+    // If the user arrived from a notification link select that friend
+    useEffect(() => {
+        if (!usernotif || listfriends.length === 0) return;
+        const selectedUserFromNotif = listfriends.find(u => u.id === usernotif);
+        if (selectedUserFromNotif) setSelectedUser(selectedUserFromNotif);
+    }, [usernotif, listfriends]);
+
+    // Keep the chat scrolled to the bottom as new messages come in
+    useEffect(() => {
+        if (messageContainerRef.current) {
+            messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    // RENDER
+
     return (
         <Container fluid className='mt-5 messaging-page'>
             <Row className='h-100'>
                 <Col sm={4} className='p-3 friends-list'>
-                <h4 className='mb-3'>Friends</h4>
-                <ListGroup variant='flush'>
-                    {listfriends.map((user) => (
-                    <ListGroup.Item
-                        key={user.id}
-                        action
-                        active={user === selectedUser}
-                        className='friend-item'
-                        onClick={() => handleUserSelection(user)}
-                    >
-                        {user.name}
-                    </ListGroup.Item>
-                    ))}
-                </ListGroup>
-                </Col>
-                <Col sm={8} className='p-3 chat-area' >
-                {selectedUser ? (
-                    <Card className='h-100 chat-card'>
-                    <Card.Header className='d-flex justify-content-between align-items-center chat-header'>
-                        <Link
-                        to={`/userprofile/${selectedUser.name}/${selectedUser.id}`}
-                        className='text-decoration-none text-dark'
-                        >
-                        {selectedUser.name}
-                        </Link>
-                    </Card.Header>
-                    <Card.Body className='chat-body'>
-                        <div ref={messageContainerRef} className='messages-container'>
-                        {messages
-                        .find((friendMessages) => friendMessages.friendId === selectedUser.id)
-                        ?.messages.map((msg, index) => (
-                            <div
-                            key={index}
-                            ref={(el) => (messageRefs.current[msg.message_id] = el)}
-                            className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
-                            onClick={() => setSelectedMessageId(msg.message_id)}
+                    <h4 className='mb-3'>Friends</h4>
+                    <ListGroup variant='flush'>
+                        {listfriends.map((u) => (
+                            <ListGroup.Item
+                                key={u.id}
+                                action
+                                active={u === selectedUser}
+                                className='friend-item'
+                                onClick={() => handleUserSelection(u)}
                             >
-                            <p className='mb-0'>
-                                {msg.is_deleted ? <i>Deleted Message</i> : msg.message_text}
-                            </p>
-
-                            {selectedMessageId === msg.message_id &&
-                                msg.sender_id === userid &&
-                                !msg.is_deleted && (
-                                <Button
-                                    variant="outline-danger"
-                                    size="sm"
-                                    className="mt-1"
-                                    onClick={(e) => {
-                                    e.stopPropagation(); // stop from selecting the message again
-                                    handleDeleteMessage(msg.message_id);
-                                    }}
-                                >
-                                    Delete
-                                </Button>
-                                )}
-                            </div>
+                                {u.name}
+                            </ListGroup.Item>
                         ))}
+                    </ListGroup>
+                </Col>
+                <Col sm={8} className='p-3 chat-area'>
+                    {selectedUser ? (
+                        <Card className='h-100 chat-card'>
+                            <Card.Header className='d-flex justify-content-between align-items-center chat-header'>
+                                <Link
+                                    to={`/userprofile/${selectedUser.name}/${selectedUser.id}`}
+                                    className='text-decoration-none text-dark'
+                                >
+                                    {selectedUser.name}
+                                </Link>
+                            </Card.Header>
+                            <Card.Body className='chat-body'>
+                                <div ref={messageContainerRef} className='messages-container'>
+                                    {messages
+                                        .find(chat => chat.friendId === selectedUser.id)
+                                        ?.messages.map((msg, index) => (
+                                            <div
+                                                key={index}
+                                                ref={(el) => (messageRefs.current[msg.message_id] = el)}
+                                                className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
+                                                onClick={() => setSelectedMessageId(msg.message_id)}
+                                            >
+                                                <p className='mb-0'>
+                                                    {msg.is_deleted
+                                                        ? <i>Deleted Message</i>
+                                                        : msg.message_text}
+                                                </p>
+                                                {/* Only show the delete button on your own messages when selected */}
+                                                {selectedMessageId === msg.message_id &&
+                                                    msg.sender_id === userid &&
+                                                    !msg.is_deleted && (
+                                                        <Button
+                                                            variant="outline-danger"
+                                                            size="sm"
+                                                            className="mt-1"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteMessage(msg.message_id);
+                                                            }}
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    )}
+                                            </div>
+                                        ))}
+                                </div>
+                            </Card.Body>
+                            <Card.Footer className='chat-footer'>
+                                <Form className='d-flex'>
+                                    <Form.Control
+                                        type='text'
+                                        placeholder='Type your message...'
+                                        value={messageInput}
+                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                        className='me-2'
+                                    />
+                                    <Button variant='primary' onClick={handleSendMessage}>
+                                        Send
+                                    </Button>
+                                </Form>
+                            </Card.Footer>
+                        </Card>
+                    ) : (
+                        <div className='d-flex justify-content-center align-items-center h-100'>
+                            <p className='text-center'>Select a user to start chatting</p>
                         </div>
-                    </Card.Body>
-                    <Card.Footer className='chat-footer'>
-                        <Form className='d-flex'>
-                        <Form.Control
-                            type='text'
-                            placeholder='Type your message...'
-                            value={messageInput}
-                            onChange={(e) => setMessageInput(e.target.value)}
-                            className='me-2'
-                        />
-                        <Button variant='primary' onClick={handleSendMessage}>
-                            Send
-                        </Button>
-                        </Form>
-                    </Card.Footer>
-                    </Card>
-                ) : (
-                    <div className='d-flex justify-content-center align-items-center h-100'>
-                    <p className='text-center'>Select a user to start chatting</p>
-                    </div>
-                )}
+                    )}
                 </Col>
             </Row>
         </Container>
-    )
-}
+    );
+};
 
-export default Messaging
+export default Messaging;

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { API } from '../components/Utilities/apiUrl';
 
 // Create User Context
 const UserContext = createContext();
@@ -11,7 +12,7 @@ export const UserProvider = ({ children }) => {
     // Authenticate User and Set User ID
     useEffect(() => {
         if (token) {
-            fetch('http://localhost:5000/userauthenticate', {
+            fetch(`${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -37,7 +38,7 @@ export const UserProvider = ({ children }) => {
         }
 
         try {
-            const response = await fetch(`http://localhost:5000/retrieve-image/${userid}`, {
+            const response = await fetch(`${API}/retrieve-image/${userid}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

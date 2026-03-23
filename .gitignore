@@ -2,22 +2,27 @@
 
 # dependencies
 /node_modules
+node_modules/
 /db.js
 /.pnp
 .pnp.js
 /.env
+!public/uploads/.gitkeep
+public/uploads/*
 
 # testing
 /coverage
 
 # production
 /build
+build/
 
 # misc
 .DS_Store
 .env.local
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
 
 npm-debug.log*
