@@ -1,29 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Form, Button, Alert, Modal, InputGroup } from 'react-bootstrap';
+import { Container, Form, Alert, Modal, InputGroup } from 'react-bootstrap';
 import { saveAs } from 'file-saver';
-import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload } from 'react-icons/bs';
+import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload, BsMoon, BsSun } from 'react-icons/bs';
 import { encryptPrivateKey, decryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
 
 function UserSettings({ toggleTheme }) {
-    const token = localStorage.getItem('token');
-
-    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light-theme');
-
-    useEffect(() => {
-        document.body.className = theme;
-    }, [theme]);
-
-    const handleToggleTheme = () => {
-        const newTheme = theme === 'light-theme' ? 'dark-theme' : 'light-theme';
-        setTheme(newTheme);
-        localStorage.setItem('theme', newTheme);
-        if (toggleTheme) toggleTheme();
-    };
-
-    // Check once on mount whether the key is already unlocked for this session
-    const keyInSession = !!sessionStorage.getItem('privateKey');
-
     const [showChangePassphrase, setShowChangePassphrase] = useState(false);
     const [currentPassphrase, setCurrentPassphrase] = useState('');
     const [newPassphrase, setNewPassphrase] = useState('');
@@ -33,6 +15,71 @@ function UserSettings({ toggleTheme }) {
     const [passphraseError, setPassphraseError] = useState('');
     const [passphraseSuccess, setPassphraseSuccess] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadSuccess, setUploadSuccess] = useState('');
+    const [uploadError, setUploadError] = useState('');
+    const token = localStorage.getItem('token');
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light-theme');
+    const isDark = theme === 'dark-theme';
+    const keyInSession = !!sessionStorage.getItem('privateKey');
+
+    useEffect(() => {
+        document.body.className = theme;
+    }, [theme]);
+
+    const handleToggleTheme = () => {
+        const newTheme = isDark ? 'light-theme' : 'dark-theme';
+        setTheme(newTheme);
+        localStorage.setItem('theme', newTheme);
+        if (toggleTheme) toggleTheme();
+    };
+
+    // Reusable primary button matching the site's dark/yellow style
+    const PrimaryBtn = ({ children, disabled, onClick, style = {}, className = '' }) => (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            className={`primary-btn ${className}`}
+            style={style}
+        >
+            {children}
+        </button>
+    );
+
+    // Reusable secondary/outline button
+    const SecondaryBtn = ({ 
+        children, 
+        disabled, 
+        onClick, 
+        style = {}, 
+        as, 
+        htmlFor,
+        className = ''   // 👈 add this
+    }) => {
+        const combinedClass = `secondary-btn ${className}`; // 👈 merge
+
+        if (as === 'label') {
+            return (
+                <label
+                    htmlFor={htmlFor}
+                    className={combinedClass}
+                    style={style}
+                >
+                    {children}
+                </label>
+            );
+        }
+
+        return (
+            <button
+                onClick={onClick}
+                disabled={disabled}
+                className={combinedClass}
+                style={style}
+            >
+                {children}
+            </button>
+        );
+    };
 
     const handleChangePassphrase = async () => {
         setPassphraseError('');
@@ -49,18 +96,13 @@ function UserSettings({ toggleTheme }) {
 
         setIsSaving(true);
         try {
-            // Fetch the encrypted blob stored on the server
             const fetchResponse = await fetch(`${API}/get-encrypted-key`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (!fetchResponse.ok) throw new Error('Could not fetch your encrypted key');
 
             const { encryptedKey, salt, iv } = await fetchResponse.json();
-
-            // Decrypt with the current passphrase to get the raw PEM
             const privateKeyPem = await decryptPrivateKey(encryptedKey, salt, iv, currentPassphrase);
-
-            // Re-encrypt under the new passphrase and push it to the server
             const newEncrypted = await encryptPrivateKey(privateKeyPem, newPassphrase);
 
             const saveResponse = await fetch(`${API}/update-encrypted-key`, {
@@ -76,7 +118,6 @@ function UserSettings({ toggleTheme }) {
 
             // Keep sessionStorage in sync so messages stay readable without re-login
             sessionStorage.setItem('privateKey', privateKeyPem);
-
             setPassphraseSuccess('Passphrase updated successfully!');
             setCurrentPassphrase('');
             setNewPassphrase('');
@@ -103,20 +144,14 @@ function UserSettings({ toggleTheme }) {
         saveAs(blob, 'smashpoint_private_key.txt');
     };
 
-    const [uploadSuccess, setUploadSuccess] = useState('');
-    const [uploadError, setUploadError] = useState('');
-
     const handleUploadKey = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         setUploadError('');
         setUploadSuccess('');
-
         const reader = new FileReader();
         reader.onload = (event) => {
             const key = event.target.result.trim();
-            // Basic sanity check before storing
             if (!key.startsWith('-----BEGIN RSA PRIVATE KEY-----') && !key.startsWith('-----BEGIN PRIVATE KEY-----')) {
                 setUploadError('This does not appear to be a valid private key file.');
                 return;
@@ -125,80 +160,81 @@ function UserSettings({ toggleTheme }) {
             setUploadSuccess('Private key loaded for this session.');
         };
         reader.readAsText(file);
-        // Clear so the same file can be re-selected if needed
         e.target.value = '';
     };
 
+    // Shared section card style adapts to theme
     return (
-        <Container className="mt-4" style={{ maxWidth: '600px' }}>
-            <h2 className="mb-4">Settings</h2>
+        <Container className="mt-4" style={{ maxWidth: '640px' }}>
+
+            {/* Page header */}
+            <div className="settings-header">
+                <div className="settings-badge">Account</div>
+                <h2>Settings</h2>
+            </div>
 
             {/* Appearance */}
-            <section className="mb-5">
-                <h5>Appearance</h5>
-                <Button onClick={handleToggleTheme} variant="secondary">
-                    {theme === 'light-theme' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-                </Button>
-            </section>
+            <div className={`settings-section ${isDark ? 'dark' : 'light'}`}>
+                <div className={`settings-title ${isDark ? 'dark' : 'light'}`}>
+                    {isDark ? <BsMoon size={16} /> : <BsSun size={16} />}
+                    Appearance
+                </div>
+                <p className={`settings-desc ${isDark ? 'dark' : 'light'}`}>Switch between light and dark mode.</p>
+                <PrimaryBtn onClick={handleToggleTheme}>
+                    {isDark ? <><BsSun size={14} /> Switch to Light Mode</> : <><BsMoon size={14} /> Switch to Dark Mode</>}
+                </PrimaryBtn>
+            </div>
 
             {/* Messaging security */}
-            <section className="mb-5">
-                <h5><BsShieldLock className="me-2" />Messaging Security</h5>
-
-                <Alert variant={keyInSession ? 'success' : 'warning'} className="mb-3">
-                    {keyInSession
-                        ? '🔓 Your private key is loaded for this session. Messages are decryptable.'
-                        : '🔒 Private key not loaded. Log out and back in then enter your passphrase to read messages.'}
-                </Alert>
-
-                <div className="mb-3">
-                    <p className="text-muted small mb-2">
-                        Your passphrase protects your private key. Change it here if needed.
-                    </p>
-                    <Button
-                        variant="outline-primary"
-                        onClick={() => {
-                            setPassphraseError('');
-                            setPassphraseSuccess('');
-                            setShowChangePassphrase(true);
-                        }}
-                    >
-                        Change Passphrase
-                    </Button>
+            <div className={`settings-section ${isDark ? 'dark' : 'light'}`}>
+                <div className={`settings-title ${isDark ? 'dark' : 'light'}`}>
+                    <BsShieldLock size={16} />
+                    Messaging Security
                 </div>
 
-                <div className="mb-3">
-                    <p className="text-muted small mb-2">
+                {/* Key status indicator */}
+                <div className={`key-status ${keyInSession ? 'loaded' : 'missing'} ${isDark ? 'dark' : 'light'}`}>
+                    <span style={{ fontSize: '1.1rem' }}>{keyInSession ? '🔓' : '🔒'}</span>
+                    {keyInSession
+                        ? 'Your private key is loaded. Messages are decryptable.'
+                        : 'Private key not loaded. Log out and back in, then enter your passphrase to read messages.'}
+                </div>
+
+                {/* Change passphrase */}
+                <div className="settings-block">
+                    <p className={`settings-desc ${isDark ? 'dark' : 'light'}`}>
+                        Your passphrase protects your private key. Change it here if needed.
+                    </p>
+                    <PrimaryBtn onClick={() => { setPassphraseError(''); setPassphraseSuccess(''); setShowChangePassphrase(true); }}>
+                        Change Passphrase
+                    </PrimaryBtn>
+                </div>
+
+                {/* Download backup */}
+                <div className="settings-block">
+                    <p className={`settings-desc ${isDark ? 'dark' : 'light'}`}>
                         Download your raw private key as a backup. Store it somewhere safe like a
                         password manager. This is your only recovery option if you forget your passphrase.
                     </p>
-                    <Button variant="outline-secondary" onClick={handleDownloadKey} disabled={!keyInSession}>
-                        <BsDownload className="me-2" />
-                        Download Backup Key
-                    </Button>
-                    {/* Only show the hint when the key is not yet loaded */}
+                    <SecondaryBtn onClick={handleDownloadKey} disabled={!keyInSession} className={`secondary-btn themed ${isDark ? 'dark' : 'light'}`}>
+                        <BsDownload size={14} /> Download Backup Key
+                    </SecondaryBtn>
                     {!keyInSession && (
-                        <Form.Text className="text-muted d-block mt-1">
-                            Unlock your key with your passphrase first to download it.
-                        </Form.Text>
+                        <p  className={`settings-desc ${isDark ? 'dark' : 'light'}`} style={{ marginTop: '0.4rem', marginBottom: 0 }}>
+                            Unlock your key with your passphrase first.
+                        </p>
                     )}
                 </div>
 
-                <div className="mb-3">
-                    <p className="text-muted small mb-2">
-                        If you have a backup key file and forgot your passphrase upload
+                {/* Upload backup */}
+                <div>
+                    <p className={`settings-desc ${isDark ? 'dark' : 'light'}`}>
+                        If you have a backup key file and forgot your passphrase, upload
                         it here to restore access for this session.
                     </p>
-                    <label htmlFor="keyUpload">
-                        <Button
-                            as="span"
-                            variant="outline-secondary"
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <BsUpload className="me-2" />
-                            Upload Backup Key
-                        </Button>
-                    </label>
+                    <SecondaryBtn as="label" htmlFor="keyUpload" className={`secondary-btn themed ${isDark ? 'dark' : 'light'}`}>
+                        <BsUpload size={14} /> Upload Backup Key
+                    </SecondaryBtn>
                     <Form.Control
                         id="keyUpload"
                         type="file"
@@ -206,20 +242,56 @@ function UserSettings({ toggleTheme }) {
                         onChange={handleUploadKey}
                         style={{ display: 'none' }}
                     />
-                    {uploadSuccess && <Alert variant="success" className="mt-2 py-2">{uploadSuccess}</Alert>}
-                    {uploadError && <Alert variant="danger" className="mt-2 py-2">{uploadError}</Alert>}
+                    {uploadSuccess && (
+                        <div className={`status-box success ${isDark ? 'dark' : 'light'}`}>
+                            {uploadSuccess}
+                        </div>
+                    )}
+                    {uploadError && (
+                        <div className={`status-box error ${isDark ? 'dark' : 'light'}`}>
+                            {uploadError}
+                        </div>
+                    )}
                 </div>
-            </section>
+            </div>
 
-            <Modal show={showChangePassphrase} onHide={() => setShowChangePassphrase(false)}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Change Passphrase</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {passphraseSuccess && <Alert variant="success">{passphraseSuccess}</Alert>}
+            {/* Change passphrase modal */}
+            <Modal show={showChangePassphrase} onHide={() => setShowChangePassphrase(false)} centered>
+                <div className="settings-modal-header">
+                    <div>
+                        <div style={{
+                            display: 'inline-block',
+                            background: '#FFD443',
+                            borderRadius: '6px',
+                            padding: '2px 8px',
+                            fontSize: '0.65rem',
+                            fontWeight: '700',
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                            color: '#393933',
+                            marginBottom: '0.4rem',
+                        }}>
+                            Security
+                        </div>
+                        <h5 style={{ color: '#ffffff', fontWeight: '800', margin: 0 }}>
+                            Change Passphrase
+                        </h5>
+                    </div>
+                    <button
+                        onClick={() => setShowChangePassphrase(false)}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                    {passphraseSuccess && (
+                        <Alert variant="success" className="py-2">{passphraseSuccess}</Alert>
+                    )}
 
                     <Form.Group className="mb-3">
-                        <Form.Label>Current Passphrase</Form.Label>
+                        <Form.Label style={{ fontWeight: '600', fontSize: '0.85rem' }}>Current Passphrase</Form.Label>
                         <InputGroup>
                             <Form.Control
                                 type={showCurrentPass ? 'text' : 'password'}
@@ -227,16 +299,14 @@ function UserSettings({ toggleTheme }) {
                                 onChange={(e) => setCurrentPassphrase(e.target.value)}
                                 placeholder="Enter current passphrase"
                             />
-                            <InputGroup.Text>
-                                <Button variant="link" onClick={() => setShowCurrentPass(!showCurrentPass)} className="p-0">
-                                    {showCurrentPass ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
-                                </Button>
+                            <InputGroup.Text style={{ cursor: 'pointer' }} onClick={() => setShowCurrentPass(!showCurrentPass)}>
+                                {showCurrentPass ? <BsEyeSlash size={16} /> : <BsEye size={16} />}
                             </InputGroup.Text>
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label>New Passphrase</Form.Label>
+                        <Form.Label style={{ fontWeight: '600', fontSize: '0.85rem' }}>New Passphrase</Form.Label>
                         <InputGroup>
                             <Form.Control
                                 type={showNewPass ? 'text' : 'password'}
@@ -244,16 +314,14 @@ function UserSettings({ toggleTheme }) {
                                 onChange={(e) => setNewPassphrase(e.target.value)}
                                 placeholder="At least 10 characters"
                             />
-                            <InputGroup.Text>
-                                <Button variant="link" onClick={() => setShowNewPass(!showNewPass)} className="p-0">
-                                    {showNewPass ? <BsEyeSlash size={18} /> : <BsEye size={18} />}
-                                </Button>
+                            <InputGroup.Text style={{ cursor: 'pointer' }} onClick={() => setShowNewPass(!showNewPass)}>
+                                {showNewPass ? <BsEyeSlash size={16} /> : <BsEye size={16} />}
                             </InputGroup.Text>
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label>Confirm New Passphrase</Form.Label>
+                        <Form.Label style={{ fontWeight: '600', fontSize: '0.85rem' }}>Confirm New Passphrase</Form.Label>
                         <Form.Control
                             type={showNewPass ? 'text' : 'password'}
                             value={confirmNewPassphrase}
@@ -262,19 +330,21 @@ function UserSettings({ toggleTheme }) {
                         />
                     </Form.Group>
 
-                    {passphraseError && <Alert variant="danger">{passphraseError}</Alert>}
+                    {passphraseError && (
+                        <Alert variant="danger" className="py-2">{passphraseError}</Alert>
+                    )}
                 </Modal.Body>
-                <Modal.Footer>
-                    <Button
-                        variant="primary"
+
+                <Modal.Footer style={{ borderTop: '1px solid #e0e0dc', padding: '1rem 2rem', gap: '0.5rem' }}>
+                    <button onClick={() => setShowChangePassphrase(false)} className="secondary-btn muted">
+                        Cancel
+                    </button>
+                    <PrimaryBtn
                         onClick={handleChangePassphrase}
                         disabled={isSaving || !currentPassphrase || !newPassphrase || !confirmNewPassphrase}
                     >
                         {isSaving ? 'Saving...' : 'Update Passphrase'}
-                    </Button>
-                    <Button variant="secondary" onClick={() => setShowChangePassphrase(false)}>
-                        Cancel
-                    </Button>
+                    </PrimaryBtn>
                 </Modal.Footer>
             </Modal>
         </Container>

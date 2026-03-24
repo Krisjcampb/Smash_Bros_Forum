@@ -49,8 +49,6 @@ const labelStyle = {
 const ListUsers = () => {
     const [userList, setUserList] = useState([]);
     const [userRole, setUserRole] = useState('');
-    const [user, setUser] = useState('')
-    const [userId, setUserId] = useState('')
 
     // Role assignment state
     const [selectedRole, setSelectedRole] = useState('');
@@ -164,8 +162,6 @@ const ListUsers = () => {
                 }),
             });
 
-            const data = await response.json();
-
             if (response.status === 409) {
                 setEditError('That username is already taken');
                 return;
@@ -198,9 +194,7 @@ const ListUsers = () => {
             })
             .then(response => response.json())
             .then(data => {
-                const { id, name, role } = data;
-                setUser(name);
-                setUserId(id);
+                const { role } = data;
                 setUserRole(role);
             })
             .catch(error => {

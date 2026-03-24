@@ -61,16 +61,18 @@ function Userprofile() {
         "R.O.B.", "Toon Link", "Wolf", "Villager", "Mega Man", "Wii Fit Trainer",
         "Rosalina & Luma", "Little Mac", "Greninja", "Mii Brawler",
         "Mii Swordfighter", "Mii Gunner", "Palutena", "Pac-Man", "Robin",
-        "Shulk", "Bowser Jr.", "Duck Hunt", "Ryu", "Ken", "Cloud",
+        "Shulk", "Bowser Jr", "Duck Hunt", "Ryu", "Ken", "Cloud",
         "Corrin", "Bayonetta", "Inkling", "Ridley", "Simon", "Richter",
         "King K. Rool", "Isabelle", "Incineroar", "Piranha Plant", "Joker",
         "Hero", "Banjo & Kazooie", "Terry", "Byleth", "Min Min", "Steve",
-        "Sephiroth", "Pyra / Mythra", "Kazuya", "Sora"
+        "Sephiroth", "Pyra and Mythra", "Kazuya", "Sora"
     ];
 
     // Generates all 8 skin portrait paths for a given character
     const generateImages = (character) => {
-        return Array.from({ length: 8 }, (_, index) =>
+        const miis = ['mii swordfighter', 'mii brawler', 'mii gunner'];
+        const isMii = miis.includes(character.toLowerCase());
+        return Array.from({ length: isMii ? 2 : 8 }, (_, index) =>
             `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${character}/chara_3_${character.toLowerCase()}_0${index}.png`
         );
     };

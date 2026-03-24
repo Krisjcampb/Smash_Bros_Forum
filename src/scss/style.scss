@@ -1667,6 +1667,251 @@ footer {
   }
 }
 
+/* ===== Buttons ===== */
+
+.primary-btn {
+    background: #393933;
+    color: #FFD443;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.55rem 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.primary-btn:hover:not(:disabled) {
+    background: #FFD443;
+    color: #393933;
+}
+
+.primary-btn:disabled {
+    background: #888;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+
+/* Secondary button */
+.secondary-btn {
+    background: transparent;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.5rem 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: #393933;
+    color: #ffffff !important;
+}
+
+.secondary-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+
+/* ===== Sections ===== */
+
+.settings-section {
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-section.light {
+    background: #ffffff;
+    border: 1px solid #e0e0dc;
+}
+
+.settings-section.dark {
+    background: #2b2b2b;
+    border: 1px solid #444;
+}
+
+.settings-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.settings-title.light {
+    color: #393933;
+}
+
+.settings-title.dark {
+    color: #ffffff;
+}
+
+.settings-desc {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.settings-desc.light {
+    color: #666;
+}
+
+.settings-desc.dark {
+    color: #aaaaaa;
+}
+
+
+/* ===== Header ===== */
+
+.settings-header {
+    background: #393933;
+    border-radius: 16px 16px 0 0;
+    padding: 1.75rem 2rem 1.5rem;
+    border-bottom: 4px solid #FFD443;
+    margin-bottom: 1.5rem;
+}
+
+.settings-badge {
+    display: inline-block;
+    background: #FFD443;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #393933;
+    margin-bottom: 0.5rem;
+}
+
+.settings-header h2 {
+    color: #ffffff;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.key-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  span {
+    font-size: 1.1rem;
+  }
+
+  &.loaded.light {
+    background: #eafaf1;
+    border: 1.5px solid #388FD6;
+    color: #393933;
+  }
+
+  &.loaded.dark {
+    background: #1a3a2a;
+    border: 1.5px solid #388FD6;
+    color: #e0e0e0;
+  }
+
+  &.missing.light {
+    background: #fff8e1;
+    border: 1.5px solid #e39647;
+    color: #393933;
+  }
+
+  &.missing.dark {
+    background: #4a3200;
+    border: 1.5px solid #e39647;
+    color: #e0e0e0;
+  }
+}
+
+.settings-block {
+  margin-bottom: 1.25rem;
+}
+
+.secondary-btn.themed.light {
+  color: #393933;
+  border: 2px solid #393933;
+}
+
+.secondary-btn.themed.dark {
+  color: #FFD443;
+  border: 2px solid #FFD443;
+}
+
+.status-box {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+
+  &.success.light {
+    background: #eafaf1;
+    border: 1.5px solid #388FD6;
+    color: #1a5c38;
+  }
+
+  &.success.dark {
+    background: #1a3a2a;
+    border: 1.5px solid #388FD6;
+    color: #80d4a8;
+  }
+
+  &.error.light {
+    background: #fff0f0;
+    border: 1.5px solid #d00000;
+    color: #d00000;
+  }
+
+  &.error.dark {
+    background: #4a1a1a;
+    border: 1.5px solid #d00000;
+    color: #f0a0a0;
+  }
+}
+
+.settings-modal-header {
+  background: #393933;
+  border-radius: 8px 8px 0 0;
+  padding: 1.5rem 2rem 1.25rem;
+  border-bottom: 4px solid #FFD443;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-modal-badge {
+  display: inline-block;
+  background: #FFD443;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #393933;
+  margin-bottom: 0.4rem;
+}
+
+.secondary-btn.muted {
+  border: 2px solid #aaa;
+  color: #666;
+}
+
 // Dark mode skeleton
 .dark-theme {
   .skeleton-card {
