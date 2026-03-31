@@ -85,12 +85,21 @@ function authenticateToken(req, res, next) {
 //USERS ACCOUNT
 
 //create a user
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, 
+  auth: {
+    user: 'smashpointssb@gmail.com',
+    pass: process.env.EMAIL_APP_PASS,
+  },
+});
+
 app.post('/forumusers', async (req, res) => {
   try {
-    const { username, email, password, publicKey } = req.body; // <-- plain password from frontend
+    const { username, email, password } = req.body;
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10); // saltRounds = 10
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insert user into forumusers table
     const newForumusers = await pool.query(
@@ -98,53 +107,43 @@ app.post('/forumusers', async (req, res) => {
       [username, email, hashedPassword]
     );
 
-    const userId = newForumusers.rows[0].users_id;
+    // Ensure users_id exists in schema
+    const userId = newForumusers.rows[0].users_id || newForumusers.rows[0].id;
 
-    // Generate a random verification code
-    const generateRandomCode = () => {
-      const buffer = crypto.randomBytes(3);
-      const code = buffer.readUIntBE(0, 3);
-      return code % 1000000;
-    };
-    const randomcode = generateRandomCode();
+    const randomcode = crypto.randomInt(100000, 999999).toString();
 
-    // Set expiration time for the verification code
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Insert verification code into emailverify table
+    // Insert verification code
     await pool.query(
       'INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)',
       [userId, randomcode, expires_at, false]
     );
 
     // Send verification email
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      host: 'smtp.gmail.com',
-      secure: false,
-      auth: {
-        user: 'smashpointssb@gmail.com',
-        pass: process.env.EMAIL_APP_PASS,
-      },
-    });
-
     const mailOptions = {
-      from: 'smashpointssb@gmail.com',
+      from: '"SmashPoint Support" <smashpointssb@gmail.com>',
       to: email,
       subject: 'Verify your email address',
       text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
     };
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) console.error('Error sending email:', err);
-      else console.log('Email sent:', info.response);
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Verification email sent to:', email);
+    } catch (mailError) {
+      console.error('Nodemailer Error:', mailError.message);
+    }
+
+    res.status(201).json({ 
+      user: { id: userId, username: username }, 
+      message: 'User registered successfully. Please check your email.' 
     });
 
-    res.status(201).json({ user: newForumusers.rows[0], message: 'User registered successfully' });
   } catch (err) {
-    console.error('Error in /forumusers endpoint:', err.message, err.stack);
-    res.status(500).json({ error: err.message });
-    }
+    console.error('Error in /forumusers endpoint:', err.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 app.put("/forumusers/updateVerified", async (req, res) => {
@@ -472,16 +471,6 @@ app.put("/resendcode", async (req, res) => {
             WHERE user_id = $3;
         `;
         await pool.query(updateQuery, [randomcode, expires_at, userId]);
-
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true, // Use SSL/TLS
-            auth: {
-                user: 'smashpointssb@gmail.com',
-                pass: process.env.EMAIL_APP_PASS,
-            },
-        });
         
         const mailOptions = {
             from: 'pnwsmashhub@gmail.com',
@@ -1720,16 +1709,6 @@ app.post('/passwordreset', async (req, res) => {
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
     await pool.query('INSERT INTO passwordreset (email, reset_code, expires_at, used) VALUES ($1, $2, $3, $4)',[user.email, randomcode, expires_at, false])
-
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        host: 'smtp.gmail.com',
-        secure: false,
-        auth: {
-            user: "smashpointssb@gmail.com",
-            pass: process.env.EMAIL_APP_PASS
-        },
-    })
     
     const mailOptions = {
         from: 'smashpointssb@gmail.com',
