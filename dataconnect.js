@@ -101,26 +101,25 @@ app.post('/forumusers', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user into forumusers table
+    // 1. Insert User
     const newForumusers = await pool.query(
       "INSERT INTO forumusers (username, email, password) VALUES ($1, $2, $3) RETURNING *",
       [username, email, hashedPassword]
     );
 
-    // Ensure users_id exists in schema
-    const userId = newForumusers.rows[0].users_id || newForumusers.rows[0].id;
+    // FIX: Be explicit about your ID column name here
+    const userId = newForumusers.rows[0].users_id; 
 
+    // 2. Generate and Store Verification Code
     const randomcode = crypto.randomInt(100000, 999999).toString();
-
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Insert verification code
     await pool.query(
       'INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)',
       [userId, randomcode, expires_at, false]
     );
 
-    // Send verification email
+    // 3. Send Email (Fire and forget, or wait? Usually better to wait)
     const mailOptions = {
       from: '"SmashPoint Support" <smashpointssb@gmail.com>',
       to: email,
@@ -130,18 +129,13 @@ app.post('/forumusers', async (req, res) => {
 
     try {
       await transporter.sendMail(mailOptions);
-        console.log('Verification email sent to:', email);
-        transporter.verify(function (error, success) {
-        if (error) {
-            console.log("Nodemailer Verification Error: ", error);
-        } else {
-            console.log("Server is ready to take our messages");
-        }
-        });
     } catch (mailError) {
+      // We log the mail error, but we don't stop the registration 
+      // because the user is already in the DB.
       console.error('Nodemailer Error:', mailError.message);
     }
 
+    // 4. Success Response
     res.status(201).json({ 
       user: { id: userId, username: username }, 
       message: 'User registered successfully. Please check your email.' 
@@ -149,6 +143,12 @@ app.post('/forumusers', async (req, res) => {
 
   } catch (err) {
     console.error('Error in /forumusers endpoint:', err.message);
+    
+    // Handle Duplicate Email/Username
+    if (err.code === '23505') {
+        return res.status(400).json({ error: 'Username or Email already exists' });
+    }
+
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

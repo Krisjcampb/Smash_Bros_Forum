@@ -246,27 +246,48 @@ function Registration() {
         e.preventDefault();
         setValidated(true);
         setNameError('');
+        
         const isPasswordValid = validatePassword(password);
         const doPasswordsMatch = password === confirmpass;
-        if (!doPasswordsMatch) setPasswordsMatchError('Passwords do not match');
+        
+        // 1. Check for the email error state from your useEffect
+        if (emailError) {
+            setShowError(true);
+            return; 
+        }
+
         if (profanityFilter.isProfane(username)) {
             setNameError('Username cannot contain profanity');
             return;
         }
-        if (!isPasswordValid || !doPasswordsMatch || !username.trim()) return;
+
+        // 2. Explicitly handle empty username
+        if (!username.trim()) {
+            setNameError('Username is required');
+            return;
+        }
+
+        if (!isPasswordValid || !doPasswordsMatch) return;
+
         try {
             const response = await fetch(`${API}/forumusers`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, username, password }),
             });
+
             if (response.ok) {
                 setStep(2);
             } else {
-                console.error('Failed to submit form');
+                // 3. Catch server-side validation errors (like "Email already exists")
+                const errorData = await response.json();
+                setEmailError(errorData.message || 'Registration failed. Please try again.');
+                setShowError(true);
             }
         } catch (err) {
             console.error(err.message);
+            setEmailError('Server connection lost. Please try again.');
+            setShowError(true);
         }
     };
 
