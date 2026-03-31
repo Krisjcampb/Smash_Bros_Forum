@@ -32,7 +32,8 @@ const b2Client = new S3Client({
 // In development its localhost:3000
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL,
+  'https://smashbrosforum-production.up.railway.app',
+  'https://smashbrosforum-production-a34a.up.railway.app',
 ].filter(Boolean);
 
 app.use(cors({
