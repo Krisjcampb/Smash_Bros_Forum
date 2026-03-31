@@ -474,12 +474,12 @@ app.put("/resendcode", async (req, res) => {
         await pool.query(updateQuery, [randomcode, expires_at, userId]);
 
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
             host: 'smtp.gmail.com',
-            secure: false,
+            port: 465,
+            secure: true, // Use SSL/TLS
             auth: {
-                user: "smashpointssb@gmail.com",
-                pass: process.env.EMAIL_APP_PASS
+                user: 'smashpointssb@gmail.com',
+                pass: process.env.EMAIL_APP_PASS,
             },
         });
         
