@@ -130,7 +130,14 @@ app.post('/forumusers', async (req, res) => {
 
     try {
       await transporter.sendMail(mailOptions);
-      console.log('Verification email sent to:', email);
+        console.log('Verification email sent to:', email);
+        transporter.verify(function (error, success) {
+        if (error) {
+            console.log("Nodemailer Verification Error: ", error);
+        } else {
+            console.log("Server is ready to take our messages");
+        }
+        });
     } catch (mailError) {
       console.error('Nodemailer Error:', mailError.message);
     }
