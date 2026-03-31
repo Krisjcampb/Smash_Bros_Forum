@@ -73,7 +73,7 @@ function Userprofile() {
         const miis = ['mii swordfighter', 'mii brawler', 'mii gunner'];
         const isMii = miis.includes(character.toLowerCase());
         return Array.from({ length: isMii ? 2 : 8 }, (_, index) =>
-            `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${character}/chara_3_${character.toLowerCase()}_0${index}.png`
+            `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${character}/chara_3_${character.toLowerCase()}_0${index}.png`
         );
     };
 
@@ -99,10 +99,10 @@ function Userprofile() {
                 headers: { 'Content-Type': 'application/json' }
             })
             const data = await response.json()
-            return `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${data.character_name}/chara_3_${data.character_name}_0${data.selected_skin}.png`;
+            return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${data.character_name}/chara_3_${data.character_name}_0${data.selected_skin}.png`;
         } catch {
             console.error('Error finding friend profile picture.')
-            return `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`
+            return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`
         }
     }, [friendid]);
 
@@ -177,7 +177,7 @@ function Userprofile() {
     }, [showProfile, profilePicture, userProfileImageUrl]);
 
     useEffect(() => {
-        if (clickedImage !== '' && userProfileImageUrl !== '/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/default/chara_3_default_00.png') {
+        if (clickedImage !== '' && userProfileImageUrl !== `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/default/chara_3_default_00.png`) {
             setSelectedImage(clickedImage);
         }
     }, [clickedImage, userProfileImageUrl, initialProfileImage]);

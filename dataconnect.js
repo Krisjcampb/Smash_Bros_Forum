@@ -4,6 +4,7 @@ const dotenv = require("dotenv")
 dotenv.config();
 const cors = require("cors");
 const pool = require("./db");
+const path = require('path');
 const multer = require('multer');
 const nodemailer = require("nodemailer");
 const jwt = require('jsonwebtoken');
@@ -12,8 +13,20 @@ const bcrypt = require("bcrypt")
 const http = require('http');
 const { Server } = require('socket.io');
 const { verifyToken, verifyRole } = require('./auth');
+const { S3Client } = require('@aws-sdk/client-s3');
+const { Upload } = require('@aws-sdk/lib-storage');
+const { Readable } = require('stream');
 
 const server = http.createServer(app);
+
+const b2Client = new S3Client({
+    endpoint: process.env.B2_ENDPOINT,
+    region: 'us-west-004', // match your bucket region from the endpoint URL
+    credentials: {
+        accessKeyId: process.env.B2_KEY_ID,
+        secretAccessKey: process.env.B2_APPLICATION_KEY,
+    },
+});
 
 // In production, FRONTEND_URL is set to frontend domain
 // In development its localhost:3000
@@ -35,15 +48,18 @@ const io = new Server(server, {
   }
 });
 
-const Storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, 'public/uploads/');
-  },
-  filename: function(req, file, cb) {
-    cb(null, file.originalname);
-  }
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowed.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    }
 });
-const upload = multer({ storage: Storage });
 
 app.use(express.json());
 app.use('/public/uploads', express.static('public/uploads'));
@@ -63,8 +79,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 //ROUTES//
 
@@ -595,40 +609,50 @@ app.delete("/forumusers/:userId", async (req, res) =>{
 
 /////////////////////////////////// FORUM IMAGES //////////////////////////////////////
 
-app.post('/forumimages', upload.single('image'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    const { thread_id } = req.body;
-    if (!thread_id) {
-      return res.status(400).json({ error: 'thread_id is required' });
-    }
-
-    // Normalize path for URLs
-    const filepath = req.file.path.replaceAll('\\', '/');
-
-    pool.query(
-      'INSERT INTO forumimages (filepath, thread_id) VALUES ($1, $2)',
-      [filepath, thread_id],
-      (error) => {
-        if (error) {
-          console.error('DB insert error:', error);
-          return res.status(500).json({ error: 'Failed to save image record' });
+app.post('/forumimages', (req, res) => {
+    upload.single('image')(req, res, async (err) => {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'Image must be under 10MB' });
+        }
+        if (err) {
+            return res.status(400).json({ error: err.message });
         }
 
-        res.status(200).json({
-          success: true,
-          filepath,
-          thread_id
-        });
-      }
-    );
-  } catch (err) {
-    console.error('Unexpected error in /forumimages:', err);
-    res.status(500).json({ error: 'Unexpected server error' });
-  }
+        try {
+            if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+            const { thread_id } = req.body;
+            if (!thread_id) return res.status(400).json({ error: 'thread_id is required' });
+
+            const ext = req.file.originalname.split('.').pop();
+            const filename = `threads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+            const uploader = new Upload({
+                client: b2Client,
+                params: {
+                    Bucket: process.env.B2_BUCKET_NAME,
+                    Key: filename,
+                    Body: Readable.from(req.file.buffer),
+                    ContentType: req.file.mimetype,
+                },
+            });
+
+            await uploader.done();
+
+            const filepath = `${process.env.CDN_URL}/${filename}`;
+
+            await pool.query(
+                'INSERT INTO forumimages (filepath, thread_id) VALUES ($1, $2)',
+                [filepath, thread_id]
+            );
+
+            res.status(200).json({ success: true, filepath });
+
+        } catch (unexpectedErr) {
+            console.error('Error uploading to B2:', unexpectedErr);
+            res.status(500).json({ error: 'Failed to upload image' });
+        }
+    });
 });
 
 //get all forum images
@@ -642,31 +666,45 @@ app.get('/forumimages', async (req, res) => {
   }
 })
 
-app.get('/forumimage')
+app.get('/getProfilePictures', async (req, res) => {
+  try {
+    await b2.authorize();
 
-app.get('/getProfilePictures', (req, res) => {
-    const fs = require('fs');
-    const path = require('path');
-
-    const directoryPath = path.join(__dirname, 'path/to/your/images');
-    fs.readdir(directoryPath, (err, files) => {
-        if (err) {
-            return res.status(500).send('Unable to scan directory');
-        }
-        res.json(files);
+    const response = await b2.listFileNames({
+      bucketId: process.env.B2_BUCKET_ID,
+      prefix: 'profile-presets/'
     });
+
+    const files = response.data.files.map(file => ({
+      fileName: file.fileName,
+      url: `https://f000.backblazeb2.com/file/${process.env.B2_BUCKET_NAME}/${file.fileName}`
+    }));
+
+    res.json(files);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch profile pictures' });
+  }
 });
 
-app.post('/saveProfilePicture', (req, res) => {
+app.post('/saveProfilePicture', async (req, res) => {
     const { userId, selectedImage } = req.body;
 
-    db.query('UPDATE users SET profile_picture = $1 WHERE id = $2', [selectedImage, userId], (error, results) => {
-        if (error) {
-            throw error;
-        }
-        res.status(200).send('Profile picture updated successfully');
-    });
+    try {
+        await pool.query(
+            'UPDATE forumusers SET profile_picture = $1 WHERE users_id = $2',
+            [selectedImage, userId]
+        );
+
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to update profile picture' });
+    }
 });
+
+
 /////////////////////////////////// FORUM CONTENT //////////////////////////////////////
 
 app.post('/forumcontent', async (req, res) => {
@@ -2439,3 +2477,15 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal server error' });
 });
+
+// Serve the React build folder in production
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, 'build')));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, 'build', 'index.html'));
+    });
+}
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

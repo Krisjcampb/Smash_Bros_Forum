@@ -447,6 +447,65 @@ function Calendar() {
                 .fc-event {
                     cursor: pointer;
                 }
+
+                /* Dark mode calendar text */
+                .dark-theme .fc {
+                    color: #e0e0e0;
+                }
+
+                .dark-theme .fc-day-other .fc-daygrid-day-number {
+                    color: #666;
+                }
+
+                .dark-theme .fc-col-header-cell-cushion,
+                .dark-theme .fc-daygrid-day-number {
+                    color: #e0e0e0;
+                }
+
+                .dark-theme .fc-toolbar-title {
+                    color: #ffffff;
+                }
+
+                .dark-theme .fc-button {
+                    background-color: #393933 !important;
+                    border-color: #555 !important;
+                    color: #FFD443 !important;
+                }
+
+                .dark-theme .fc-button:hover {
+                    background-color: #FFD443 !important;
+                    color: #393933 !important;
+                }
+
+                .dark-theme .fc-button-active {
+                    background-color: #FFD443 !important;
+                    color: #393933 !important;
+                }
+
+                .dark-theme .fc-daygrid-day {
+                    background-color: #2b2b2b;
+                }
+
+                .dark-theme .fc-scrollgrid,
+                .dark-theme .fc-scrollgrid td,
+                .dark-theme .fc-scrollgrid th {
+                    border-color: #444 !important;
+                }
+
+                .dark-theme .fc-day-today {
+                    background-color: rgba(255, 212, 67, 0.1) !important;
+                }
+                .dark-theme .fc-event-title,
+                .dark-theme .fc-event-time {
+                    color: #FFD443 !important;
+                }
+                .dark-theme .fc-daygrid-event-dot {
+                    border-color: #FFD443 !important;
+                }
+
+                .dark-theme .fc-list-event-dot {
+                    border-color: #FFD443 !important;
+                }
             `}</style>
         </div>
     );

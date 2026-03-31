@@ -132,8 +132,8 @@ const TextMentionArea = ({
                   : null;
               const imageUrl =
                 user.character_name && skin
-                  ? `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${user.character_name}/chara_0_${user.character_name.toLowerCase()}_${skin}.png`
-                  : "/pfp_images/default.png";
+                    ? `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${user.character_name}/chara_0_${user.character_name.toLowerCase()}_${skin}.png`
+                    : `${process.env.REACT_APP_CDN_URL}/pfp_images/default.png`;
 
               return (
                 <div
@@ -150,8 +150,8 @@ const TextMentionArea = ({
                       height="32"
                       className="rounded-circle me-2"
                       onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = "/pfp_images/default.png";
+                          e.target.onerror = null;
+                          e.target.src = `${process.env.REACT_APP_CDN_URL}/pfp_images/default.png`;
                       }}
                     />
                     <div className="ms-4" style={{ lineHeight: 1.2 }}>

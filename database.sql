@@ -1,5 +1,3 @@
-CREATE DATABASE smashpointdb;
-
 CREATE TABLE forumusers(
     users_id SERIAL PRIMARY KEY,
     username VARCHAR(255),
@@ -10,30 +8,30 @@ CREATE TABLE forumusers(
     is_banned BOOLEAN DEFAULT false,
     verified BOOLEAN DEFAULT false,
     character_name VARCHAR(100) DEFAULT 'Mario',
-    selected_skin INTEGER DEFAULT 0, 
+    selected_skin INTEGER DEFAULT 0,
     location VARCHAR(30),
     description VARCHAR(180),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-
+ 
 CREATE TABLE forumcontent(
     thread_id SERIAL PRIMARY KEY,
     title VARCHAR(255),
     content VARCHAR(8000),
-    likes INTEGER DEFAULT 0,
-    comments INTEGER,
+    likes INTEGER DEFAULT 0 NOT NULL,
+    comments INTEGER DEFAULT 0,
     username VARCHAR(255),
     postdate TIMESTAMPTZ,
     users_id INT NOT NULL REFERENCES forumusers(users_id),
-    is_deleted BOOLEAN DEFAULT false;
+    is_deleted BOOLEAN DEFAULT false
 );
-
+ 
 CREATE TABLE forumimages(
     image_id SERIAL PRIMARY KEY,
     filepath TEXT NOT NULL,
     thread_id INTEGER REFERENCES forumcontent(thread_id) ON DELETE CASCADE
 );
-
+ 
 CREATE TABLE forumcomments (
     comment_id SERIAL PRIMARY KEY,
     thread_id  INTEGER NOT NULL REFERENCES forumcontent(thread_id) ON DELETE CASCADE,
@@ -44,15 +42,15 @@ CREATE TABLE forumcomments (
     is_deleted BOOLEAN DEFAULT false,
     mentions   JSONB DEFAULT '[]'::jsonb
 );
-
+ 
 CREATE TABLE passwordreset (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(50) NOT NULL,
-  reset_code VARCHAR(6) NOT NULL,
-  expires_at TIMESTAMP NOT NULL,
-  used BOOLEAN DEFAULT false
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(50) NOT NULL,
+    reset_code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT false
 );
-
+ 
 CREATE TABLE messages (
     message_id SERIAL PRIMARY KEY,
     sender_id INT REFERENCES forumusers(users_id) NOT NULL,
@@ -61,8 +59,8 @@ CREATE TABLE messages (
     timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT false,
     iv TEXT NOT NULL
-)
-
+);
+ 
 CREATE TABLE friendships (
     friendship_id SERIAL PRIMARY KEY,
     user_id1 INT REFERENCES forumusers(users_id),
@@ -70,7 +68,7 @@ CREATE TABLE friendships (
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE userprofiles (
     post_id SERIAL PRIMARY KEY,
     users_id INT REFERENCES forumusers(users_id),
@@ -78,21 +76,21 @@ CREATE TABLE userprofiles (
     profile_image_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE likes (
     likes_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES forumusers(users_id),
     post_id INTEGER REFERENCES forumcontent(thread_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE dislikes (
     dislikes_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES forumusers(users_id),
     post_id INTEGER REFERENCES forumcontent(thread_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
+ 
 CREATE TABLE emailverify (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES forumusers(users_id),
@@ -100,7 +98,7 @@ CREATE TABLE emailverify (
     expires_at TIMESTAMP NOT NULL,
     verified BOOLEAN DEFAULT false
 );
-
+ 
 CREATE TABLE comment_edits (
     edit_id SERIAL PRIMARY KEY,
     comment_id INTEGER NOT NULL,
@@ -111,18 +109,18 @@ CREATE TABLE comment_edits (
     FOREIGN KEY (comment_id) REFERENCES forumcomments (comment_id),
     FOREIGN KEY (edited_by) REFERENCES forumusers (users_id)
 );
-
+ 
 CREATE TABLE ban_log (
     id SERIAL PRIMARY KEY,
     users_id INTEGER NOT NULL,
     banned_by INTEGER,
     reason TEXT,
     banned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP ,
+    expires_at TIMESTAMP,
     FOREIGN KEY (users_id) REFERENCES forumusers(users_id),
     FOREIGN KEY (banned_by) REFERENCES forumusers(users_id)
 );
-
+ 
 CREATE TABLE notifications (
     notification_id SERIAL PRIMARY KEY,
     users_id INTEGER NOT NULL,
@@ -136,59 +134,21 @@ CREATE TABLE notifications (
     message_count INTEGER DEFAULT 1,
     FOREIGN KEY (users_id) REFERENCES forumusers(users_id)
 );
-
-UPDATE forumusers
-SET email = 'KrisC@gmail.com'
-WHERE users_id = 6;
-
+ 
 CREATE TABLE forumuser_public_keys (
     users_id INT PRIMARY KEY,
     public_key TEXT NOT NULL,
     FOREIGN KEY (users_id) REFERENCES forumusers(users_id) ON DELETE CASCADE
 );
-
-CREATE TABLE user_feedback (
+ 
+CREATE TABLE forumfeedback (
     feedback_id SERIAL PRIMARY KEY,
-    issue issue_type,
-    problem VARCHAR(1000) NOT NULL
+    users_id INTEGER REFERENCES forumusers(users_id),
+    issue TEXT NOT NULL,
+    problem TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-UPDATE forumusers
-SET character_name = 'Mario'
-WHERE users_id = 7;
-
-UPDATE forumcontent
-SET likes = COALESCE(l.like_count, 0) - COALESCE(d.dislike_count, 0)
-FROM (
-    SELECT post_id, COUNT(*) AS like_count
-    FROM likes
-    GROUP BY post_id
-) l
-LEFT JOIN (
-    SELECT post_id, COUNT(*) AS dislike_count
-    FROM dislikes
-    GROUP BY post_id
-) d ON l.post_id = d.post_id
-WHERE forumcontent.thread_id = l.post_id;
-
-UPDATE forumcontent
-SET likes = 0
-WHERE likes IS NULL;
-
-UPDATE forumcontent
-SET likes = COALESCE(l.like_count, 0) - COALESCE(d.dislike_count, 0)
-FROM (
-    SELECT post_id, COUNT(*) AS like_count
-    FROM likes
-    GROUP BY post_id
-) l
-FULL OUTER JOIN (
-    SELECT post_id, COUNT(*) AS dislike_count
-    FROM dislikes
-    GROUP BY post_id
-) d ON l.post_id = d.post_id
-WHERE forumcontent.thread_id = COALESCE(l.post_id, d.post_id);
-
+ 
 CREATE TABLE commentlikes (
     commentlikes_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
@@ -196,10 +156,7 @@ CREATE TABLE commentlikes (
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE (user_id, comment_id)
 );
-
-CREATE INDEX idx_commentlikes_user ON commentlikes(user_id);
-CREATE INDEX idx_commentlikes_comment ON commentlikes(comment_id);
-
+ 
 CREATE TABLE commentdislikes (
     commentdislikes_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
@@ -207,10 +164,10 @@ CREATE TABLE commentdislikes (
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE (user_id, comment_id)
 );
-
-CREATE INDEX idx_commentdislikes_user ON commentdislikes(user_id);
-CREATE INDEX idx_commentdislikes_comment ON commentdislikes(comment_id);
-
+ 
+-- Sequence must be created before the report tables that use it
+CREATE SEQUENCE report_id_sequence START 1;
+ 
 CREATE TABLE threadreports (
     report_id INTEGER PRIMARY KEY DEFAULT nextval('report_id_sequence'),
     reporting_uid INTEGER NOT NULL REFERENCES forumusers(users_id),
@@ -220,12 +177,12 @@ CREATE TABLE threadreports (
     report_desc TEXT,
     reported_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_reviewed BOOLEAN DEFAULT FALSE,
+    reviewed_by INTEGER REFERENCES forumusers(users_id),
     mod_notes TEXT,
     resolution_status VARCHAR(20),
-    
     UNIQUE (reporting_uid, thread_id)
 );
-
+ 
 CREATE TABLE commentreports (
     report_id INTEGER PRIMARY KEY DEFAULT nextval('report_id_sequence'),
     reporting_uid INTEGER NOT NULL REFERENCES forumusers(users_id),
@@ -235,11 +192,12 @@ CREATE TABLE commentreports (
     report_desc TEXT,
     reported_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_reviewed BOOLEAN DEFAULT FALSE,
+    reviewed_by INTEGER REFERENCES forumusers(users_id),
     mod_notes TEXT,
     resolution_status VARCHAR(20),
     UNIQUE (reporting_uid, comment_id)
 );
-
+ 
 CREATE TABLE contact_messages (
     contact_id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
@@ -247,33 +205,23 @@ CREATE TABLE contact_messages (
     message TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE TABLE forumfeedback (
-    feedback_id SERIAL PRIMARY KEY,
-    users_id INTEGER REFERENCES forumusers(users_id),
-    issue TEXT NOT NULL,
-    problem TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE SEQUENCE report_id_sequence START 1;
-
+ 
 CREATE TABLE forumuser_encrypted_keys (
-     users_id    INTEGER PRIMARY KEY REFERENCES forumusers(users_id) ON DELETE CASCADE,
-     encrypted_key TEXT NOT NULL,
-     salt          TEXT NOT NULL,
-     iv            TEXT NOT NULL,
-     updated_at    TIMESTAMPTZ DEFAULT NOW()
- );
-
- CREATE TABLE blocks (
+    users_id    INTEGER PRIMARY KEY REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    encrypted_key TEXT NOT NULL,
+    salt          TEXT NOT NULL,
+    iv            TEXT NOT NULL,
+    updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ 
+CREATE TABLE blocks (
     block_id SERIAL PRIMARY KEY,
     blocker_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
     blocked_id INTEGER REFERENCES forumusers(users_id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(blocker_id, blocked_id)
 );
-
+ 
 CREATE TABLE calendar_events (
     event_id SERIAL PRIMARY KEY,
     title VARCHAR(100) NOT NULL,
@@ -284,32 +232,38 @@ CREATE TABLE calendar_events (
     created_by INTEGER REFERENCES forumusers(users_id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
-
+ 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- INDEXES
+-- ─────────────────────────────────────────────────────────────────────────────
+ 
 CREATE INDEX IF NOT EXISTS idx_calendar_events_start_date ON calendar_events(start_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_created_by ON calendar_events(created_by);
-
+ 
 CREATE INDEX IF NOT EXISTS idx_friendships_user_id1 ON friendships(user_id1);
 CREATE INDEX IF NOT EXISTS idx_friendships_user_id2 ON friendships(user_id2);
 CREATE INDEX IF NOT EXISTS idx_friendships_both ON friendships(user_id1, user_id2);
  
--- Block status is checked on profile load and before every friend request
 CREATE INDEX IF NOT EXISTS idx_blocks_blocker ON blocks(blocker_id);
 CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks(blocked_id);
 CREATE INDEX IF NOT EXISTS idx_blocks_both ON blocks(blocker_id, blocked_id);
  
--- Notifications are fetched on every header load so this matters a lot
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(users_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(users_id, is_read);
  
--- Messages are fetched by sender and receiver pair frequently
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_id, receiver_id);
  
--- Forum content is sorted and filtered often
 CREATE INDEX IF NOT EXISTS idx_forumcontent_user ON forumcontent(users_id);
 CREATE INDEX IF NOT EXISTS idx_forumcontent_date ON forumcontent(postdate DESC);
  
--- Comments are fetched by thread and by user
 CREATE INDEX IF NOT EXISTS idx_forumcomments_thread ON forumcomments(thread_id);
 CREATE INDEX IF NOT EXISTS idx_forumcomments_user ON forumcomments(users_id);
+ 
+CREATE INDEX IF NOT EXISTS idx_commentlikes_user ON commentlikes(user_id);
+CREATE INDEX IF NOT EXISTS idx_commentlikes_comment ON commentlikes(comment_id);
+ 
+CREATE INDEX IF NOT EXISTS idx_commentdislikes_user ON commentdislikes(user_id);
+CREATE INDEX IF NOT EXISTS idx_commentdislikes_comment ON commentdislikes(comment_id);
+ 

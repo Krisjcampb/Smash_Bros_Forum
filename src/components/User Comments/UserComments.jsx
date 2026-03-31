@@ -351,8 +351,8 @@ function UserComments({ userRole, userId, forumContent }) {
     // ── Modal helpers ─────────────────────────────────────────────────────────
 
     const getProfileImageUrl = (characterName, selectedSkin) => {
-        if (!characterName) return '/path/to/default/profile_image.png';
-        return `/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${characterName}/chara_0_${characterName.toLowerCase()}_0${selectedSkin}.png`;
+        if (!characterName) return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`;
+        return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${characterName}/chara_0_${characterName.toLowerCase()}_0${selectedSkin}.png`;
     };
 
     const handleEditComment = (commentId, commentContent, commentMentions = []) => {
