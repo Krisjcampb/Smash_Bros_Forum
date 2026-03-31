@@ -142,9 +142,9 @@ app.post('/forumusers', async (req, res) => {
 
     res.status(201).json({ user: newForumusers.rows[0], message: 'User registered successfully' });
   } catch (err) {
-    console.error('Error in /forumusers endpoint:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+    console.error('Error in /forumusers endpoint:', err.message, err.stack);
+    res.status(500).json({ error: err.message });
+    }
 });
 
 app.put("/forumusers/updateVerified", async (req, res) => {
