@@ -99,19 +99,15 @@ const transporter = nodemailer.createTransport({
 app.post('/forumusers', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 1. Insert User
+    // 1. Insert user
     const newForumusers = await pool.query(
       "INSERT INTO forumusers (username, email, password) VALUES ($1, $2, $3) RETURNING *",
       [username, email, hashedPassword]
     );
 
-    // FIX: Be explicit about your ID column name here
-    const userId = newForumusers.rows[0].users_id; 
-
-    // 2. Generate and Store Verification Code
+    const userId = newForumusers.rows[0].users_id || newForumusers.rows[0].id;
     const randomcode = crypto.randomInt(100000, 999999).toString();
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -120,7 +116,13 @@ app.post('/forumusers', async (req, res) => {
       [userId, randomcode, expires_at, false]
     );
 
-    // 3. Send Email (Fire and forget, or wait? Usually better to wait)
+    // Send the response so the user can move to Step 2 
+    res.status(201).json({ 
+      user: { id: userId, username: username }, 
+      message: 'User registered successfully. Please check your email.' 
+    });
+
+    // Send email in the "background"
     const mailOptions = {
       from: '"SmashPoint Support" <smashpointssb@gmail.com>',
       to: email,
@@ -128,29 +130,16 @@ app.post('/forumusers', async (req, res) => {
       text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
     };
 
-    try {
-      await transporter.sendMail(mailOptions);
-    } catch (mailError) {
-      // We log the mail error, but we don't stop the registration 
-      // because the user is already in the DB.
-      console.error('Nodemailer Error:', mailError.message);
-    }
-
-    // 4. Success Response
-    res.status(201).json({ 
-      user: { id: userId, username: username }, 
-      message: 'User registered successfully. Please check your email.' 
+    
+    transporter.sendMail(mailOptions).catch(mailError => {
+      console.error('Nodemailer background error:', mailError.message);
     });
 
   } catch (err) {
     console.error('Error in /forumusers endpoint:', err.message);
-    
-    // Handle Duplicate Email/Username
-    if (err.code === '23505') {
-        return res.status(400).json({ error: 'Username or Email already exists' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
