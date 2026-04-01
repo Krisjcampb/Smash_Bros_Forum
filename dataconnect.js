@@ -87,13 +87,16 @@ function authenticateToken(req, res, next) {
 
 //create a user
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, 
-  auth: {
-    user: 'smashpointssb@gmail.com',
-    pass: process.env.EMAIL_APP_PASS,
-  },
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // false for port 587, true for 465
+    auth: {
+        user: 'smashpointssb@gmail.com',
+        pass: process.env.EMAIL_APP_PASS,
+    },
+    tls: {
+        rejectUnauthorized: false
+    }
 });
 
 app.post('/forumusers', async (req, res) => {
