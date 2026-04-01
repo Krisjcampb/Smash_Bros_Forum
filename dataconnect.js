@@ -6,7 +6,7 @@ const cors = require("cors");
 const pool = require("./db");
 const path = require('path');
 const multer = require('multer');
-const nodemailer = require("nodemailer");
+const { Resend } = require('resend');
 const jwt = require('jsonwebtoken');
 const crypto = require("crypto")
 const bcrypt = require("bcrypt")
@@ -86,65 +86,47 @@ function authenticateToken(req, res, next) {
 //USERS ACCOUNT
 
 //create a user
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // false for port 587, true for 465
-    auth: {
-        user: 'smashpointssb@gmail.com',
-        pass: process.env.EMAIL_APP_PASS,
-    },
-    tls: {
-        rejectUnauthorized: false
-    }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 app.post('/forumusers', async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    try {
+        const { username, email, password } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 1. Insert user
-    const newForumusers = await pool.query(
-      "INSERT INTO forumusers (username, email, password) VALUES ($1, $2, $3) RETURNING *",
-      [username, email, hashedPassword]
-    );
+        const newForumusers = await pool.query(
+            "INSERT INTO forumusers (username, email, password) VALUES ($1, $2, $3) RETURNING *",
+            [username, email, hashedPassword]
+        );
 
-    const userId = newForumusers.rows[0].users_id || newForumusers.rows[0].id;
-    const randomcode = crypto.randomInt(100000, 999999).toString();
-    const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const userId = newForumusers.rows[0].users_id || newForumusers.rows[0].id;
+        const randomcode = crypto.randomInt(100000, 999999).toString();
+        const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await pool.query(
-      'INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)',
-      [userId, randomcode, expires_at, false]
-    );
+        await pool.query(
+            'INSERT INTO emailverify (user_id, verification_code, expires_at, verified) VALUES ($1, $2, $3, $4)',
+            [userId, randomcode, expires_at, false]
+        );
 
-    // Send the response so the user can move to Step 2 
-    res.status(201).json({ 
-      user: { id: userId, username: username }, 
-      message: 'User registered successfully. Please check your email.' 
-    });
+        res.status(201).json({ 
+            user: { id: userId, username: username }, 
+            message: 'User registered successfully. Please check your email.' 
+        });
 
-    // Send email in the "background"
-    const mailOptions = {
-      from: '"SmashPoint Support" <smashpointssb@gmail.com>',
-      to: email,
-      subject: 'Verify your email address',
-      text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
-    };
+        // Send verification email via Resend
+        resend.emails.send({
+            from: 'SmashPoint <onboarding@resend.dev>',
+            to: email,
+            subject: 'Verify your email address',
+            text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
+        }).catch(err => console.error('Email error:', err.message));
 
-    
-    transporter.sendMail(mailOptions).catch(mailError => {
-      console.error('Nodemailer background error:', mailError.message);
-    });
-
-  } catch (err) {
-    console.error('Error in /forumusers endpoint:', err.message);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal Server Error' });
+    } catch (err) {
+        console.error('Error in /forumusers endpoint:', err.message);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
     }
-  }
-});
+    });
 
 app.put("/forumusers/updateVerified", async (req, res) => {
     try{
@@ -456,31 +438,25 @@ app.put("/resendcode", async (req, res) => {
         }
 
         const generateRandomCode = () => {
-        const buffer = crypto.randomBytes(3);
-        const code = buffer.readUIntBE(0, 3);
-        return code % 1000000;
+            const buffer = crypto.randomBytes(3);
+            const code = buffer.readUIntBE(0, 3);
+            return code % 1000000;
         }
         const userId = userResult.rows[0].users_id;
-
         const randomcode = generateRandomCode();
         const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-        const updateQuery = `
-            UPDATE emailverify
-            SET verification_code = $1, expires_at = $2
-            WHERE user_id = $3;
-        `;
-        await pool.query(updateQuery, [randomcode, expires_at, userId]);
-        
-        const mailOptions = {
-            from: 'pnwsmashhub@gmail.com',
+        await pool.query(
+            `UPDATE emailverify SET verification_code = $1, expires_at = $2 WHERE user_id = $3`,
+            [randomcode, expires_at, userId]
+        );
+
+        resend.emails.send({
+            from: 'SmashPoint <onboarding@resend.dev>',
             to: email,
             subject: 'Verify your email address',
             text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent:', info.response);
+        }).catch(err => console.error('Email error:', err.message));
 
         res.json({ success: true });
     } catch (error) {
@@ -1700,30 +1676,27 @@ app.post('/passwordreset', async (req, res) => {
     const user = result.rows[0];
 
     const generateRandomCode = () => {
-      const buffer = crypto.randomBytes(3);
-      const code = buffer.readUIntBE(0, 3);
-      return code % 1000000;
+        const buffer = crypto.randomBytes(3);
+        const code = buffer.readUIntBE(0, 3);
+        return code % 1000000;
     }
     const randomcode = generateRandomCode()
-
     const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-    await pool.query('INSERT INTO passwordreset (email, reset_code, expires_at, used) VALUES ($1, $2, $3, $4)',[user.email, randomcode, expires_at, false])
-    
-    const mailOptions = {
-        from: 'smashpointssb@gmail.com',
+    await pool.query(
+        'INSERT INTO passwordreset (email, reset_code, expires_at, used) VALUES ($1, $2, $3, $4)',
+        [user.email, randomcode, expires_at, false]
+    )
+
+    resend.emails.send({
+        from: 'SmashPoint <onboarding@resend.dev>',
         to: email,
         subject: 'Reset your password',
         text: `Your password reset code is: ${randomcode}. This code is valid for 24 hours.`,
-    }
-    transporter.sendMail(mailOptions, function (err, info){
-        if(err){
-            console.log(err);
-        } else{
-            console.log('Sent: ' + info.response)
-        }
-    });
-  })
+    }).catch(err => console.error('Email error:', err.message));
+
+    res.json({ success: true });
+})
 
 
 app.post('/passwordverify', async (req, res) => {
