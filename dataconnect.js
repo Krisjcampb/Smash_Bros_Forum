@@ -676,8 +676,8 @@ app.post('/forumcontent', async (req, res) => {
   try {
     const {title, content, likes, comments, username, postdate, usersId} = req.body
     const newForumcontent = await pool.query(
-      "INSERT INTO forumcontent (title, content, likes, comments, username, postdate, users_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-      [title, content, likes, comments, username, postdate, usersId]
+      "INSERT INTO forumcontent (title, content, username, postdate, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *",
+      [title, content, username, postdate, usersId]
     );
     console.log(newForumcontent.rows[0])
     res.json(newForumcontent.rows[0])
