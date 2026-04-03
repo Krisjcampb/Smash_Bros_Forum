@@ -209,17 +209,16 @@ function Userprofile() {
 
     const handleProfileSave = async () => {
         try {
-            // Parse character name and skin index out of the selected image path
             const match1 = clickedImage.match(/\/chara_\d_([^_]+)_(\d+)\.png$/);
+            const match2 = clickedImage.match(/Fighter Portraits\/([^/]+)/);
+            const newCharacter = match2 ? match2[1] : 'Mario';
+
             if (match1) {
-                const GetCharacterName = match1[1];
                 const GetSelectedSkin = parseInt(match1[2], 10);
-                updateProfilePicture(GetCharacterName, GetSelectedSkin)
+                updateProfilePicture(newCharacter, GetSelectedSkin)
             } else {
                 console.error('Invalid URL format');
             }
-            const match2 = clickedImage.match(/Fighter Portraits\/([^/]+)/);
-            const newCharacter = match2 ? match2[1] : 'Mario';
 
             await fetch(`${API}/change-pfp/${userid}`, {
                 method: 'POST',
