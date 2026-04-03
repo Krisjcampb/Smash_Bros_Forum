@@ -114,7 +114,7 @@ app.post('/forumusers', async (req, res) => {
 
         // Send verification email via Resend
         resend.emails.send({
-            from: 'SmashPoint <onboarding@resend.dev>',
+            from: 'SmashPoint <no-reply@smashpoint.gg>',
             to: email,
             subject: 'Verify your email address',
             text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
@@ -452,7 +452,7 @@ app.put("/resendcode", async (req, res) => {
         );
 
         resend.emails.send({
-            from: 'SmashPoint <onboarding@resend.dev>',
+            from: 'SmashPoint <no-reply@smashpoint.gg>',
             to: email,
             subject: 'Verify your email address',
             text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
@@ -1689,7 +1689,7 @@ app.post('/passwordreset', async (req, res) => {
     )
 
     resend.emails.send({
-        from: 'SmashPoint <onboarding@resend.dev>',
+        from: 'SmashPoint <no-reply@smashpoint.gg>',
         to: email,
         subject: 'Reset your password',
         text: `Your password reset code is: ${randomcode}. This code is valid for 24 hours.`,
