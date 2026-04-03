@@ -55,7 +55,7 @@ export const UserProvider = ({ children }) => {
                 throw new Error('No profile picture data received.');
             }
 
-            const characterName = data[0].character_name.toLowerCase();
+            const characterName = data[0].character_name;
             const selectedSkin = data[0].selected_skin;
 
             setProfilePicture({ characterName, selectedSkin }); // Save base data
