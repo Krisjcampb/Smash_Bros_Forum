@@ -5,7 +5,7 @@ import { API } from '../components/Utilities/apiUrl';
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-    const [profilePicture, setProfilePicture] = useState({ characterName: 'default', selectedSkin: '0' });
+    const [profilePicture, setProfilePicture] = useState({ characterName: 'Mario', selectedSkin: '0' });
     const [userid, setUserId] = useState(null);
     const token = localStorage.getItem('token');
 
@@ -62,7 +62,7 @@ export const UserProvider = ({ children }) => {
             console.log('Profile picture updated:', { characterName, selectedSkin });
         } catch (error) {
             console.error('Error retrieving profile picture:', error);
-            setProfilePicture({ characterName: 'default', selectedSkin: '0' }); // Fallback
+            setProfilePicture({ characterName: 'Mario', selectedSkin: '0' }); // Fallback
         }
     }, [userid]);
 

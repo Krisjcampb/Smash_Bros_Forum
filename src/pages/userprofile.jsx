@@ -99,7 +99,7 @@ function Userprofile() {
                 headers: { 'Content-Type': 'application/json' }
             })
             const data = await response.json()
-            return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${data.character_name}/chara_3_${data.character_name}_0${data.selected_skin}.png`;
+            return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${data.character_name}/chara_3_${data.character_name.toLowerCase()}_0${data.selected_skin}.png`;
         } catch {
             console.error('Error finding friend profile picture.')
             return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`
@@ -122,7 +122,6 @@ function Userprofile() {
         fetchImage();
     }, [friendid, getfriendImage])
 
-    // IntersectionObserver watches the invisible sentinel div at the bottom of comments
     // and loads 10 more when it scrolls into view
     useEffect(() => {
         if (comments.length <= 10) return
@@ -139,7 +138,7 @@ function Userprofile() {
         return () => observer.disconnect()
     }, [comments, visibleComments])
 
-    // Same sentinel pattern for posts tab
+    // Same pattern for posts tab
     useEffect(() => {
         if (threadPosts.length <= 10) return
         const observer = new IntersectionObserver(
@@ -177,7 +176,7 @@ function Userprofile() {
     }, [showProfile, profilePicture, userProfileImageUrl]);
 
     useEffect(() => {
-        if (clickedImage !== '' && userProfileImageUrl !== `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/default/chara_3_default_00.png`) {
+        if (clickedImage !== '' && userProfileImageUrl !== `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_default_00.png`) {
             setSelectedImage(clickedImage);
         }
     }, [clickedImage, userProfileImageUrl, initialProfileImage]);
