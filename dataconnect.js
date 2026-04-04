@@ -19,24 +19,12 @@ const { Readable } = require('stream');
 
 const server = http.createServer(app);
 
-console.log('=== B2 CREDENTIALS DEBUG ===');
-console.log('B2_ENDPOINT exists:', !!process.env.B2_ENDPOINT);
-console.log('B2_ENDPOINT value:', process.env.B2_ENDPOINT);
-console.log('B2_KEY_ID exists:', !!process.env.B2_KEY_ID);
-console.log('B2_KEY_ID length:', process.env.B2_KEY_ID?.length);
-console.log('B2_KEY_ID first 5 chars:', process.env.B2_KEY_ID?.substring(0, 5));
-console.log('B2_APPLICATION_KEY exists:', !!process.env.B2_APPLICATION_KEY);
-console.log('B2_APPLICATION_KEY length:', process.env.B2_APPLICATION_KEY?.length);
-console.log('B2_APPLICATION_KEY first 5 chars:', process.env.B2_APPLICATION_KEY?.substring(0, 5));
-console.log('B2_BUCKET_NAME:', process.env.B2_BUCKET_NAME);
-console.log('============================');
-
 const b2Client = new S3Client({
     endpoint: process.env.B2_ENDPOINT,
     region: 'us-west-004', // match your bucket region from the endpoint URL
     credentials: {
         accessKeyId: process.env.B2_KEY_ID,
-        secretAccessKey: process.env.B2_APPLICATION_KEY,
+        secretAccessKey: process.env.B2_APP_KEY,
     },
 });
 
