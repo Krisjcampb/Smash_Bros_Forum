@@ -161,8 +161,9 @@ function Threads() {
                                 value={comment}
                                 onChange={setComment}
                                 onMentionsChange={setMentions}
-                                rows={4}
+                                rows={6}
                                 placeholder="Write a comment..."
+                                maxLength={8000}
                             />
                             <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
                                 <Button

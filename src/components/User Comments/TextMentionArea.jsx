@@ -8,6 +8,7 @@ const TextMentionArea = ({
   setMentions,            // Callback to update parent mentions
   placeholder = "Write something...",
   rows = 4,
+  maxLength = null,
 }) => {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -119,9 +120,16 @@ const TextMentionArea = ({
         onKeyDown={handleKeyDown}
         rows={rows}
         placeholder={placeholder}
+        maxLength={maxLength}
         className="form-control"
       />
 
+      {maxLength && (
+        <div className="text-muted text-end small mt-1">
+          {value.length}/{maxLength}
+        </div>
+      )}
+      
       {showDropdown && (
         <div className="mention-dropdown">
           {availableUsers.length > 0 ? (

@@ -465,7 +465,12 @@ function Calendar() {
                 .dark-theme .fc-toolbar-title {
                     color: #ffffff;
                 }
-
+                    
+                .light-theme .fc-button {
+                    background-color: #383838 !important;
+                    border-color: #555 !important;
+                    color: #FFD443 !important;
+                }
                 .dark-theme .fc-button {
                     background-color: #393933 !important;
                     border-color: #555 !important;
@@ -493,7 +498,7 @@ function Calendar() {
                 }
 
                 .dark-theme .fc-day-today {
-                    background-color: rgba(255, 212, 67, 0.1) !important;
+                    background-color: rgb(80, 70, 35) !important;
                 }
                 .dark-theme .fc-event-title,
                 .dark-theme .fc-event-time {
