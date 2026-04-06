@@ -465,11 +465,11 @@ function Calendar() {
                 .dark-theme .fc-toolbar-title {
                     color: #ffffff;
                 }
-                    
+
                 .light-theme .fc-button {
                     background-color: #383838 !important;
                     border-color: #555 !important;
-                    color: #FFD443 !important;
+                    color: #e9e9e9 !important;
                 }
                 .dark-theme .fc-button {
                     background-color: #393933 !important;
