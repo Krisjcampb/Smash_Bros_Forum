@@ -443,8 +443,9 @@ const ListContent = (props) => {
                                         {e.filepath ? (
                                             <Card.Img
                                                 height={250}
-                                                src={e.filepath.slice(6)}
+                                                src={e.filepath}
                                                 className="mb-2 thread-card-image"
+                                                loading="lazy"
                                             />
                                         ) : (
                                             <div className="thread-card-image--empty mb-2" />
