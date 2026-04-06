@@ -107,6 +107,11 @@ function Userprofile() {
     }, [friendid]);
 
     useEffect(() => {
+        setCharacterName(profilePicture.characterName);
+        setSelectedSkin(profilePicture.selectedSkin);
+    }, [profilePicture.characterName, profilePicture.selectedSkin]);
+
+    useEffect(() => {
         if (!friendid) return;
         fetch(`${API}/user-stats/${friendid}`)
             .then(res => res.json())
