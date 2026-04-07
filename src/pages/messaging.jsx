@@ -475,13 +475,18 @@ const Messaging = () => {
                                 </div>
                             </Card.Body>
                             <Card.Footer className='chat-footer'>
-                                <Form className='d-flex'>
+                                <Form className='d-flex' onSubmit={(e) => {e.preventDefault(); handleSendMessage();}}>
                                     <Form.Control
                                         type='text'
                                         placeholder='Type your message...'
                                         value={messageInput}
                                         onChange={(e) => setMessageInput(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleSendMessage();
+                                            }
+                                        }}
                                         className='me-2'
                                     />
                                     <Button variant='primary' onClick={handleSendMessage}>
