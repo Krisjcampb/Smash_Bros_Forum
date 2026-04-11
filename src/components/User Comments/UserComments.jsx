@@ -518,97 +518,33 @@ function UserComments({ userRole, userId, forumContent }) {
             </div>
 
             {/* ── Edit Modal ────────────────────────────────────────────────── */}
-            <Modal 
-                show={showEditModal} 
-                onHide={() => setShowEditModal(false)} 
-                size="lg" 
-                centered
-                className={isDarkMode ? 'dark-theme' : 'light-theme'}
-            >
-                {/* Use your existing modal header pattern */}
-                <div style={{
-                    background: '#393933',
-                    borderRadius: '8px 8px 0 0',
-                    padding: '1.5rem 2rem 1.25rem',
-                    borderBottom: '4px solid #FFD443',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                }}>
+            <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered>
+                {/* Header */}
+                <div className="edit-modal-header">
                     <div>
-                        <div style={{
-                            display: 'inline-block',
-                            background: '#FFD443',
-                            borderRadius: '6px',
-                            padding: '2px 8px',
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
-                            color: '#393933',
-                            marginBottom: '0.5rem',
-                        }}>
-                            Edit Comment
-                        </div>
-                        <h5 style={{ 
-                            color: '#ffffff', 
-                            fontWeight: '800', 
-                            margin: 0, 
-                            letterSpacing: '-0.01em' 
-                        }}>
-                            Update Your Comment
-                        </h5>
+                        <div className="edit-modal-badge">Edit Comment</div>
+                        <h5 className="edit-modal-title">Update Your Comment</h5>
                     </div>
-                    <button
-                        onClick={() => setShowEditModal(false)}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'rgba(255,255,255,0.5)',
-                            fontSize: '1.5rem',
-                            cursor: 'pointer',
-                            lineHeight: 1
-                        }}
-                    >
+                    <button className="edit-modal-close" onClick={() => setShowEditModal(false)}>
                         ×
                     </button>
                 </div>
 
                 <Form onSubmit={(e) => { e.preventDefault(); EditComment(); }}>
-                    <Modal.Body style={{ padding: '2rem' }}>
-                        {/* Original comment in a subtle gray box */}
-                        <div style={{
-                            background: isDarkMode ? '#3a3a3a' : '#f8f9fa',
-                            borderLeft: `4px solid ${isDarkMode ? '#555' : '#6c757d'}`,
-                            padding: '1rem 1.25rem',
-                            borderRadius: '4px',
-                            marginBottom: '1.5rem'
-                        }}>
-                            <Form.Label className="settings-desc" style={{
-                                fontWeight: '600',
-                                fontSize: '0.85rem',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                marginBottom: '0.5rem'
-                            }}>
+                    <Modal.Body className="edit-modal-body">
+                        {/* Original comment section */}
+                        <div className="original-comment-box">
+                            <Form.Label className="original-comment-label">
                                 Original Comment
                             </Form.Label>
-                            <div style={{
-                                fontStyle: 'italic',
-                                lineHeight: '1.6',
-                                color: isDarkMode ? '#cccccc' : '#495057'
-                            }}>
+                            <div className="original-comment-text">
                                 {currComment}
                             </div>
                         </div>
 
                         {/* Edit section */}
                         <Form.Group>
-                            <Form.Label style={{
-                                fontWeight: '600',
-                                fontSize: '0.85rem',
-                                marginBottom: '0.5rem'
-                            }}>
+                            <Form.Label className="new-comment-label">
                                 New Comment
                             </Form.Label>
                             <TextMentionArea
@@ -623,17 +559,13 @@ function UserComments({ userRole, userId, forumContent }) {
                         </Form.Group>
                     </Modal.Body>
 
-                    <Modal.Footer style={{
-                        padding: '1rem 2rem',
-                        justifyContent: 'center',
-                        gap: '0.75rem'
-                    }}>
+                    <Modal.Footer className="edit-modal-footer">
                         <button type="submit" className="primary-btn">
                             Save Changes
                         </button>
                         <button
                             type="button"
-                            className={`secondary-btn themed ${isDarkMode ? 'dark' : 'light'}`}
+                            className="secondary-btn"
                             onClick={() => setShowEditModal(false)}
                         >
                             Cancel

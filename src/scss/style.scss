@@ -1060,6 +1060,59 @@ footer {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EDIT COMMENT MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+.edit-modal-header {
+  background: $primary;
+  border-radius: 8px 8px 0 0;
+  padding: 1.5rem 2rem 1.25rem;
+  border-bottom: 4px solid $secondary;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.edit-modal-badge {
+  display: inline-block;
+  background: $secondary;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $primary;
+  margin-bottom: 0.5rem;
+}
+
+.edit-modal-title {
+  color: $light;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.01em;
+  font-size: 1.1rem;
+}
+
+.edit-modal-close {
+  background: none;
+  border: none;
+  color: rgba($light, 0.5);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: rgba($light, 0.8);
+  }
+}
+
+.edit-modal-body {
+  padding: 2rem;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MODAL INPUTS — LIGHT MODE (black text on white fields)
 // Scoped to light-theme so it never bleeds into dark mode
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1140,6 +1193,48 @@ footer {
     box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     margin-bottom: 2rem;
   }
+  
+  .original-comment-box {
+  background: #f8f9fa;
+  border-left: 4px solid #6c757d;
+  padding: 1rem 1.25rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  }
+
+  .original-comment-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .original-comment-text {
+    color: #495057;
+    font-style: italic;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .new-comment-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: $primary;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .edit-modal-footer {
+    padding: 1rem 2rem;
+    border-top: 1px solid #e0e0dc;
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DARK THEME
@@ -1196,6 +1291,29 @@ footer {
     border-color: #555 !important;
     color: #ffffff !important;
     &:hover { background-color: #444444 !important; }
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+
+  .original-comment-box {
+    background: #3a3a3a;
+    border-left-color: #555;
+  }
+  
+  .original-comment-label {
+    color: #aaaaaa;
+  }
+  
+  .original-comment-text {
+    color: #cccccc;
+  }
+  
+  .new-comment-label {
+    color: #e0e0e0;
+  }
+  
+  .edit-modal-footer {
+    border-top-color: #444;
   }
 
   // ── Text ──────────────────────────────────────────────────────────────────
