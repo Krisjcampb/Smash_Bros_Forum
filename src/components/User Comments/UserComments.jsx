@@ -518,25 +518,126 @@ function UserComments({ userRole, userId, forumContent }) {
             </div>
 
             {/* ── Edit Modal ────────────────────────────────────────────────── */}
-            <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
+            <Modal 
+                show={showEditModal} 
+                onHide={() => setShowEditModal(false)} 
+                size="lg" 
+                centered
+                className={isDarkMode ? 'dark-theme' : 'light-theme'}
+            >
+                {/* Use your existing modal header pattern */}
+                <div style={{
+                    background: '#393933',
+                    borderRadius: '8px 8px 0 0',
+                    padding: '1.5rem 2rem 1.25rem',
+                    borderBottom: '4px solid #FFD443',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                }}>
+                    <div>
+                        <div style={{
+                            display: 'inline-block',
+                            background: '#FFD443',
+                            borderRadius: '6px',
+                            padding: '2px 8px',
+                            fontSize: '0.65rem',
+                            fontWeight: '700',
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                            color: '#393933',
+                            marginBottom: '0.5rem',
+                        }}>
+                            Edit Comment
+                        </div>
+                        <h5 style={{ 
+                            color: '#ffffff', 
+                            fontWeight: '800', 
+                            margin: 0, 
+                            letterSpacing: '-0.01em' 
+                        }}>
+                            Update Your Comment
+                        </h5>
+                    </div>
+                    <button
+                        onClick={() => setShowEditModal(false)}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'rgba(255,255,255,0.5)',
+                            fontSize: '1.5rem',
+                            cursor: 'pointer',
+                            lineHeight: 1
+                        }}
+                    >
+                        ×
+                    </button>
+                </div>
+
                 <Form onSubmit={(e) => { e.preventDefault(); EditComment(); }}>
-                    <Modal.Body>
-                        <Form.Label>Original Comment</Form.Label>
-                        <Form.Control type="text" value={currComment} readOnly />
-                        <br />
-                        <Form.Label>Editing Comment</Form.Label>
-                        <TextMentionArea
-                            value={content}
-                            onChange={setContent}
-                            mentions={editMentions}
-                            setMentions={setEditMentions}
-                            rows={4}
-                            placeholder="Editing Comment"
-                        />
+                    <Modal.Body style={{ padding: '2rem' }}>
+                        {/* Original comment in a subtle gray box */}
+                        <div style={{
+                            background: isDarkMode ? '#3a3a3a' : '#f8f9fa',
+                            borderLeft: `4px solid ${isDarkMode ? '#555' : '#6c757d'}`,
+                            padding: '1rem 1.25rem',
+                            borderRadius: '4px',
+                            marginBottom: '1.5rem'
+                        }}>
+                            <Form.Label className="settings-desc" style={{
+                                fontWeight: '600',
+                                fontSize: '0.85rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                marginBottom: '0.5rem'
+                            }}>
+                                Original Comment
+                            </Form.Label>
+                            <div style={{
+                                fontStyle: 'italic',
+                                lineHeight: '1.6',
+                                color: isDarkMode ? '#cccccc' : '#495057'
+                            }}>
+                                {currComment}
+                            </div>
+                        </div>
+
+                        {/* Edit section */}
+                        <Form.Group>
+                            <Form.Label style={{
+                                fontWeight: '600',
+                                fontSize: '0.85rem',
+                                marginBottom: '0.5rem'
+                            }}>
+                                New Comment
+                            </Form.Label>
+                            <TextMentionArea
+                                value={content}
+                                onChange={setContent}
+                                mentions={editMentions}
+                                setMentions={setEditMentions}
+                                rows={4}
+                                placeholder="Update your comment..."
+                                maxLength={500}
+                            />
+                        </Form.Group>
                     </Modal.Body>
-                    <Modal.Footer>
-                        <Button type="submit">Confirm Changes</Button>
-                        <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancel</Button>
+
+                    <Modal.Footer style={{
+                        padding: '1rem 2rem',
+                        justifyContent: 'center',
+                        gap: '0.75rem'
+                    }}>
+                        <button type="submit" className="primary-btn">
+                            Save Changes
+                        </button>
+                        <button
+                            type="button"
+                            className={`secondary-btn themed ${isDarkMode ? 'dark' : 'light'}`}
+                            onClick={() => setShowEditModal(false)}
+                        >
+                            Cancel
+                        </button>
                     </Modal.Footer>
                 </Form>
             </Modal>
