@@ -44,7 +44,7 @@ function Registration() {
       /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
 
     const validatePassword = (pass) => {
-        const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
+        const regex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&._:\-+=/\\|])[A-Za-z\d@$!%*#?&._:\-+=/\\|]{8,}$/;
         const isValid = regex.test(pass);
         setPasswordRequirementsError(isValid ? '' : 'Password must be at least 8 characters with 1 number and 1 special character');
         return isValid;
