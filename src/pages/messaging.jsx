@@ -250,7 +250,7 @@ const Messaging = () => {
             return null;
         }
     }, [userid]);
-
+    
     // IMAGE HANDLERS
 
     const handleImageSelect = (e) => {
@@ -272,13 +272,19 @@ const Messaging = () => {
     };
 
     // Decrypt images when messages load
+    const processedIds = useRef(new Set());
+
     useEffect(() => {
         const decryptAllImages = async () => {
             const chat = messages.find(c => c.friendId === selectedUser?.id);
             if (!chat) return;
 
             await Promise.all(chat.messages.map(async (msg) => {
-                if (msg.image_data && !decryptedImages[msg.message_id]) {
+                if (msg.image_data && !processedIds.current.has(msg.message_id)) {
+                    
+                    // 3. Mark as processed immediately to prevent duplicate calls
+                    processedIds.current.add(msg.message_id);
+
                     try {
                         const decryptedUrl = await decryptImage(msg.image_data, msg.sender_id);
                         if (decryptedUrl) {
@@ -288,12 +294,13 @@ const Messaging = () => {
                             }));
                         }
                     } catch (err) {
+                        // 4. If it fails, remove from set so it can try again later
+                        processedIds.current.delete(msg.message_id);
                         console.error('Failed to decrypt image:', err);
                     }
                 }
             }));
         };
-
         decryptAllImages();
     }, [messages, selectedUser, decryptImage]);
 
