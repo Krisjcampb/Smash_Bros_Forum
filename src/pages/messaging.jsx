@@ -189,7 +189,7 @@ const Messaging = () => {
         }
     };
 
-    const decryptImage = async (imageData, senderId) => {
+    const decryptImage = useCallback(async (imageData, senderId) => {
         try {
             const privateKeyPem = sessionStorage.getItem('privateKey');
             if (!privateKeyPem) throw new Error('Private key not found');
@@ -259,7 +259,7 @@ const Messaging = () => {
             console.error('Image decryption failed:', err);
             return null;
         }
-    };
+    });
 
     // IMAGE HANDLERS
 
@@ -286,7 +286,7 @@ const Messaging = () => {
         const decryptAllImages = async () => {
             const chat = messages.find(c => c.friendId === selectedUser?.id);
             if (!chat) return;
-            
+
             await Promise.all(chat.messages.map(async (msg) => {
                 if (msg.image_data && !decryptedImages[msg.message_id]) {
                     try {
@@ -303,9 +303,9 @@ const Messaging = () => {
                 }
             }));
         };
-        
+
         decryptAllImages();
-    }, [messages, selectedUser]);
+    }, [messages, selectedUser, decryptImage]);
 
     // AUTH + DATA FETCHING
 
