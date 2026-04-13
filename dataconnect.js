@@ -2193,6 +2193,33 @@ const getMessagesFromDB = async (userId, friendId) => {
     }
 };
 
+app.post('/uploadEncryptedImage', upload.single('image'), async (req, res) => {
+    try {
+        const { sender_id, receiver_id, encrypted_key_sender, encrypted_key_recipient, iv, mime_type, filename } = req.body;
+        const file = req.file;
+
+        if (!file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // 1. Move/Save the file to your storage (S3, Railway, or local folder)
+        const filepath = `/uploads/${file.filename}`; 
+
+        // 2. Return the data the frontend expects
+        res.json({
+            filepath: filepath,
+            encrypted_key_sender,
+            encrypted_key_recipient,
+            iv,
+            mime_type,
+            filename
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 //Websocket connection started
 io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
