@@ -189,16 +189,15 @@ const Messaging = () => {
         }
     };
 
-    const decryptImage = async (imageData, senderId) => {
+    const decryptImage = useCallback(async (imageData, senderId) => {
         try {
             const privateKeyPem = sessionStorage.getItem('privateKey');
             if (!privateKeyPem) throw new Error('Private key not found');
 
             const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
 
-            // Select correct encrypted AES key
-            const encryptedAESKey = senderId === userid
-                ? imageData.encrypted_key_sender
+            const encryptedAESKey = senderId === userid 
+                ? imageData.encrypted_key_sender 
                 : imageData.encrypted_key_recipient;
 
             const aesKey = privateKey.decrypt(
@@ -206,34 +205,27 @@ const Messaging = () => {
                 'RSA-OAEP'
             );
 
-            // Fetch encrypted image
             const response = await fetch(imageData.filepath);
-            if (!response.ok) {
-                throw new Error('Failed to fetch encrypted image');
-            }
-
             const encryptedBlob = await response.blob();
             const arrayBuffer = await encryptedBlob.arrayBuffer();
 
-            const encryptedUint8 = new Uint8Array(arrayBuffer);
+            const uint8 = new Uint8Array(arrayBuffer);
 
             let binary = '';
             const chunkSize = 0x8000;
 
-            for (let i = 0; i < encryptedUint8.length; i += chunkSize) {
-                const chunk = encryptedUint8.subarray(i, i + chunkSize);
+            for (let i = 0; i < uint8.length; i += chunkSize) {
+                const chunk = uint8.subarray(i, i + chunkSize);
                 binary += String.fromCharCode.apply(null, chunk);
             }
 
             const encryptedBytes = forge.util.createBuffer(binary);
             const iv = forge.util.decode64(imageData.iv);
 
-            // Split ciphertext + tag
             const bytes = encryptedBytes.getBytes();
             const ciphertext = bytes.slice(0, -16);
             const tag = bytes.slice(-16);
 
-            // Decrypt
             const decipher = forge.cipher.createDecipher('AES-GCM', aesKey);
             decipher.start({ iv, tag: forge.util.createBuffer(tag) });
             decipher.update(forge.util.createBuffer(ciphertext));
@@ -242,7 +234,6 @@ const Messaging = () => {
                 throw new Error('Decryption failed');
             }
 
-            // Convert decrypted binary string → Uint8Array
             const decryptedBytes = decipher.output.getBytes();
 
             const decryptedUint8 = new Uint8Array(decryptedBytes.length);
@@ -250,7 +241,6 @@ const Messaging = () => {
                 decryptedUint8[i] = decryptedBytes.charCodeAt(i);
             }
 
-            // Create image blob
             const blob = new Blob([decryptedUint8], { type: imageData.mime_type });
 
             return URL.createObjectURL(blob);
@@ -259,7 +249,7 @@ const Messaging = () => {
             console.error('Image decryption failed:', err);
             return null;
         }
-    };
+    }, [userid]);
 
     // IMAGE HANDLERS
 
@@ -286,7 +276,7 @@ const Messaging = () => {
         const decryptAllImages = async () => {
             const chat = messages.find(c => c.friendId === selectedUser?.id);
             if (!chat) return;
-            
+
             await Promise.all(chat.messages.map(async (msg) => {
                 if (msg.image_data && !decryptedImages[msg.message_id]) {
                     try {
@@ -303,9 +293,9 @@ const Messaging = () => {
                 }
             }));
         };
-        
+
         decryptAllImages();
-    }, [messages, selectedUser]);
+    }, [messages, selectedUser, decryptImage]);
 
     // AUTH + DATA FETCHING
 
