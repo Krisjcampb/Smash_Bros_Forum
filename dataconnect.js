@@ -2173,7 +2173,7 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
 const getMessagesFromDB = async (userId, friendId) => {
     try {
         const result = await pool.query(
-            `SELECT message_id, sender_id, receiver_id, message_text, iv, timestamp, is_deleted 
+            `SELECT message_id, sender_id, receiver_id, message_text, iv, image_data, timestamp, is_deleted 
              FROM messages 
              WHERE (sender_id = $1 AND receiver_id = $2) 
                 OR (sender_id = $2 AND receiver_id = $1) 
@@ -2209,34 +2209,25 @@ io.on("connection", (socket) => {
     });
 
     socket.on("sendMessage", async (data) => {
-        const { sender_id, receiver_id, message_text, username} = data;
-        try {
-            const savedMessage = await saveMessageToDB({
-                sender_id,
-                receiver_id,
-                message_text,
-                username,
-            });
+        const { sender_id, receiver_id, message_text, username, image_data } = data;
 
-            if (!savedMessage) {
-                console.error("Failed to save message to DB");
-                return;
-            }
+        const newMessage = await pool.query(
+            `INSERT INTO messages 
+            (sender_id, receiver_id, message_text, iv, image_data) 
+            VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [sender_id, receiver_id, message_text, 'v2', image_data]
+        );
 
-            // ✅ Fix - send clean payload to room, echo tempKey back to sender
-            const roomName = getDMRoomName(sender_id, receiver_id);
+        const savedMessage = newMessage.rows[0];
 
-            // receiveMessage goes to the whole room (including recipient) — keep message_text clean
-            io.to(roomName).emit("receiveMessage", savedMessage);
+        const roomName = getDMRoomName(sender_id, receiver_id);
 
-            // messageSent only goes back to the sender — echo tempKey so they can look up plaintext
-            socket.emit("messageSent", {
-                ...savedMessage,
-                tempKey: data.tempKey, // ✅ echo back so frontend can retrieve plaintext from ref
-            });
-        } catch (err) {
-            console.error("Error saving message:", err);
-        }
+        io.to(roomName).emit("receiveMessage", savedMessage);
+
+        socket.emit("messageSent", {
+            ...savedMessage,
+            tempKey: data.tempKey,
+        });
     });
 
     socket.on("getMessageHistory", async ({ userId, friendId }) => {

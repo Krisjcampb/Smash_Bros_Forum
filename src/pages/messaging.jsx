@@ -7,6 +7,9 @@ import { API } from '../components/Utilities/apiUrl';
 
 const Messaging = () => {
     const messageContainerRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const messageRefs = useRef({});
+    
     const [selectedUser, setSelectedUser] = useState(null)
     const [messageInput, setMessageInput] = useState('')
     const [selectedMessageId, setSelectedMessageId] = useState(null);
@@ -14,15 +17,18 @@ const Messaging = () => {
     const [user, setUser] = useState('')
     const [userid, setUserId] = useState(null)
     const [listfriends, setListFriends] = useState([])
+    const [decryptedImages, setDecryptedImages] = useState({});
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    
     const token = localStorage.getItem('token')
     const location = useLocation();
-    const messageRefs = useRef({});
     const usernotif = useMemo(() => location.state?.entityID || null, [location.state]);
 
-    // Stores plaintext by tempKey while waiting for the servers messageSent confirmation
+    // Stores plaintext by tempKey
     const pendingPlaintexts = useRef({});
 
-    // Derive the senders public key locally rather than fetching it from the server
+    // Derive the senders public key locally
     const getSenderPublicKey = () => {
         const privateKeyPem = sessionStorage.getItem('privateKey');
         if (!privateKeyPem) throw new Error('Private key not found in localStorage');
@@ -78,7 +84,6 @@ const Messaging = () => {
 
             const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
 
-            // Pick whichever copy of the AES key was encrypted for us
             const encryptedAESKeyB64 = senderId === userid ? senderKeyB64 : recipientKeyB64;
             const encryptedAESKey = forge.util.decode64(encryptedAESKeyB64);
 
@@ -105,6 +110,203 @@ const Messaging = () => {
         }
     }, [userid]);
 
+    // IMAGE ENCRYPTION FUNCTIONS
+
+    const encryptImage = async (imageFile, recipientId) => {
+        try {
+            const arrayBuffer = await imageFile.arrayBuffer();
+            const uint8 = new Uint8Array(arrayBuffer);
+
+            let binary = '';
+            const chunkSize = 0x8000; // 32KB chunks
+
+            for (let i = 0; i < uint8.length; i += chunkSize) {
+                const chunk = uint8.subarray(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+
+
+            const aesKey = forge.random.getBytesSync(32);
+            const iv = forge.random.getBytesSync(12);
+            
+            const cipher = forge.cipher.createCipher('AES-GCM', aesKey);
+            cipher.start({ iv });
+            cipher.update(forge.util.createBuffer(binary));
+            cipher.finish();
+            
+            const encryptedData = cipher.output.getBytes();
+            const tag = cipher.mode.tag.getBytes();
+            
+            const recipientPublicKey = await fetchRecipientPublicKey(recipientId);
+            const senderPublicKey = getSenderPublicKey();
+            
+            const encryptedForSender = senderPublicKey.encrypt(aesKey, 'RSA-OAEP');
+            const encryptedForRecipient = recipientPublicKey.encrypt(aesKey, 'RSA-OAEP');
+            
+            return {
+                encryptedData: forge.util.encode64(encryptedData + tag),
+                encryptedKeySender: forge.util.encode64(encryptedForSender),
+                encryptedKeyRecipient: forge.util.encode64(encryptedForRecipient),
+                iv: forge.util.encode64(iv),
+                mimeType: imageFile.type,
+                filename: imageFile.name
+            };
+        } catch (err) {
+            console.error('Image encryption failed:', err);
+            throw new Error('Failed to encrypt image');
+        }
+    };
+
+    const uploadEncryptedImage = async (encryptedImageData) => {
+        try {
+            const encryptedBytes = forge.util.decode64(encryptedImageData.encryptedData);
+            const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
+            
+            const formData = new FormData();
+            formData.append('image', blob, 'encrypted.bin');
+            formData.append('sender_id', userid);
+            formData.append('receiver_id', selectedUser.id);
+            formData.append('encrypted_key_sender', encryptedImageData.encryptedKeySender);
+            formData.append('encrypted_key_recipient', encryptedImageData.encryptedKeyRecipient);
+            formData.append('iv', encryptedImageData.iv);
+            formData.append('mime_type', encryptedImageData.mimeType);
+            formData.append('filename', encryptedImageData.filename);
+            
+            const response = await fetch(`${API}/uploadEncryptedImage`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            
+            if (!response.ok) throw new Error('Upload failed');
+            
+            return await response.json();
+        } catch (err) {
+            console.error('Upload error:', err);
+            throw err;
+        }
+    };
+
+    const decryptImage = async (imageData, senderId) => {
+        try {
+            const privateKeyPem = sessionStorage.getItem('privateKey');
+            if (!privateKeyPem) throw new Error('Private key not found');
+
+            const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+
+            // Select correct encrypted AES key
+            const encryptedAESKey = senderId === userid
+                ? imageData.encrypted_key_sender
+                : imageData.encrypted_key_recipient;
+
+            const aesKey = privateKey.decrypt(
+                forge.util.decode64(encryptedAESKey),
+                'RSA-OAEP'
+            );
+
+            // Fetch encrypted image
+            const response = await fetch(imageData.filepath);
+            if (!response.ok) {
+                throw new Error('Failed to fetch encrypted image');
+            }
+
+            const encryptedBlob = await response.blob();
+            const arrayBuffer = await encryptedBlob.arrayBuffer();
+
+            const encryptedUint8 = new Uint8Array(arrayBuffer);
+
+            let binary = '';
+            const chunkSize = 0x8000;
+
+            for (let i = 0; i < encryptedUint8.length; i += chunkSize) {
+                const chunk = encryptedUint8.subarray(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+
+            const encryptedBytes = forge.util.createBuffer(binary);
+            const iv = forge.util.decode64(imageData.iv);
+
+            // Split ciphertext + tag
+            const bytes = encryptedBytes.getBytes();
+            const ciphertext = bytes.slice(0, -16);
+            const tag = bytes.slice(-16);
+
+            // Decrypt
+            const decipher = forge.cipher.createDecipher('AES-GCM', aesKey);
+            decipher.start({ iv, tag: forge.util.createBuffer(tag) });
+            decipher.update(forge.util.createBuffer(ciphertext));
+
+            if (!decipher.finish()) {
+                throw new Error('Decryption failed');
+            }
+
+            // Convert decrypted binary string → Uint8Array
+            const decryptedBytes = decipher.output.getBytes();
+
+            const decryptedUint8 = new Uint8Array(decryptedBytes.length);
+            for (let i = 0; i < decryptedBytes.length; i++) {
+                decryptedUint8[i] = decryptedBytes.charCodeAt(i);
+            }
+
+            // Create image blob
+            const blob = new Blob([decryptedUint8], { type: imageData.mime_type });
+
+            return URL.createObjectURL(blob);
+
+        } catch (err) {
+            console.error('Image decryption failed:', err);
+            return null;
+        }
+    };
+
+    // IMAGE HANDLERS
+
+    const handleImageSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image must be under 5 MB');
+            return;
+        }
+        
+        setSelectedImage(file);
+        e.target.value = '';
+    };
+
+    // Decrypt images when messages load
+    useEffect(() => {
+        const decryptAllImages = async () => {
+            const chat = messages.find(c => c.friendId === selectedUser?.id);
+            if (!chat) return;
+            
+            await Promise.all(chat.messages.map(async (msg) => {
+                if (msg.image_data && !decryptedImages[msg.message_id]) {
+                    try {
+                        const decryptedUrl = await decryptImage(msg.image_data, msg.sender_id);
+                        if (decryptedUrl) {
+                            setDecryptedImages(prev => ({
+                                ...prev,
+                                [msg.message_id]: decryptedUrl
+                            }));
+                        }
+                    } catch (err) {
+                        console.error('Failed to decrypt image:', err);
+                    }
+                }
+            }));
+        };
+        
+        decryptAllImages();
+    }, [messages, selectedUser]);
+
     // AUTH + DATA FETCHING
 
     const authenticateUser = useCallback(async () => {
@@ -118,7 +320,6 @@ const Messaging = () => {
                 },
             });
             const data = await response.json();
-            // id comes back as a string from the JWT parse it so === comparisons dont silently fail
             setUserId(Number(data.id));
             setUser(data.name);
         } catch (error) {
@@ -168,7 +369,6 @@ const Messaging = () => {
         fetchMessageHistory(user.id);
     };
 
-
     // SOCKET EVENTS
 
     useEffect(() => {
@@ -180,12 +380,10 @@ const Messaging = () => {
         if (selectedUser && userid) {
             const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
             socket.emit("joinRoom", { userId: sorted[0], friendId: sorted[1] });
-            // Small delay to make sure the room join completes before requesting history
             setTimeout(() => fetchMessageHistory(selectedUser.id), 100);
         }
     }, [selectedUser, userid, fetchMessageHistory]);
 
-    // Message history from server — decrypt everything up front so the render stays simple
     useEffect(() => {
         const handleMessageHistory = (data) => {
             if (!data?.messages?.length) return;
@@ -203,7 +401,6 @@ const Messaging = () => {
                 const existingIndex = prevMessages.findIndex(c => c.friendId === friendId);
 
                 if (existingIndex !== -1) {
-                    // Only append messages we havent seen yet avoids duplicates on re-focus
                     const existing = prevMessages[existingIndex].messages;
                     const newMsgs = decryptedMessages.filter(
                         m => !existing.some(e => e.message_id === m.message_id)
@@ -223,10 +420,8 @@ const Messaging = () => {
         return () => socket.off('messageHistory', handleMessageHistory);
     }, [decrypt]);
 
-    // Real time incoming message from the other person
     useEffect(() => {
         const handleReceive = async (message) => {
-            // The server broadcasts to the whole room so filter out our own echoes here
             if (message.sender_id === userid) return;
 
             const decryptedMessage = {
@@ -236,6 +431,7 @@ const Messaging = () => {
                 message_text: await Promise.resolve(
                     decrypt(message.message_text, message.sender_id)
                 ),
+                image_data: message.image_data || null,
                 is_deleted: false,
             };
 
@@ -284,7 +480,6 @@ const Messaging = () => {
         };
     }, [decrypt, userid]);
 
-    // Server confirmation that our sent message was saved
     useEffect(() => {
         const handleMessageSent = (message) => {
             const plaintext = message.tempKey
@@ -296,6 +491,7 @@ const Messaging = () => {
             const decryptedMessage = {
                 ...message,
                 message_text: plaintext ?? '[Message sent — reload to view]',
+                image_data: message.image_data || null,
                 is_deleted: false,
             };
 
@@ -315,7 +511,6 @@ const Messaging = () => {
                     );
                 }
 
-                // First message in a new conversation — create the chat entry
                 const friendId = message.receiver_id === userid ? message.sender_id : message.receiver_id;
                 return [...prevMessages, { friendId, messages: [decryptedMessage] }];
             });
@@ -328,7 +523,8 @@ const Messaging = () => {
     // SEND + DELETE
 
     const handleSendMessage = async () => {
-        if (!selectedUser || !messageInput.trim()) return;
+        if (!selectedUser) return;
+        if (!messageInput.trim() && !selectedImage) return;
 
         const isBlocked = await checkBlockBeforeSend(selectedUser.id);
         if (isBlocked) {
@@ -336,31 +532,45 @@ const Messaging = () => {
             return;
         }
         
-        const plaintextMessage = messageInput;
-        setMessageInput('');
-
+        setIsUploadingImage(true);
+        
         try {
-            const encryptedMessage = await encrypt(plaintextMessage, selectedUser.id);
-
+            let imageData = null;
+            
+            // If there's an image, encrypt and upload it first
+            if (selectedImage) {
+                const encrypted = await encryptImage(selectedImage, selectedUser.id);
+                imageData = await uploadEncryptedImage(encrypted);
+            }
+            
+            const plaintextMessage = messageInput || (selectedImage ? '[Image]' : '');
+            const encryptedMessage = messageInput 
+                ? await encrypt(plaintextMessage, selectedUser.id)
+                : await encrypt('[Image]', selectedUser.id);
+            
+            setMessageInput('');
+            setSelectedImage(null);
+            
             const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
             const room = `dm-${sorted[0]}-${sorted[1]}`;
-
-            // Store the plaintext locally so we can display it immediately when the
-            // server echoes back the messageSent event without needing to redecrypt
             const tempKey = `${selectedUser.id}-${Date.now()}`;
+            
             pendingPlaintexts.current[tempKey] = plaintextMessage;
-
+            
             socket.emit("sendMessage", {
                 room,
                 sender_id: userid,
                 receiver_id: selectedUser.id,
                 message_text: encryptedMessage,
+                image_data: imageData || null,
                 username: user,
                 tempKey,
             });
         } catch (err) {
-            console.error('Failed to encrypt and send message:', err);
-            alert('Could not send message. Make sure your private key is loaded in Settings.');
+            console.error('Failed to send message:', err);
+            alert('Failed to send message. Please try again.');
+        } finally {
+            setIsUploadingImage(false);
         }
     };
 
@@ -392,14 +602,12 @@ const Messaging = () => {
         fetchData();
     }, [authenticateUser, fetchFriendsList]);
 
-    // If the user arrived from a notification link select that friend
     useEffect(() => {
         if (!usernotif || listfriends.length === 0) return;
         const selectedUserFromNotif = listfriends.find(u => u.id === usernotif);
         if (selectedUserFromNotif) setSelectedUser(selectedUserFromNotif);
     }, [usernotif, listfriends]);
 
-    // Keep the chat scrolled to the bottom as new messages come in
     useEffect(() => {
         if (messageContainerRef.current) {
             messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
@@ -449,12 +657,45 @@ const Messaging = () => {
                                                 className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
                                                 onClick={() => setSelectedMessageId(msg.message_id)}
                                             >
-                                                <p className='mb-0'>
-                                                    {msg.is_deleted
-                                                        ? <i>Deleted Message</i>
-                                                        : msg.message_text}
-                                                </p>
-                                                {/* Only show the delete button on your own messages when selected */}
+                                                {msg.message_text && (
+                                                    <p className='mb-0'>
+                                                        {msg.is_deleted
+                                                            ? <i>Deleted Message</i>
+                                                            : msg.message_text}
+                                                    </p>
+                                                )}
+                                                
+                                                {msg.image_data && decryptedImages[msg.message_id] && (
+                                                    <img 
+                                                        src={decryptedImages[msg.message_id]} 
+                                                        alt="Encrypted attachment"
+                                                        style={{ 
+                                                            maxWidth: '100%',
+                                                            maxHeight: '300px',
+                                                            borderRadius: '8px',
+                                                            marginTop: msg.message_text ? '0.5rem' : '0',
+                                                            cursor: 'pointer',
+                                                            display: 'block'
+                                                        }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(decryptedImages[msg.message_id], '_blank');
+                                                        }}
+                                                    />
+                                                )}
+                                                
+                                                {msg.image_data && !decryptedImages[msg.message_id] && (
+                                                    <div style={{
+                                                        padding: '1rem',
+                                                        background: 'rgba(0,0,0,0.1)',
+                                                        borderRadius: '8px',
+                                                        textAlign: 'center'
+                                                    }}>
+                                                        <span className="spinner-border spinner-border-sm me-2" />
+                                                        Decrypting image...
+                                                    </div>
+                                                )}
+                                                
                                                 {selectedMessageId === msg.message_id &&
                                                     msg.sender_id === userid &&
                                                     !msg.is_deleted && (
@@ -475,7 +716,64 @@ const Messaging = () => {
                                 </div>
                             </Card.Body>
                             <Card.Footer className='chat-footer'>
-                                <Form className='d-flex' onSubmit={(e) => {e.preventDefault(); handleSendMessage();}}>
+                                {selectedImage && (
+                                    <div style={{
+                                        marginBottom: '0.5rem',
+                                        padding: '0.5rem',
+                                        background: 'rgba(0,0,0,0.05)',
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <img 
+                                                src={URL.createObjectURL(selectedImage)} 
+                                                alt="Preview"
+                                                style={{ 
+                                                    height: '40px', 
+                                                    width: '40px', 
+                                                    objectFit: 'cover',
+                                                    borderRadius: '4px'
+                                                }}
+                                            />
+                                            <span style={{ fontSize: '0.85rem' }}>
+                                                {selectedImage.name} ({(selectedImage.size / 1024).toFixed(1)} KB)
+                                            </span>
+                                        </div>
+                                        <Button 
+                                            variant="link" 
+                                            size="sm"
+                                            onClick={() => setSelectedImage(null)}
+                                            style={{ color: '#d00000' }}
+                                        >
+                                            ✕
+                                        </Button>
+                                    </div>
+                                )}
+                                
+                                <Form className='d-flex' onSubmit={(e) => {
+                                    e.preventDefault(); 
+                                    handleSendMessage();
+                                }}>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageSelect}
+                                        style={{ display: 'none' }}
+                                        ref={fileInputRef}
+                                    />
+                                    
+                                    <Button 
+                                        variant="outline-secondary" 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="me-2"
+                                        disabled={isUploadingImage}
+                                        title="Attach image"
+                                    >
+                                        📎
+                                    </Button>
+                                    
                                     <Form.Control
                                         type='text'
                                         placeholder='Type your message...'
@@ -488,9 +786,20 @@ const Messaging = () => {
                                             }
                                         }}
                                         className='me-2'
+                                        disabled={isUploadingImage}
                                     />
-                                    <Button variant='primary' onClick={handleSendMessage}>
-                                        Send
+                                    
+                                    <Button 
+                                        variant='primary' 
+                                        onClick={handleSendMessage}
+                                        disabled={isUploadingImage || (!messageInput.trim() && !selectedImage)}
+                                    >
+                                        {isUploadingImage ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-2" />
+                                                Sending...
+                                            </>
+                                        ) : 'Send'}
                                     </Button>
                                 </Form>
                             </Card.Footer>
