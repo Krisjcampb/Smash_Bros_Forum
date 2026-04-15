@@ -2173,31 +2173,20 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
 const getMessagesFromDB = async (userId, friendId) => {
     try {
         const result = await pool.query(
-            `
-            SELECT m.message_id, m.sender_id, m.receiver_id, m.message_text, m.iv, m.timestamp, m.is_deleted,
-                i.filepath, i.encrypted_key_sender, i.encrypted_key_recipient, i.iv AS image_iv, i.mime_type, i.original_filename
-
-            FROM messages m
-            LEFT JOIN encrypted_message_images i
+            `SELECT 
+                m.*, i.filepath, i.encrypted_key_sender, i.encrypted_key_recipient, i.iv as image_iv, i.mime_type
+             FROM messages m
+             LEFT JOIN encrypted_message_images i
                 ON m.message_id = i.message_id
-
-            WHERE (m.sender_id = $1 AND m.receiver_id = $2)
-               OR (m.sender_id = $2 AND m.receiver_id = $1)
-
-            ORDER BY m.timestamp ASC
-            `,
+             WHERE (m.sender_id = $1 AND m.receiver_id = $2)
+                OR (m.sender_id = $2 AND m.receiver_id = $1)
+             ORDER BY m.timestamp ASC`,
             [userId, friendId]
         );
 
-        return result.rows.map(msg => ({
-            ...msg,
-            message_text: msg.iv === 'v2'
-                ? msg.message_text
-                : `${msg.iv}:${msg.message_text}`
-        }));
-
-    } catch (error) {
-        console.error("Error retrieving messages from database:", error);
+        return result.rows;
+    } catch (err) {
+        console.error(err);
         return [];
     }
 };
@@ -2321,25 +2310,14 @@ io.on("connection", (socket) => {
     });
 
     socket.on("sendMessage", async (data) => {
-        const { sender_id, receiver_id, message_text, username } = data;
+        const roomName = getDMRoomName(data.sender_id, data.receiver_id);
 
-        const newMessage = await pool.query(
-            `INSERT INTO messages 
-            (sender_id, receiver_id, message_text, iv) 
-            VALUES ($1, $2, $3, $4) RETURNING *`,
-            [sender_id, receiver_id, message_text, 'v2']
-        );
-
-        const savedMessage = newMessage.rows[0];
-
-        const roomName = getDMRoomName(sender_id, receiver_id);
-
-        io.to(roomName).emit("receiveMessage", savedMessage);
-
-        socket.emit("messageSent", {
-            ...savedMessage,
-            tempKey: data.tempKey,
+        io.to(roomName).emit("receiveMessage", {
+            ...data,
+            message_id: data.message_id || Date.now() // fallback only
         });
+
+        socket.emit("messageSent", data);
     });
 
     socket.on("getMessageHistory", async ({ userId, friendId }) => {

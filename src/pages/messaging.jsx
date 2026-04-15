@@ -275,6 +275,8 @@ const Messaging = () => {
     const processedIds = useRef(new Set());
 
     useEffect(() => {
+        if (!selectedUser) return; // ✅ ADD THIS GUARD
+
         const decryptAllImages = async () => {
             const chat = messages.find(c => c.friendId === selectedUser?.id);
             if (!chat) return;
@@ -396,7 +398,9 @@ const Messaging = () => {
 
             const decryptedMessages = messages.map((msg) => ({
                 ...msg,
-                message_text: msg.is_deleted
+                encrypted_text: msg.message_text,
+
+                decrypted_text: msg.is_deleted
                     ? null
                     : decrypt(msg.message_text, msg.sender_id)
             }));
@@ -432,7 +436,9 @@ const Messaging = () => {
                 message_id: message.message_id,
                 sender_id: message.sender_id,
                 receiver_id: message.receiver_id,
-                message_text: decrypt(message.message_text, message.sender_id),
+
+                encrypted_text: message.message_text,
+                decrypted_text: decrypt(message.message_text, message.sender_id),
 
                 filepath: message.filepath || null,
                 encrypted_key_sender: message.encrypted_key_sender || null,
@@ -498,7 +504,8 @@ const Messaging = () => {
 
             const decryptedMessage = {
                 ...message,
-                message_text: plaintext ?? '[Message sent — reload to view]',
+                encrypted_text: message.message_text,
+                decrypted_text: plaintext ?? '[Message sent — reload to view]', 
                 is_deleted: false,
             };
 
@@ -600,15 +607,17 @@ const Messaging = () => {
             pendingPlaintexts.current[tempKey] = plaintextMessage;
 
             socket.emit("sendMessage", {
-                sender_id,
-                receiver_id,
-                message_text,
-                filepath: uploadedImage.filepath,
-                encrypted_key_sender: uploadedImage.encrypted_key_sender,
-                encrypted_key_recipient: uploadedImage.encrypted_key_recipient,
-                image_iv: uploadedImage.iv,
-                mime_type: uploadedImage.mime_type,
-                username,
+                sender_id: userid,
+                receiver_id: selectedUser.id,
+                message_text: encryptedMessage,
+
+                filepath: uploadedImage?.filepath || null,
+                encrypted_key_sender: uploadedImage?.encrypted_key_sender || null,
+                encrypted_key_recipient: uploadedImage?.encrypted_key_recipient || null,
+                image_iv: uploadedImage?.iv || null,
+                mime_type: uploadedImage?.mime_type || null,
+
+                username: user,
                 tempKey
             });
 
@@ -638,6 +647,13 @@ const Messaging = () => {
     };
 
     // MISC EFFECTS
+
+    useEffect(() => {
+        if (!selectedUser) return;
+
+        processedIds.current.clear();
+        setDecryptedImages({});
+    }, [selectedUser]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -685,7 +701,7 @@ const Messaging = () => {
                             <ListGroup.Item
                                 key={u.id}
                                 action
-                                active={u === selectedUser}
+                                active={selectedUser?.id === u.id}
                                 className='friend-item'
                                 onClick={() => handleUserSelection(u)}
                             >
@@ -716,13 +732,9 @@ const Messaging = () => {
                                                 className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
                                                 onClick={() => setSelectedMessageId(msg.message_id)}
                                             >
-                                                {msg.message_text && (
-                                                    <p className='mb-0'>
-                                                        {msg.is_deleted
-                                                            ? <i>Deleted Message</i>
-                                                            : msg.message_text}
-                                                    </p>
-                                                )}
+                                                {msg.is_deleted
+                                                ? <i>Deleted Message</i>
+                                                : msg.decrypted_text}
                                                 
                                                 {msg.filepath && decryptedImages[msg.message_id] && (
                                                     <img 
