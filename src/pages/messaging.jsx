@@ -280,27 +280,34 @@ const Messaging = () => {
             if (!chat) return;
 
             await Promise.all(chat.messages.map(async (msg) => {
-                if (msg.image_data && !processedIds.current.has(msg.message_id)) {
-                    
-                    // 3. Mark as processed immediately to prevent duplicate calls
+                if (msg.filepath && !processedIds.current.has(msg.message_id)) {
+
                     processedIds.current.add(msg.message_id);
 
                     try {
-                        const decryptedUrl = await decryptImage(msg.image_data, msg.sender_id);
+                        const decryptedUrl = await decryptImage({
+                            filepath: msg.filepath,
+                            encrypted_key_sender: msg.encrypted_key_sender,
+                            encrypted_key_recipient: msg.encrypted_key_recipient,
+                            iv: msg.image_iv,
+                            mime_type: msg.mime_type
+                        }, msg.sender_id);
+
                         if (decryptedUrl) {
                             setDecryptedImages(prev => ({
                                 ...prev,
                                 [msg.message_id]: decryptedUrl
                             }));
                         }
+
                     } catch (err) {
-                        // 4. If it fails, remove from set so it can try again later
                         processedIds.current.delete(msg.message_id);
                         console.error('Failed to decrypt image:', err);
                     }
                 }
             }));
         };
+
         decryptAllImages();
     }, [messages, selectedUser, decryptImage]);
 
@@ -425,10 +432,14 @@ const Messaging = () => {
                 message_id: message.message_id,
                 sender_id: message.sender_id,
                 receiver_id: message.receiver_id,
-                message_text: await Promise.resolve(
-                    decrypt(message.message_text, message.sender_id)
-                ),
-                image_data: message.image_data || null,
+                message_text: decrypt(message.message_text, message.sender_id),
+
+                filepath: message.filepath || null,
+                encrypted_key_sender: message.encrypted_key_sender || null,
+                encrypted_key_recipient: message.encrypted_key_recipient || null,
+                image_iv: message.image_iv || null,
+                mime_type: message.mime_type || null,
+
                 is_deleted: false,
             };
 
@@ -488,7 +499,6 @@ const Messaging = () => {
             const decryptedMessage = {
                 ...message,
                 message_text: plaintext ?? '[Message sent — reload to view]',
-                image_data: message.image_data || null,
                 is_deleted: false,
             };
 
@@ -528,44 +538,96 @@ const Messaging = () => {
             alert('You cannot message this user');
             return;
         }
-        
+
         setIsUploadingImage(true);
-        
+
         try {
-            let imageData = null;
-            
-            // If there's an image, encrypt and upload it first
+            const plaintextMessage = messageInput || (selectedImage ? '[Image]' : '');
+
+            const encryptedMessage = await encrypt(plaintextMessage, selectedUser.id);
+
+            // STEP 1: Create message
+            const messageRes = await fetch(`${API}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    sender_id: userid,
+                    receiver_id: selectedUser.id,
+                    message_text: encryptedMessage,
+                    iv: 'v2'
+                })
+            });
+
+            if (!messageRes.ok) throw new Error('Failed to create message');
+
+            const { message_id } = await messageRes.json();
+
+            let uploadedImage = null;
+
+            // STEP 2: Upload image
             if (selectedImage) {
                 const encrypted = await encryptImage(selectedImage, selectedUser.id);
-                imageData = await uploadEncryptedImage(encrypted);
+
+                const encryptedBytes = forge.util.decode64(encrypted.encryptedData);
+                const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
+
+                const formData = new FormData();
+                formData.append('image', blob, 'encrypted.bin');
+                formData.append('message_id', message_id);
+                formData.append('sender_id', userid);
+                formData.append('receiver_id', selectedUser.id);
+                formData.append('encrypted_key_sender', encrypted.encryptedKeySender);
+                formData.append('encrypted_key_recipient', encrypted.encryptedKeyRecipient);
+                formData.append('iv', encrypted.iv);
+                formData.append('mime_type', encrypted.mimeType);
+                formData.append('filename', encrypted.filename);
+
+                const uploadRes = await fetch(`${API}/uploadEncryptedImage`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData
+                });
+
+                if (!uploadRes.ok) throw new Error('Image upload failed');
+
+                uploadedImage = await uploadRes.json();
             }
-            
-            const plaintextMessage = messageInput || (selectedImage ? '[Image]' : '');
-            const encryptedMessage = messageInput 
-                ? await encrypt(plaintextMessage, selectedUser.id)
-                : await encrypt('[Image]', selectedUser.id);
-            
+
+            const tempKey = `${selectedUser.id}-${Date.now()}`;
+            pendingPlaintexts.current[tempKey] = plaintextMessage;
+
+            socket.emit("sendMessage", {
+                sender_id,
+                receiver_id,
+                message_text,
+                filepath: uploadedImage.filepath,
+                encrypted_key_sender: uploadedImage.encrypted_key_sender,
+                encrypted_key_recipient: uploadedImage.encrypted_key_recipient,
+                image_iv: uploadedImage.iv,
+                mime_type: uploadedImage.mime_type,
+                username,
+                tempKey
+            });
+
+            // Instantly show image
+            if (uploadedImage) {
+                const decryptedUrl = await decryptImage(uploadedImage, userid);
+
+                setDecryptedImages(prev => ({
+                    ...prev,
+                    [message_id]: decryptedUrl
+                }));
+            }
+
             setMessageInput('');
             setSelectedImage(null);
-            
-            const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
-            const room = `dm-${sorted[0]}-${sorted[1]}`;
-            const tempKey = `${selectedUser.id}-${Date.now()}`;
-            
-            pendingPlaintexts.current[tempKey] = plaintextMessage;
-            
-            socket.emit("sendMessage", {
-                room,
-                sender_id: userid,
-                receiver_id: selectedUser.id,
-                message_text: encryptedMessage,
-                image_data: imageData || null,
-                username: user,
-                tempKey,
-            });
+
         } catch (err) {
             console.error('Failed to send message:', err);
-            alert('Failed to send message. Please try again.');
+            alert('Failed to send message');
         } finally {
             setIsUploadingImage(false);
         }
@@ -662,7 +724,7 @@ const Messaging = () => {
                                                     </p>
                                                 )}
                                                 
-                                                {msg.image_data && decryptedImages[msg.message_id] && (
+                                                {msg.filepath && decryptedImages[msg.message_id] && (
                                                     <img 
                                                         src={decryptedImages[msg.message_id]} 
                                                         alt="Encrypted attachment"
@@ -681,7 +743,7 @@ const Messaging = () => {
                                                     />
                                                 )}
                                                 
-                                                {msg.image_data && !decryptedImages[msg.message_id] && (
+                                                {msg.filepath && !decryptedImages[msg.message_id] && (
                                                     <div style={{
                                                         padding: '1rem',
                                                         background: 'rgba(0,0,0,0.1)',

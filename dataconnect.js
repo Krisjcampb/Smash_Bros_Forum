@@ -2173,11 +2173,19 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
 const getMessagesFromDB = async (userId, friendId) => {
     try {
         const result = await pool.query(
-            `SELECT message_id, sender_id, receiver_id, message_text, iv, image_data, timestamp, is_deleted 
-             FROM messages 
-             WHERE (sender_id = $1 AND receiver_id = $2) 
-                OR (sender_id = $2 AND receiver_id = $1) 
-             ORDER BY timestamp ASC`,
+            `
+            SELECT m.message_id, m.sender_id, m.receiver_id, m.message_text, m.iv, m.timestamp, m.is_deleted,
+                i.filepath, i.encrypted_key_sender, i.encrypted_key_recipient, i.iv AS image_iv, i.mime_type, i.original_filename
+
+            FROM messages m
+            LEFT JOIN encrypted_message_images i
+                ON m.message_id = i.message_id
+
+            WHERE (m.sender_id = $1 AND m.receiver_id = $2)
+               OR (m.sender_id = $2 AND m.receiver_id = $1)
+
+            ORDER BY m.timestamp ASC
+            `,
             [userId, friendId]
         );
 
@@ -2187,37 +2195,114 @@ const getMessagesFromDB = async (userId, friendId) => {
                 ? msg.message_text
                 : `${msg.iv}:${msg.message_text}`
         }));
+
     } catch (error) {
         console.error("Error retrieving messages from database:", error);
         return [];
     }
 };
 
-app.post('/uploadEncryptedImage', upload.single('image'), async (req, res) => {
-    try {
-        const { sender_id, receiver_id, encrypted_key_sender, encrypted_key_recipient, iv, mime_type, filename } = req.body;
-        const file = req.file;
+app.post('/uploadEncryptedImage', (req, res) => {
+    upload.single('image')(req, res, async (err) => {
 
-        if (!file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+        // ✅ Handle multer errors
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'Image must be under 10MB' });
+        }
+        if (err) {
+            return res.status(400).json({ error: err.message });
         }
 
-        // 1. Move/Save the file to your storage (S3, Railway, or local folder)
-        const filepath = `/uploads/${file.filename}`; 
+        try {
+            const {
+                message_id, // ✅ REQUIRED
+                sender_id,
+                receiver_id,
+                encrypted_key_sender,
+                encrypted_key_recipient,
+                iv,
+                mime_type,
+                filename
+            } = req.body;
 
-        // 2. Return the data the frontend expects
-        res.json({
-            filepath: filepath,
-            encrypted_key_sender,
-            encrypted_key_recipient,
-            iv,
-            mime_type,
-            filename
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+            const file = req.file;
+
+            // ✅ Validate required fields
+            if (!file) {
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+
+            if (!message_id) {
+                return res.status(400).json({ error: 'message_id is required' });
+            }
+
+            if (!sender_id || !receiver_id) {
+                return res.status(400).json({ error: 'Missing sender or receiver' });
+            }
+
+            if (!encrypted_key_sender || !encrypted_key_recipient || !iv) {
+                return res.status(400).json({ error: 'Missing encryption data' });
+            }
+
+            // ✅ Generate safe extension
+            const ext = file.mimetype.split('/')[1] || 'bin';
+
+            // ✅ Unique filename (B2-safe)
+            const uniqueName = `messages/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+            // ✅ Upload to Backblaze B2
+            const uploader = new Upload({
+                client: b2Client,
+                params: {
+                    Bucket: process.env.B2_BUCKET_NAME,
+                    Key: uniqueName,
+                    Body: Readable.from(file.buffer),
+                    ContentType: file.mimetype,
+                },
+            });
+
+            await uploader.done();
+
+            const filepath = `${process.env.CDN_URL}/${uniqueName}`;
+
+            // ✅ Insert into database (CORRECT STRUCTURE)
+            const result = await pool.query(
+                `INSERT INTO encrypted_message_images 
+                (message_id, sender_id, receiver_id, filepath, encrypted_key_sender, encrypted_key_recipient, iv, mime_type, original_filename)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                RETURNING *`,
+                [
+                    message_id,
+                    sender_id,
+                    receiver_id,
+                    filepath,
+                    encrypted_key_sender,
+                    encrypted_key_recipient,
+                    iv,
+                    mime_type,
+                    filename
+                ]
+            );
+
+            const savedImage = result.rows[0];
+
+            // ✅ Return clean response for frontend
+            res.status(200).json({
+                image_id: savedImage.id,
+                message_id: savedImage.message_id,
+                filepath: savedImage.filepath,
+                encrypted_key_sender: savedImage.encrypted_key_sender,
+                encrypted_key_recipient: savedImage.encrypted_key_recipient,
+                iv: savedImage.iv,
+                mime_type: savedImage.mime_type,
+                original_filename: savedImage.original_filename
+            });
+
+        } catch (error) {
+            console.error('Error uploading encrypted image:', error);
+            res.status(500).json({ error: 'Failed to upload image' });
+        }
+    });
 });
 
 //Websocket connection started
@@ -2236,13 +2321,13 @@ io.on("connection", (socket) => {
     });
 
     socket.on("sendMessage", async (data) => {
-        const { sender_id, receiver_id, message_text, username, image_data } = data;
+        const { sender_id, receiver_id, message_text, username } = data;
 
         const newMessage = await pool.query(
             `INSERT INTO messages 
-            (sender_id, receiver_id, message_text, iv, image_data) 
-            VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [sender_id, receiver_id, message_text, 'v2', image_data]
+            (sender_id, receiver_id, message_text, iv) 
+            VALUES ($1, $2, $3, $4) RETURNING *`,
+            [sender_id, receiver_id, message_text, 'v2']
         );
 
         const savedMessage = newMessage.rows[0];
