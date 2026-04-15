@@ -592,15 +592,7 @@ const Messaging = () => {
                 formData.append('mime_type', encrypted.mimeType);
                 formData.append('filename', encrypted.filename);
 
-                const uploadRes = await fetch(`${API}/uploadEncryptedImage`, {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${token}` },
-                    body: formData
-                });
-
-                if (!uploadRes.ok) throw new Error('Image upload failed');
-
-                uploadedImage = await uploadRes.json();
+                uploadedImage = await uploadEncryptedImage(encrypted, message_id);
             }
 
             const tempKey = `${selectedUser.id}-${Date.now()}`;
