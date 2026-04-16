@@ -557,8 +557,12 @@ const Messaging = () => {
 
                 const formData = new FormData();
 
-                const encryptedBytes = forge.util.decode64(encrypted.encryptedData);
-                const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
+                const binaryString = forge.util.decode64(encrypted.encryptedData);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: 'application/octet-stream' });
 
                 formData.append('image', blob, 'encrypted.bin');
                 formData.append('message_id', message_id);

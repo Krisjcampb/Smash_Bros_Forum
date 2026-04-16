@@ -2241,13 +2241,10 @@ app.post('/uploadEncryptedImage', (req, res) => {
                 return res.status(400).json({ error: 'Missing encryption data' });
             }
 
-            // ✅ Generate safe extension
             const ext = file.mimetype.split('/')[1] || 'bin';
 
-            // ✅ Unique filename (B2-safe)
             const uniqueName = `messages/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-            // ✅ Upload to Backblaze B2
             const uploader = new Upload({
                 client: b2Client,
                 params: {
@@ -2262,7 +2259,6 @@ app.post('/uploadEncryptedImage', (req, res) => {
 
             const filepath = `${process.env.CDN_URL}/${uniqueName}`;
 
-            // ✅ Insert into database (CORRECT STRUCTURE)
             const result = await pool.query(
                 `INSERT INTO encrypted_message_images 
                 (message_id, sender_id, receiver_id, filepath, encrypted_key_sender, encrypted_key_recipient, iv, mime_type, original_filename)
@@ -2283,7 +2279,6 @@ app.post('/uploadEncryptedImage', (req, res) => {
 
             const savedImage = result.rows[0];
 
-            // ✅ Return clean response for frontend
             res.status(200).json({
                 image_id: savedImage.id,
                 message_id: savedImage.message_id,
