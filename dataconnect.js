@@ -2202,17 +2202,18 @@ const getMessagesFromDB = async (userId, friendId) => {
 app.post('/uploadEncryptedImage', (req, res) => {
     upload.single('image')(req, res, async (err) => {
 
-        // ✅ Handle multer errors
         if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+            console.error('File too large');
             return res.status(400).json({ error: 'Image must be under 10MB' });
         }
         if (err) {
+            console.error('Multer error:', err);
             return res.status(400).json({ error: err.message });
         }
 
         try {
             const {
-                message_id, // ✅ REQUIRED
+                message_id,
                 sender_id,
                 receiver_id,
                 encrypted_key_sender,
@@ -2224,7 +2225,14 @@ app.post('/uploadEncryptedImage', (req, res) => {
 
             const file = req.file;
 
-            // ✅ Validate required fields
+            console.log('📤 Upload request:', {
+                hasFile: !!file,
+                fileSize: file?.size,
+                message_id,
+                sender_id,
+                receiver_id
+            });
+
             if (!file) {
                 return res.status(400).json({ error: 'No file uploaded' });
             }
@@ -2241,24 +2249,29 @@ app.post('/uploadEncryptedImage', (req, res) => {
                 return res.status(400).json({ error: 'Missing encryption data' });
             }
 
-            const ext = file.mimetype.split('/')[1] || 'bin';
+            const ext = 'enc'; // Always use .enc for encrypted files
+            const uniqueName = `encrypted-messages/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-            const uniqueName = `messages/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+            console.log('📤 Uploading to B2:', uniqueName);
 
+            // Upload to B2
             const uploader = new Upload({
                 client: b2Client,
                 params: {
                     Bucket: process.env.B2_BUCKET_NAME,
                     Key: uniqueName,
                     Body: Readable.from(file.buffer),
-                    ContentType: file.mimetype,
+                    ContentType: 'application/octet-stream',
                 },
             });
 
             await uploader.done();
 
+            console.log('✅ B2 upload complete');
+
             const filepath = `${process.env.CDN_URL}/${uniqueName}`;
 
+            // Insert into database
             const result = await pool.query(
                 `INSERT INTO encrypted_message_images 
                 (message_id, sender_id, receiver_id, filepath, encrypted_key_sender, encrypted_key_recipient, iv, mime_type, original_filename)
@@ -2277,6 +2290,8 @@ app.post('/uploadEncryptedImage', (req, res) => {
                 ]
             );
 
+            console.log('✅ Database insert complete');
+
             const savedImage = result.rows[0];
 
             res.status(200).json({
@@ -2291,8 +2306,9 @@ app.post('/uploadEncryptedImage', (req, res) => {
             });
 
         } catch (error) {
-            console.error('Error uploading encrypted image:', error);
-            res.status(500).json({ error: 'Failed to upload image' });
+            console.error('Upload error:', error);
+            console.error('Error stack:', error.stack);
+            res.status(500).json({ error: 'Failed to upload image: ' + error.message });
         }
     });
 });
