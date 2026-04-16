@@ -157,13 +157,19 @@ const Messaging = () => {
         }
     };
 
-    const uploadEncryptedImage = async (encryptedImageData) => {
+    const uploadEncryptedImage = async (encryptedImageData, message_id) => {
         try {
+            if (!message_id) {
+                throw new Error("message_id is required");
+            }
+
             const encryptedBytes = forge.util.decode64(encryptedImageData.encryptedData);
             const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
-            
+
             const formData = new FormData();
             formData.append('image', blob, 'encrypted.bin');
+
+            formData.append('message_id', message_id); // ✅ FIX
             formData.append('sender_id', userid);
             formData.append('receiver_id', selectedUser.id);
             formData.append('encrypted_key_sender', encryptedImageData.encryptedKeySender);
@@ -171,18 +177,23 @@ const Messaging = () => {
             formData.append('iv', encryptedImageData.iv);
             formData.append('mime_type', encryptedImageData.mimeType);
             formData.append('filename', encryptedImageData.filename);
-            
+
             const response = await fetch(`${API}/uploadEncryptedImage`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 },
                 body: formData
             });
-            
-            if (!response.ok) throw new Error('Upload failed');
-            
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error("Upload failed:", errText);
+                throw new Error('Upload failed');
+            }
+
             return await response.json();
+
         } catch (err) {
             console.error('Upload error:', err);
             throw err;
@@ -559,12 +570,21 @@ const Messaging = () => {
 
             // STEP 2: Upload image
             if (selectedImage) {
+                if (!selectedUser?.id) {
+                    throw new Error("No recipient selected");
+                }
+
                 const encrypted = await encryptImage(selectedImage, selectedUser.id);
+
+                if (!encrypted?.encryptedKeySender || !encrypted?.encryptedKeyRecipient || !encrypted?.iv) {
+                    throw new Error("Encryption failed - missing fields");
+                }
+
+                const formData = new FormData();
 
                 const encryptedBytes = forge.util.decode64(encrypted.encryptedData);
                 const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
 
-                const formData = new FormData();
                 formData.append('image', blob, 'encrypted.bin');
                 formData.append('message_id', message_id);
                 formData.append('sender_id', userid);
@@ -575,7 +595,7 @@ const Messaging = () => {
                 formData.append('mime_type', encrypted.mimeType);
                 formData.append('filename', encrypted.filename);
 
-                uploadedImage = await uploadEncryptedImage(encrypted, message_id);
+                uploadedImage = await uploadEncryptedImage(formData);
             }
 
             const tempKey = `${selectedUser.id}-${Date.now()}`;
