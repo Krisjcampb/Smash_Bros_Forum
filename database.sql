@@ -52,13 +52,16 @@ CREATE TABLE passwordreset (
 );
  
 CREATE TABLE messages (
-    message_id SERIAL PRIMARY KEY,
-    sender_id INT REFERENCES forumusers(users_id) NOT NULL,
-    receiver_id INT REFERENCES forumusers(users_id) NOT NULL,
+    message_id BIGINT PRIMARY KEY,
+
+    sender_id INTEGER NOT NULL REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    receiver_id INTEGER NOT NULL REFERENCES forumusers(users_id) ON DELETE CASCADE,
+
     message_text TEXT NOT NULL,
-    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN DEFAULT false,
-    iv TEXT NOT NULL
+    iv VARCHAR(10) DEFAULT 'v2',
+
+    timestamp TIMESTAMP DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE
 );
  
 CREATE TABLE friendships (
@@ -233,6 +236,26 @@ CREATE TABLE calendar_events (
     created_at TIMESTAMP DEFAULT NOW()
 );
  
+CREATE TABLE encrypted_message_images (
+    id SERIAL PRIMARY KEY,
+
+    message_id BIGINT NOT NULL, -- ✅ FIXED (was INTEGER before)
+    sender_id INTEGER NOT NULL,
+    receiver_id INTEGER NOT NULL,
+
+    filepath TEXT NOT NULL, -- B2 / CDN URL
+
+    encrypted_key_sender TEXT NOT NULL,
+    encrypted_key_recipient TEXT NOT NULL,
+
+    iv TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    original_filename TEXT,
+
+    created_at TIMESTAMP DEFAULT NOW(),
+
+    FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+);
 -- ─────────────────────────────────────────────────────────────────────────────
 -- INDEXES
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -266,4 +289,9 @@ CREATE INDEX IF NOT EXISTS idx_commentlikes_comment ON commentlikes(comment_id);
  
 CREATE INDEX IF NOT EXISTS idx_commentdislikes_user ON commentdislikes(user_id);
 CREATE INDEX IF NOT EXISTS idx_commentdislikes_comment ON commentdislikes(comment_id);
- 
+
+CREATE INDEX IF NOT EXISTSidx_messages_users ON messages (sender_id, receiver_id);
+
+CREATE INDEX IF NOT EXISTSidx_messages_timestamp ON messages (timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_images_message_id ON encrypted_message_images (message_id);

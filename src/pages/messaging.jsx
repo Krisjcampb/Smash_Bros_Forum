@@ -157,22 +157,47 @@ const Messaging = () => {
         }
     };
 
-    const uploadEncryptedImage = async (formData) => {
-        const response = await fetch(`${API}/uploadEncryptedImage`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-            body: formData
-        });
+    const uploadEncryptedImage = async (encryptedImageData, message_id) => {
+        try {
+            if (!message_id) {
+                throw new Error("message_id is required");
+            }
 
-        if (!response.ok) {
-            const errText = await response.text();
-            console.error("Upload failed:", errText);
-            throw new Error('Upload failed');
+            const encryptedBytes = forge.util.decode64(encryptedImageData.encryptedData);
+            const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
+
+            const formData = new FormData();
+            formData.append('image', blob, 'encrypted.bin');
+
+            formData.append('message_id', message_id);
+            formData.append('sender_id', userid);
+            formData.append('receiver_id', selectedUser.id);
+            formData.append('encrypted_key_sender', encryptedImageData.encryptedKeySender);
+            formData.append('encrypted_key_recipient', encryptedImageData.encryptedKeyRecipient);
+            formData.append('iv', encryptedImageData.iv);
+            formData.append('mime_type', encryptedImageData.mimeType);
+            formData.append('filename', encryptedImageData.filename);
+
+            const response = await fetch(`${API}/uploadEncryptedImage`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error("Upload failed:", errText);
+                throw new Error('Upload failed');
+            }
+
+            return await response.json();
+
+        } catch (err) {
+            console.error('Upload error:', err);
+            throw err;
         }
-
-        return await response.json();
     };
 
     const decryptImage = useCallback(async (imageData, senderId) => {
@@ -360,7 +385,7 @@ const Messaging = () => {
         setSelectedUser(user);
         fetchMessageHistory(user.id);
     };
-
+    
     // SOCKET EVENTS
 
     useEffect(() => {
@@ -539,53 +564,45 @@ const Messaging = () => {
 
             const encryptedMessage = await encrypt(plaintextMessage, selectedUser.id);
 
-            const message_id = Date.now();
+            //  TEMP KEY for optimistic UI
+            const tempKey = `${selectedUser.id}-${Date.now()}`;
+            pendingPlaintexts.current[tempKey] = plaintextMessage;
+
+            const res = await fetch(`${API}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    sender_id: userid,
+                    receiver_id: selectedUser.id,
+                    message_text: encryptedMessage,
+                    username: user
+                })
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to create message');
+            }
+
+            const savedMessage = await res.json();
+            const message_id = savedMessage.message_id;
 
             let uploadedImage = null;
 
-            // STEP 2: Upload image
             if (selectedImage) {
-                if (!selectedUser?.id) {
-                    throw new Error("No recipient selected");
-                }
-
                 const encrypted = await encryptImage(selectedImage, selectedUser.id);
 
                 if (!encrypted?.encryptedKeySender || !encrypted?.encryptedKeyRecipient || !encrypted?.iv) {
                     throw new Error("Encryption failed - missing fields");
                 }
 
-                const formData = new FormData();
-
-                const binaryString = forge.util.decode64(encrypted.encryptedData);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                const blob = new Blob([bytes], { type: 'application/octet-stream' });
-
-                formData.append('image', blob, 'encrypted.bin');
-                formData.append('message_id', message_id);
-                formData.append('sender_id', userid);
-                formData.append('receiver_id', selectedUser.id);
-                formData.append('encrypted_key_sender', encrypted.encryptedKeySender);
-                formData.append('encrypted_key_recipient', encrypted.encryptedKeyRecipient);
-                formData.append('iv', encrypted.iv);
-                formData.append('mime_type', encrypted.mimeType);
-                formData.append('filename', encrypted.filename);
-
-                uploadedImage = await uploadEncryptedImage(formData);
+                uploadedImage = await uploadEncryptedImage(encrypted, message_id);
             }
 
-            const tempKey = `${selectedUser.id}-${Date.now()}`;
-            pendingPlaintexts.current[tempKey] = plaintextMessage;
-
             socket.emit("sendMessage", {
-                message_id,
-                sender_id: userid,
-                receiver_id: selectedUser.id,
-                message_text: encryptedMessage,
-                username: user,
+                ...savedMessage,
 
                 filepath: uploadedImage?.filepath || null,
                 encrypted_key_sender: uploadedImage?.encrypted_key_sender || null,
@@ -596,7 +613,6 @@ const Messaging = () => {
                 tempKey
             });
 
-            // Instantly show image
             if (uploadedImage) {
                 const decryptedUrl = await decryptImage(uploadedImage, userid);
 

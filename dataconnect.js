@@ -2199,6 +2199,19 @@ const getMessagesFromDB = async (userId, friendId) => {
     }
 };
 
+app.post('/messages', async (req, res) => {
+    const { sender_id, receiver_id, message_text, username } = req.body;
+
+    const newMessage = await saveMessageToDB({
+        sender_id,
+        receiver_id,
+        message_text,
+        username
+    });
+
+    res.json(newMessage);
+});
+
 app.post('/uploadEncryptedImage', (req, res) => {
     upload.single('image')(req, res, async (err) => {
 
