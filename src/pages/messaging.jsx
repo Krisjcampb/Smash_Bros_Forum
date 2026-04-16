@@ -433,7 +433,7 @@ const Messaging = () => {
             if (message.sender_id === userid) return;
 
             const decryptedMessage = {
-                message_id: message.message_id,
+                message_id: message.message_id || Date.now(),
                 sender_id: message.sender_id,
                 receiver_id: message.receiver_id,
 
@@ -553,24 +553,7 @@ const Messaging = () => {
 
             const encryptedMessage = await encrypt(plaintextMessage, selectedUser.id);
 
-            // STEP 1: Create message
-            const messageRes = await fetch(`${API}/messages`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    sender_id: userid,
-                    receiver_id: selectedUser.id,
-                    message_text: encryptedMessage,
-                    iv: 'v2'
-                })
-            });
-
-            if (!messageRes.ok) throw new Error('Failed to create message');
-
-            const { message_id } = await messageRes.json();
+            const message_id = Date.now();
 
             let uploadedImage = null;
 
@@ -599,9 +582,11 @@ const Messaging = () => {
             pendingPlaintexts.current[tempKey] = plaintextMessage;
 
             socket.emit("sendMessage", {
+                message_id,
                 sender_id: userid,
                 receiver_id: selectedUser.id,
                 message_text: encryptedMessage,
+                username: user,
 
                 filepath: uploadedImage?.filepath || null,
                 encrypted_key_sender: uploadedImage?.encrypted_key_sender || null,
@@ -609,7 +594,6 @@ const Messaging = () => {
                 image_iv: uploadedImage?.iv || null,
                 mime_type: uploadedImage?.mime_type || null,
 
-                username: user,
                 tempKey
             });
 

@@ -2310,14 +2310,34 @@ io.on("connection", (socket) => {
     });
 
     socket.on("sendMessage", async (data) => {
-        const roomName = getDMRoomName(data.sender_id, data.receiver_id);
+        try {
+            const savedMessage = await saveMessageToDB({
+                sender_id: data.sender_id,
+                receiver_id: data.receiver_id,
+                message_text: data.message_text,
+                username: data.username
+            });
 
-        io.to(roomName).emit("receiveMessage", {
-            ...data,
-            message_id: data.message_id || Date.now() // fallback only
-        });
+            if (!savedMessage) return;
 
-        socket.emit("messageSent", data);
+            const roomName = getDMRoomName(data.sender_id, data.receiver_id);
+
+            const fullMessage = {
+                ...savedMessage,
+                filepath: data.filepath || null,
+                encrypted_key_sender: data.encrypted_key_sender || null,
+                encrypted_key_recipient: data.encrypted_key_recipient || null,
+                image_iv: data.image_iv || null,
+                mime_type: data.mime_type || null
+            };
+
+            io.to(roomName).emit("receiveMessage", fullMessage);
+
+            socket.emit("messageSent", fullMessage);
+
+        } catch (err) {
+            console.error("sendMessage error:", err);
+        }
     });
 
     socket.on("getMessageHistory", async ({ userId, friendId }) => {
