@@ -157,47 +157,22 @@ const Messaging = () => {
         }
     };
 
-    const uploadEncryptedImage = async (encryptedImageData, message_id) => {
-        try {
-            if (!message_id) {
-                throw new Error("message_id is required");
-            }
+    const uploadEncryptedImage = async (formData) => {
+        const response = await fetch(`${API}/uploadEncryptedImage`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            body: formData
+        });
 
-            const encryptedBytes = forge.util.decode64(encryptedImageData.encryptedData);
-            const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
-
-            const formData = new FormData();
-            formData.append('image', blob, 'encrypted.bin');
-
-            formData.append('message_id', message_id); // ✅ FIX
-            formData.append('sender_id', userid);
-            formData.append('receiver_id', selectedUser.id);
-            formData.append('encrypted_key_sender', encryptedImageData.encryptedKeySender);
-            formData.append('encrypted_key_recipient', encryptedImageData.encryptedKeyRecipient);
-            formData.append('iv', encryptedImageData.iv);
-            formData.append('mime_type', encryptedImageData.mimeType);
-            formData.append('filename', encryptedImageData.filename);
-
-            const response = await fetch(`${API}/uploadEncryptedImage`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                console.error("Upload failed:", errText);
-                throw new Error('Upload failed');
-            }
-
-            return await response.json();
-
-        } catch (err) {
-            console.error('Upload error:', err);
-            throw err;
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error("Upload failed:", errText);
+            throw new Error('Upload failed');
         }
+
+        return await response.json();
     };
 
     const decryptImage = useCallback(async (imageData, senderId) => {
@@ -645,11 +620,9 @@ const Messaging = () => {
     // MISC EFFECTS
 
     useEffect(() => {
-        if (!selectedUser) return;
-
         processedIds.current.clear();
         setDecryptedImages({});
-    }, [selectedUser]);
+    }, [selectedUser, messages]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {

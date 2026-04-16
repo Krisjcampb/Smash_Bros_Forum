@@ -2333,7 +2333,10 @@ io.on("connection", (socket) => {
 
             io.to(roomName).emit("receiveMessage", fullMessage);
 
-            socket.emit("messageSent", fullMessage);
+            socket.emit("messageSent", {
+                ...savedMessage,
+                message_id: savedMessage.message_id
+            });
 
         } catch (err) {
             console.error("sendMessage error:", err);
