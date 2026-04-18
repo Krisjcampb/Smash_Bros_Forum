@@ -741,7 +741,7 @@ const Messaging = () => {
                                             >
                                                 {msg.is_deleted
                                                 ? <i>Deleted Message</i>
-                                                : msg.decrypted_text}
+                                                : !msg.filepath && msg.decrypted_text}
                                                 
                                                 {msg.filepath && decryptedImages[msg.message_id] && (
                                                     <img 
