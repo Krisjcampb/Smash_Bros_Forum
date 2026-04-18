@@ -202,6 +202,15 @@ const Messaging = () => {
 
     const decryptImage = useCallback(async (imageData, senderId) => {
         try {
+            console.log('decryptImage called:', {
+                senderId,
+                userid,
+                isOwnMessage: senderId === userid,
+                hasSenderKey: !!imageData.encrypted_key_sender,
+                hasRecipientKey: !!imageData.encrypted_key_recipient,
+                hasIv: !!imageData.iv,
+                filepath: imageData.filepath
+            });
             const privateKeyPem = sessionStorage.getItem('privateKey');
             if (!privateKeyPem) throw new Error('Private key not found');
 
@@ -286,7 +295,7 @@ const Messaging = () => {
     const processedIds = useRef(new Set());
 
     useEffect(() => {
-        if (!selectedUser) return; // ✅ ADD THIS GUARD
+        if (!selectedUser) return;
 
         const decryptAllImages = async () => {
             const chat = messages.find(c => c.friendId === selectedUser?.id);
