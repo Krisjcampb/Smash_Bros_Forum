@@ -2367,7 +2367,13 @@ io.on("connection", (socket) => {
 
             socket.emit("messageSent", {
                 ...savedMessage,
-                message_id: savedMessage.message_id
+                message_id: savedMessage.message_id,
+                filepath: data.filepath || null,
+                encrypted_key_sender: data.encrypted_key_sender || null,
+                encrypted_key_recipient: data.encrypted_key_recipient || null,
+                image_iv: data.image_iv || null,
+                mime_type: data.mime_type || null,
+                tempKey: data.tempKey
             });
 
         } catch (err) {

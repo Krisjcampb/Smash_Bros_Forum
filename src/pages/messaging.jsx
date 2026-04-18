@@ -118,13 +118,12 @@ const Messaging = () => {
             const uint8 = new Uint8Array(arrayBuffer);
 
             let binary = '';
-            const chunkSize = 0x8000; // 32KB chunks
+            const chunkSize = 0x8000;
 
             for (let i = 0; i < uint8.length; i += chunkSize) {
                 const chunk = uint8.subarray(i, i + chunkSize);
                 binary += String.fromCharCode.apply(null, chunk);
             }
-
 
             const aesKey = forge.random.getBytesSync(32);
             const iv = forge.random.getBytesSync(12);
@@ -143,8 +142,21 @@ const Messaging = () => {
             const encryptedForSender = senderPublicKey.encrypt(aesKey, 'RSA-OAEP');
             const encryptedForRecipient = recipientPublicKey.encrypt(aesKey, 'RSA-OAEP');
             
+            // combining encryptedData + tag into a Uint8Array
+            const encryptedUint8 = new Uint8Array([...encryptedData].map(c => c.charCodeAt(0)));
+            const tagUint8 = new Uint8Array([...tag].map(c => c.charCodeAt(0)));
+            const combined = new Uint8Array(encryptedUint8.length + tagUint8.length);
+            combined.set(encryptedUint8);
+            combined.set(tagUint8, encryptedUint8.length);
+
+            // Chunked conversion to avoid stack overflow on large files
+            let combinedBinary = '';
+            for (let i = 0; i < combined.length; i += chunkSize) {
+                combinedBinary += String.fromCharCode.apply(null, combined.subarray(i, i + chunkSize));
+            }
+
             return {
-                encryptedData: forge.util.encode64(encryptedData + tag),
+                encryptedData: forge.util.encode64(combinedBinary),
                 encryptedKeySender: forge.util.encode64(encryptedForSender),
                 encryptedKeyRecipient: forge.util.encode64(encryptedForRecipient),
                 iv: forge.util.encode64(iv),
@@ -202,15 +214,6 @@ const Messaging = () => {
 
     const decryptImage = useCallback(async (imageData, senderId) => {
         try {
-            console.log('decryptImage called:', {
-                senderId,
-                userid,
-                isOwnMessage: senderId === userid,
-                hasSenderKey: !!imageData.encrypted_key_sender,
-                hasRecipientKey: !!imageData.encrypted_key_recipient,
-                hasIv: !!imageData.iv,
-                filepath: imageData.filepath
-            });
             const privateKeyPem = sessionStorage.getItem('privateKey');
             if (!privateKeyPem) throw new Error('Private key not found');
 
@@ -226,29 +229,27 @@ const Messaging = () => {
             );
 
             const response = await fetch(imageData.filepath);
-            const encryptedBlob = await response.blob();
-            const arrayBuffer = await encryptedBlob.arrayBuffer();
-
+            const arrayBuffer = await response.arrayBuffer();
             const uint8 = new Uint8Array(arrayBuffer);
 
-            let binary = '';
-            const chunkSize = 0x8000;
+            // Split off last 16 bytes as GCM tag
+            const ciphertext = uint8.slice(0, -16);
+            const tag = uint8.slice(-16);
 
-            for (let i = 0; i < uint8.length; i += chunkSize) {
-                const chunk = uint8.subarray(i, i + chunkSize);
-                binary += String.fromCharCode.apply(null, chunk);
-            }
-
-            const encryptedBytes = forge.util.createBuffer(binary);
             const iv = forge.util.decode64(imageData.iv);
 
-            const bytes = encryptedBytes.getBytes();
-            const ciphertext = bytes.slice(0, -16);
-            const tag = bytes.slice(-16);
-
             const decipher = forge.cipher.createDecipher('AES-GCM', aesKey);
-            decipher.start({ iv, tag: forge.util.createBuffer(tag) });
-            decipher.update(forge.util.createBuffer(ciphertext));
+            decipher.start({ 
+                iv, 
+                tag: forge.util.createBuffer(String.fromCharCode(...tag)) 
+            });
+
+            // Feed ciphertext in chunks to avoid stack overflow
+            const chunkSize = 0x8000;
+            for (let i = 0; i < ciphertext.length; i += chunkSize) {
+                const chunk = ciphertext.subarray(i, i + chunkSize);
+                decipher.update(forge.util.createBuffer(String.fromCharCode(...chunk)));
+            }
 
             if (!decipher.finish()) {
                 throw new Error('Decryption failed');
