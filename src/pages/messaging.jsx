@@ -171,16 +171,18 @@ const Messaging = () => {
 
     const uploadEncryptedImage = async (encryptedImageData, message_id) => {
         try {
-            if (!message_id) {
-                throw new Error("message_id is required");
-            }
+            if (!message_id) throw new Error("message_id is required");
 
+            // Convert base64 to Uint8Array instead of binary string
             const encryptedBytes = forge.util.decode64(encryptedImageData.encryptedData);
-            const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
+            const uint8 = new Uint8Array(encryptedBytes.length);
+            for (let i = 0; i < encryptedBytes.length; i++) {
+                uint8[i] = encryptedBytes.charCodeAt(i);
+            }
+            const blob = new Blob([uint8], { type: 'application/octet-stream' });
 
             const formData = new FormData();
             formData.append('image', blob, 'encrypted.bin');
-
             formData.append('message_id', message_id);
             formData.append('sender_id', userid);
             formData.append('receiver_id', selectedUser.id);
@@ -192,9 +194,7 @@ const Messaging = () => {
 
             const response = await fetch(`${API}/uploadEncryptedImage`, {
                 method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
+                headers: { Authorization: `Bearer ${token}` },
                 body: formData
             });
 
@@ -239,7 +239,7 @@ const Messaging = () => {
                 aesKeyLength: aesKey.length,
                 last16bytes: Array.from(uint8.slice(-16)).map(b => b.toString(16)).join(' ')
             });
-            
+
             // Split off last 16 bytes as GCM tag
             const ciphertext = uint8.slice(0, -16);
             const tag = uint8.slice(-16);
