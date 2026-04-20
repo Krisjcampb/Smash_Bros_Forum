@@ -232,14 +232,6 @@ const Messaging = () => {
             const arrayBuffer = await response.arrayBuffer();
             const uint8 = new Uint8Array(arrayBuffer);
 
-            console.log('🔍 Decrypt debug:', {
-                fetchedByteLength: arrayBuffer.byteLength,
-                ivB64: imageData.iv,
-                ivDecodedLength: forge.util.decode64(imageData.iv).length,
-                aesKeyLength: aesKey.length,
-                last16bytes: Array.from(uint8.slice(-16)).map(b => b.toString(16)).join(' ')
-            });
-
             // Split off last 16 bytes as GCM tag
             const ciphertext = uint8.slice(0, -16);
             const tag = uint8.slice(-16);
