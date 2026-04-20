@@ -420,6 +420,20 @@ const Messaging = () => {
     }, [selectedUser, userid, fetchMessageHistory]);
 
     useEffect(() => {
+        if (!userid) return;
+
+        setMessages(prev => prev.map(chat => ({
+            ...chat,
+            messages: chat.messages.map(msg => ({
+                ...msg,
+                decrypted_text: msg.is_deleted 
+                    ? null 
+                    : decrypt(msg.encrypted_text || msg.message_text, msg.sender_id)
+            }))
+        })));
+    }, [userid]);
+    
+    useEffect(() => {
         const handleMessageHistory = (data) => {
             if (!data?.messages?.length) return;
             console.log('📨 Message history sample:', data.messages.slice(-3).map(m => ({
