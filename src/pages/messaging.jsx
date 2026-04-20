@@ -671,7 +671,7 @@ const Messaging = () => {
     useEffect(() => {
         processedIds.current.clear();
         setDecryptedImages({});
-    }, [selectedUser, messages]);
+    }, [selectedUser]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
