@@ -2343,19 +2343,10 @@ io.on("connection", (socket) => {
 
     socket.on("sendMessage", async (data) => {
         try {
-            const savedMessage = await saveMessageToDB({
-                sender_id: data.sender_id,
-                receiver_id: data.receiver_id,
-                message_text: data.message_text,
-                username: data.username
-            });
-
-            if (!savedMessage) return;
-
             const roomName = getDMRoomName(data.sender_id, data.receiver_id);
 
             const fullMessage = {
-                ...savedMessage,
+                ...data,
                 filepath: data.filepath || null,
                 encrypted_key_sender: data.encrypted_key_sender || null,
                 encrypted_key_recipient: data.encrypted_key_recipient || null,
@@ -2366,14 +2357,12 @@ io.on("connection", (socket) => {
             io.to(roomName).emit("receiveMessage", fullMessage);
 
             socket.emit("messageSent", {
-                ...savedMessage,
-                message_id: savedMessage.message_id,
+                ...data,
                 filepath: data.filepath || null,
                 encrypted_key_sender: data.encrypted_key_sender || null,
                 encrypted_key_recipient: data.encrypted_key_recipient || null,
                 image_iv: data.image_iv || null,
-                mime_type: data.mime_type || null,
-                tempKey: data.tempKey
+                mime_type: data.mime_type || null
             });
 
         } catch (err) {
