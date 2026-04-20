@@ -431,8 +431,8 @@ const Messaging = () => {
                     : decrypt(msg.encrypted_text || msg.message_text, msg.sender_id)
             }))
         })));
-    }, [userid]);
-    
+    }, [userid, decrypt]);
+
     useEffect(() => {
         const handleMessageHistory = (data) => {
             if (!data?.messages?.length) return;
