@@ -422,7 +422,12 @@ const Messaging = () => {
     useEffect(() => {
         const handleMessageHistory = (data) => {
             if (!data?.messages?.length) return;
-
+            console.log('📨 Message history sample:', data.messages.slice(-3).map(m => ({
+                message_id: m.message_id,
+                decrypted_text: m.decrypted_text,
+                filepath: m.filepath,
+                has_image_iv: !!m.image_iv
+            })));
             const { friendId, messages } = data;
 
             const decryptedMessages = messages.map((msg) => ({
