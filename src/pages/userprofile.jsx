@@ -458,109 +458,142 @@ function Userprofile() {
         <Container className="profile-container mt-4">
             <Row>
                 <Col xs={12}>
-                    <Card
-                        className="p-8 profile-header shadow-sm border-0 bg-light rounded-3"
-                        style={{ borderTop: '4px solid #FFD443' }}
-                    >
-                        <Row className="d-flex flex-nowrap pb-8">
-                            <Col xs="auto" className="text-center">
-                                {/* Show your own live profile pic when viewing your own page */}
-                                {userid === friendid ? (
-                                    <Image
-                                        src={userProfileImageUrl}
-                                        alt="User Profile"
-                                        className="profile-image"
-                                        roundedCircle
-                                        style={{ objectFit: 'cover', objectPosition: '50% 5%' }}
-                                    />
-                                ) : (
-                                    <Image
-                                        src={friendUrl}
-                                        alt="User Profile"
-                                        className="profile-image"
-                                        roundedCircle
-                                        style={{ objectFit: 'cover', objectPosition: '50% 5%' }}
-                                    />
+                    {/* Dark header banner */}
+                    <div style={{
+                        background: '#393933',
+                        borderRadius: '16px 16px 0 0',
+                        borderBottom: '4px solid #FFD443',
+                        padding: '1.5rem 2rem 4rem',
+                        position: 'relative'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem' }}>
+                            {/* Avatar */}
+                            <div style={{ flexShrink: 0 }}>
+                                <Image
+                                    src={userid === friendid ? userProfileImageUrl : friendUrl}
+                                    alt="User Profile"
+                                    style={{
+                                        width: '110px',
+                                        height: '110px',
+                                        objectFit: 'cover',
+                                        objectPosition: '50% 5%',
+                                        borderRadius: '12px',
+                                        border: '3px solid #FFD443',
+                                        boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Name + role */}
+                            <div style={{ paddingTop: '0.25rem' }}>
+                                <h3 style={{ color: '#ffffff', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                                    {user.name}
+                                </h3>
+                                {user.role && (
+                                    <span style={{
+                                        display: 'inline-block',
+                                        marginTop: '0.35rem',
+                                        background: 'rgba(255,211,67,0.15)',
+                                        border: '1px solid rgba(255,211,67,0.4)',
+                                        color: '#FFD443',
+                                        borderRadius: '6px',
+                                        padding: '2px 10px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        letterSpacing: '0.08em',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        {user.role}
+                                    </span>
                                 )}
-                                <div className="mt-2 text-muted" style={{ fontStyle: 'italic' }}>
-                                    {user.role}
-                                </div>
-                            </Col>
+                            </div>
+                        </div>
+                    </div>
 
-                            <Col className="ms-3 d-flex flex-column min-w-0">
-                                <Row className="align-items-start flex-wrap">
-                                    <Col xs={12} md className="flex-grow-1 min-w-0">
-                                        <h3 className="mb-1 text-truncate">{user.name}</h3>
-                                        <p className="text-muted mb-1">
-                                            <strong>Last Online:</strong> {user.localTime}
-                                        </p>
-                                        <p className="text-muted mb-1">
-                                            <strong>Location:</strong> {user.location}
-                                        </p>
-                                        <p className="text-muted" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                                            <strong>About:</strong>{' '}
-                                            {user.description || 'No description yet.'}
-                                        </p>
-                                    </Col>
+                    {/* White info card below banner */}
+                    <div style={{
+                        background: '#ffffff',
+                        borderRadius: '0 0 16px 16px',
+                        padding: '1.25rem 2rem 1.5rem',
+                        boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+                        marginBottom: '1.5rem'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                            {/* Info */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                <span className="text-muted" style={{ fontSize: '0.875rem' }}>
+                                    <strong>Last Online:</strong> {user.localTime}
+                                </span>
+                                <span className="text-muted" style={{ fontSize: '0.875rem' }}>
+                                    <strong>Location:</strong> {user.location || '—'}
+                                </span>
+                                <span className="text-muted" style={{ fontSize: '0.875rem', maxWidth: '480px', wordBreak: 'break-word' }}>
+                                    <strong>About:</strong> {user.description || 'No description yet.'}
+                                </span>
+                            </div>
 
-                                    <Col xs="auto" className="mt-2 mt-md-0">
-                                        {friendid === userid ? (
-                                            <Button variant="primary" onClick={profileOpen}>
-                                                Change Profile
-                                            </Button>
-                                        ) : blockStatus.blockedByMe ? (
-                                            <Button variant="outline-secondary" size="sm" onClick={handleUnblock}>
-                                                Unblock User
-                                            </Button>
-                                        ) : blockStatus.blockedByThem ? (
-                                            <span className="text-muted" style={{ fontSize: '0.9rem' }}>
-                                                Unable to interact with this user
-                                            </span>
-                                        ) : (
-                                            <div>
-                                                {friendshipStatus === 'pending' && (initiatedByCurrentUser ? (
-                                                    <div className="d-flex flex-column align-items-start gap-2">
-                                                        <span className="text-muted" style={{ fontSize: '0.9rem' }}>
-                                                            Friend Request Pending
-                                                        </span>
-                                                        <Button variant="outline-danger" size="sm" onClick={handleRemoveFriend}>
-                                                            Cancel Request
-                                                        </Button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="d-flex flex-column align-items-start gap-2">
-                                                        <Button onClick={handleFriendAction}>Accept Friend Request</Button>
-                                                        <Button variant="outline-danger" size="sm" onClick={handleBlockFriend}>
-                                                            Block User
-                                                        </Button>
-                                                    </div>
-                                                ))}
-                                                {friendshipStatus === 'accepted' && (
-                                                    <FriendOptionsDropdown
-                                                        onRemoveFriend={handleRemoveFriend}
-                                                        onDirectMessage={handleDirectMessage}
-                                                        onBlockFriend={handleBlockFriend}
-                                                    />
-                                                )}
-                                                {friendshipStatus === 'not_friends' && String(userid) !== friendid && (
-                                                    <div className="d-flex flex-column align-items-start gap-2">
-                                                        <Button onClick={handleFriendAction}>Add Friend</Button>
-                                                        <Button variant="outline-danger" size="sm" onClick={handleBlockFriend}>
-                                                            Block User
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
+                            {/* Action buttons */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+                                {friendid === userid ? (
+                                    <button className="primary-btn" onClick={profileOpen}>
+                                        ✏️ Edit Profile
+                                    </button>
+                                ) : blockStatus.blockedByMe ? (
+                                    <button className="secondary-btn themed light" onClick={handleUnblock}>
+                                        Unblock User
+                                    </button>
+                                ) : blockStatus.blockedByThem ? (
+                                    <span className="text-muted" style={{ fontSize: '0.875rem' }}>
+                                        Unable to interact with this user
+                                    </span>
+                                ) : (
+                                    <>
+                                        {friendshipStatus === 'pending' && initiatedByCurrentUser && (
+                                            <>
+                                                <span className="text-muted" style={{ fontSize: '0.85rem' }}>
+                                                    Friend Request Pending
+                                                </span>
+                                                <button className="secondary-btn themed light" style={{ borderColor: '#d00000', color: '#d00000' }} onClick={handleRemoveFriend}>
+                                                    Cancel Request
+                                                </button>
+                                            </>
                                         )}
-                                    </Col>
-                                </Row>
-                            </Col>
-                        </Row>
-                    </Card>
+                                        {friendshipStatus === 'pending' && !initiatedByCurrentUser && (
+                                            <>
+                                                <button className="primary-btn" onClick={handleFriendAction}>
+                                                    Accept Friend Request
+                                                </button>
+                                                <button className="secondary-btn themed light" style={{ borderColor: '#d00000', color: '#d00000' }} onClick={handleBlockFriend}>
+                                                    Block User
+                                                </button>
+                                            </>
+                                        )}
+                                        {friendshipStatus === 'accepted' && (
+                                            <FriendOptionsDropdown
+                                                onRemoveFriend={handleRemoveFriend}
+                                                onDirectMessage={handleDirectMessage}
+                                                onBlockFriend={handleBlockFriend}
+                                            />
+                                        )}
+                                        {friendshipStatus === 'not_friends' && String(userid) !== friendid && (
+                                            <>
+                                                <button className="primary-btn" onClick={handleFriendAction}>
+                                                    + Add Friend
+                                                </button>
+                                                <button className="secondary-btn themed light" style={{ borderColor: '#d00000', color: '#d00000' }} onClick={handleBlockFriend}>
+                                                    Block User
+                                                </button>
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </Col>
             </Row>
 
-            <Row className="mt-4">
+            <Row className="mt-2">
                 <Col md={8}>
                     {blockStatus.blocked ? (
                         <div className="text-center text-muted mt-4">
@@ -596,14 +629,11 @@ function Userprofile() {
                                         </Card>
                                     );
                                 })}
-                                {/* Invisible sentinel — scrolling this into view loads the next 10 comments */}
                                 {visibleComments < comments.length && (
                                     <div ref={commentsSentinelRef} style={{ height: '1px' }} />
                                 )}
                                 {visibleComments >= comments.length && comments.length > 0 && (
-                                    <div className="text-center text-muted small py-3">
-                                        All comments loaded
-                                    </div>
+                                    <div className="text-center text-muted small py-3">All comments loaded</div>
                                 )}
                                 {comments.length === 0 && (
                                     <div className="text-center text-muted py-4">No comments yet</div>
@@ -636,14 +666,11 @@ function Userprofile() {
                                         </NavLink>
                                     </Card>
                                 ))}
-                                {/* Invisible sentinel — scrolling this into view loads the next 10 posts */}
                                 {visiblePosts < threadPosts.length && (
                                     <div ref={postsSentinelRef} style={{ height: '1px' }} />
                                 )}
                                 {visiblePosts >= threadPosts.length && threadPosts.length > 0 && (
-                                    <div className="text-center text-muted small py-3">
-                                        All posts loaded
-                                    </div>
+                                    <div className="text-center text-muted small py-3">All posts loaded</div>
                                 )}
                                 {threadPosts.length === 0 && (
                                     <div className="text-center text-muted py-4">No posts yet</div>
