@@ -685,141 +685,181 @@ function Userprofile() {
 
             {/* Profile picture selection modal */}
             <Modal show={showImagePicker} onHide={closeImagePicker} centered size="lg">
-                <Modal.Header closeButton>
-                    <Modal.Title>Profile Image Selection</Modal.Title>
-                </Modal.Header>
+                <div className="settings-modal-header">
+                    <div>
+                        <div className="settings-modal-badge">Profile</div>
+                        <h5 className="edit-modal-title">Select Profile Image</h5>
+                    </div>
+                    <button className="edit-modal-close" onClick={closeImagePicker}>×</button>
+                </div>
                 <Form onSubmit={(e) => { e.preventDefault(); handleImageSave(); }}>
-                    <div className='text-center'>
-                        <div className='mt-24'>
-                            <ButtonGroup className='justify-content-center'>
-                                <Button variant="secondary" onSelect={handleDropdownSelect}>Select Character</Button>
-                                <Dropdown as={ButtonGroup} onSelect={handleDropdownSelect}>
-                                    <Dropdown.Toggle split variant="secondary" className="custom-split-toggle" />
-                                    <Dropdown.Menu className="custom-dropdown-menu">
-                                        <input
-                                            type="text"
-                                            placeholder="Search..."
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            style={{ margin: "8px 10px", width: "calc(100% - 20px)", borderRadius: "5px" }}
-                                        />
-                                        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                            {filteredOptions.map((character) => (
-                                                <Dropdown.Item key={character} eventKey={character}>
-                                                    {character}
-                                                </Dropdown.Item>
-                                            ))}
-                                        </div>
-                                    </Dropdown.Menu>
-                                </Dropdown>
-                            </ButtonGroup>
-                        </div>
-                        {character && (
-                            <div style={{ marginTop: "10px", marginLeft: "5px" }}>
-                                <span style={{ marginRight: "5px" }}>Selected Character: </span>
-                                <div className="d-flex justify-content-center" style={{ marginRight: "5px" }}>
-                                    <Image
-                                        src={clickedImage}
-                                        alt="Selected portrait"
-                                        style={{ height: "300px" }}
-                                        fluid
-                                        loading="lazy"
-                                    />
-                                </div>
-                                <div style={{ display: "flex", marginTop: "30px" }} className='justify-content-center'>
-                                    {images.map((src, index) => (
+                    <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                        <div className='text-center'>
+                            <div className='mt-24'>
+                                <ButtonGroup className='justify-content-center'>
+                                    <Button variant="secondary" onSelect={handleDropdownSelect}>Select Character</Button>
+                                    <Dropdown as={ButtonGroup} onSelect={handleDropdownSelect}>
+                                        <Dropdown.Toggle split variant="secondary" className="custom-split-toggle" />
+                                        <Dropdown.Menu className="custom-dropdown-menu">
+                                            <input
+                                                type="text"
+                                                placeholder="Search..."
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                style={{ margin: "8px 10px", width: "calc(100% - 20px)", borderRadius: "5px" }}
+                                            />
+                                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                {filteredOptions.map((character) => (
+                                                    <Dropdown.Item key={character} eventKey={character}>
+                                                        {character}
+                                                    </Dropdown.Item>
+                                                ))}
+                                            </div>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                </ButtonGroup>
+                            </div>
+
+                            {character && (
+                                <div style={{ marginTop: '1.5rem' }}>
+                                    <div className="d-flex justify-content-center mb-3">
                                         <Image
-                                            key={index}
-                                            src={src}
+                                            src={clickedImage}
+                                            alt="Selected portrait"
                                             style={{
-                                                height: "60px",
-                                                maxWidth: "85px",
-                                                marginRight: "5px",
-                                                border: clickedIndex === index ? "2px solid blue" : "none",
-                                                cursor: "pointer",
+                                                height: '260px',
+                                                borderRadius: '12px',
+                                                border: '3px solid #FFD443',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
                                             }}
-                                            onClick={() => handleImageClick(index)}
                                             fluid
                                             loading="lazy"
                                         />
-                                    ))}
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '6px', marginTop: '1rem' }}>
+                                        {images.map((src, index) => (
+                                            <Image
+                                                key={index}
+                                                src={src}
+                                                style={{
+                                                    height: '56px',
+                                                    width: '56px',
+                                                    objectFit: 'cover',
+                                                    borderRadius: '8px',
+                                                    border: clickedIndex === index ? '2px solid #FFD443' : '2px solid transparent',
+                                                    cursor: 'pointer',
+                                                    boxShadow: clickedIndex === index ? '0 0 0 2px #393933' : 'none',
+                                                    transition: 'all 0.15s ease'
+                                                }}
+                                                onClick={() => handleImageClick(index)}
+                                                fluid
+                                                loading="lazy"
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        <div className='mt-40 mb-32'>
-                            <Button type="submit" onClick={closeImagePicker}>Save Profile Picture</Button>
+                            )}
                         </div>
+                    </Modal.Body>
+                    <div className="edit-modal-footer">
+                        <button type="button" className="secondary-btn themed light" onClick={closeImagePicker}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="primary-btn" onClick={closeImagePicker}>
+                            Save Image
+                        </button>
                     </div>
                 </Form>
             </Modal>
 
             {/* Profile info edit modal */}
             <Modal show={showProfile} onHide={profileClose} size="lg" centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Edit Profile</Modal.Title>
-                </Modal.Header>
+                <div className="settings-modal-header">
+                    <div>
+                        <div className="settings-modal-badge">Profile</div>
+                        <h5 className="edit-modal-title">Edit Profile</h5>
+                    </div>
+                    <button className="edit-modal-close" onClick={profileClose}>×</button>
+                </div>
                 <Form onSubmit={(e) => { e.preventDefault(); handleProfileSave(); }}>
-                    <Modal.Body>
+                    <Modal.Body style={{ padding: '1.5rem 2rem' }}>
                         <div className="text-center mb-4">
                             <Image
                                 src={selectedImage}
                                 alt="Selected portrait"
-                                style={{ height: '300px' }}
+                                style={{
+                                    height: '240px',
+                                    borderRadius: '12px',
+                                    border: '3px solid #FFD443',
+                                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+                                }}
                                 fluid
                                 rounded
                                 loading="lazy"
                             />
-                            <div className="mt-16 mb-24">
-                                <Button variant="outline-primary" onClick={openImagePicker}>
+                            <div className="mt-3">
+                                <button
+                                    type="button"
+                                    className="secondary-btn themed light"
+                                    onClick={openImagePicker}
+                                >
                                     Change Profile Image
-                                </Button>
+                                </button>
                             </div>
                         </div>
 
-                        <Form.Group as={Row} className="mb-4 align-items-center justify-content-center">
-                            <Form.Label column sm="2">Username</Form.Label>
-                            <Col sm="9">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '480px', margin: '0 auto' }}>
+                            <Form.Group>
+                                <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Username
+                                </Form.Label>
                                 <Form.Control
                                     type="text"
                                     value={username ?? ''}
                                     onChange={(e) => setUsername(e.target.value)}
                                     maxLength={32}
+                                    placeholder="Your username"
                                 />
-                            </Col>
-                        </Form.Group>
+                            </Form.Group>
 
-                        <Form.Group as={Row} className="mb-4 align-items-center justify-content-center">
-                            <Form.Label column sm="2">Location</Form.Label>
-                            <Col sm="9">
+                            <Form.Group>
+                                <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Location
+                                </Form.Label>
                                 <Form.Control
                                     type="text"
                                     value={location ?? ''}
                                     onChange={(e) => setLocation(e.target.value)}
                                     maxLength={50}
+                                    placeholder="Where are you from?"
                                 />
-                            </Col>
-                        </Form.Group>
+                            </Form.Group>
 
-                        <Form.Group as={Row} className="align-items-start justify-content-center">
-                            <Form.Label column sm="2">Description</Form.Label>
-                            <Col sm="9">
+                            <Form.Group>
+                                <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    About
+                                </Form.Label>
                                 <Form.Control
                                     as="textarea"
                                     rows={3}
                                     value={description ?? ''}
                                     onChange={(e) => setDescription(e.target.value)}
                                     maxLength={160}
+                                    placeholder="Tell others a bit about yourself..."
                                 />
-                                <div className="text-muted text-end small mt-4">
+                                <div className="text-muted text-end small mt-1">
                                     {(description?.length || 0)}/160
                                 </div>
-                            </Col>
-                        </Form.Group>
+                            </Form.Group>
+                        </div>
                     </Modal.Body>
-
-                    <Modal.Footer>
-                        <Button variant="secondary" onClick={profileClose}>Cancel</Button>
-                        <Button type="submit" variant="primary" onClick={profileClose}>Save Changes</Button>
-                    </Modal.Footer>
+                    <div className="edit-modal-footer">
+                        <button type="button" className="secondary-btn themed light" onClick={profileClose}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="primary-btn" onClick={profileClose}>
+                            Save Changes
+                        </button>
+                    </div>
                 </Form>
             </Modal>
         </Container>
