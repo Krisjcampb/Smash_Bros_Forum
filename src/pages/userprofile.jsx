@@ -702,11 +702,13 @@ function Userprofile() {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             style={{ margin: "8px 10px", width: "calc(100% - 20px)", borderRadius: "5px" }}
                                         />
-                                        {filteredOptions.map((character) => (
-                                            <Dropdown.Item key={character} eventKey={character}>
-                                                {character}
-                                            </Dropdown.Item>
-                                        ))}
+                                        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                            {filteredOptions.map((character) => (
+                                                <Dropdown.Item key={character} eventKey={character}>
+                                                    {character}
+                                                </Dropdown.Item>
+                                            ))}
+                                        </div>
                                     </Dropdown.Menu>
                                 </Dropdown>
                             </ButtonGroup>
