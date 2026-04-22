@@ -41,7 +41,7 @@ function Header() {
     const banners = [
         "Welcome to Smash Point!",
         "Check out the latest threads!",
-        "Join our upcoming tournament!",
+        "Join our upcoming tournaments!",
         "New messages? Check your inbox!",
     ];
 

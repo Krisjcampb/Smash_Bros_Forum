@@ -63,11 +63,11 @@ export default function Terms() {
                     <div style={{ width: '40px', height: '4px', background: '#FFD443', borderRadius: '2px', marginBottom: '2rem' }} />
 
                     <Section number="1" title="Acceptance of Terms">
-                        By creating an account or using this website, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, do not use the site.
+                        By creating an account or using Smash Point, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, do not use the site.
                     </Section>
 
                     <Section number="2" title="Eligibility">
-                        You must be at least 13 years old to use this website. By registering, you confirm that you meet this requirement.
+                        You must be at least 13 years old to use Smash Point. By registering, you confirm that you meet this requirement.
                     </Section>
 
                     <Section number="3" title="Account Responsibility">
@@ -87,11 +87,11 @@ export default function Terms() {
                     </Section>
 
                     <Section number="7" title="Modifications">
-                        We may update these Terms of Service at any time. Changes will be effective upon posting. Continued use of the site indicates your acceptance of the updated terms.
+                        We may update these Terms of Service at any time. Changes will be effective upon posting. Continued use of Smash Point indicates your acceptance of the updated terms.
                     </Section>
 
                     <Section number="8" title="Contact">
-                        If you have any questions about these Terms, please contact us through the website's support system or reach out via the contact page.
+                        If you have any questions about these Terms, please contact us through Smash Point's support system or reach out via the contact page.
                     </Section>
 
                     <div style={{

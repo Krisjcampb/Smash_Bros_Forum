@@ -58,7 +58,7 @@ function Userprofile() {
         "Mr. Game & Watch", "Meta Knight", "Pit", "Dark Pit",
         "Zero Suit Samus", "Wario", "Snake", "Ike", "Pokémon Trainer",
         "Diddy Kong", "Lucas", "Sonic", "King Dedede", "Olimar", "Lucario",
-        "R.O.B.", "Toon Link", "Wolf", "Villager", "Mega Man", "Wii Fit Trainer",
+        "ROB", "Toon Link", "Wolf", "Villager", "Mega Man", "Wii Fit Trainer",
         "Rosalina & Luma", "Little Mac", "Greninja", "Mii Brawler",
         "Mii Swordfighter", "Mii Gunner", "Palutena", "Pac-Man", "Robin",
         "Shulk", "Bowser Jr", "Duck Hunt", "Ryu", "Ken", "Cloud",
@@ -69,11 +69,18 @@ function Userprofile() {
     ];
 
     // Generates all 8 skin portrait paths for a given character
+    const characterNameMap = {
+        'Rosalina & Luma': 'Rosalina and Luma',
+        'Mr. Game & Watch': 'Mr. Game and Watch',
+        'Banjo & Kazooie': 'Banjo and Kazooie',
+    };
+
     const generateImages = (character) => {
         const miis = ['mii swordfighter', 'mii brawler', 'mii gunner'];
         const isMii = miis.includes(character.toLowerCase());
+        const safeName = characterNameMap[character] || character;
         return Array.from({ length: isMii ? 2 : 8 }, (_, index) =>
-            `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${character}/chara_3_${character.toLowerCase()}_0${index}.png`
+            `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${safeName}/chara_3_${safeName.toLowerCase()}_0${index}.png`
         );
     };
 
