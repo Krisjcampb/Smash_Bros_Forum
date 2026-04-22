@@ -473,8 +473,8 @@ function Userprofile() {
                                     src={userid === friendid ? userProfileImageUrl : friendUrl}
                                     alt="User Profile"
                                     style={{
-                                        width: '110px',
-                                        height: '110px',
+                                        width: '180px',
+                                        height: '180px',
                                         objectFit: 'cover',
                                         objectPosition: '50% 5%',
                                         borderRadius: '12px',
@@ -512,7 +512,6 @@ function Userprofile() {
 
                     {/* White info card below banner */}
                     <div style={{
-                        background: '#ffffff',
                         borderRadius: '0 0 16px 16px',
                         padding: '1.25rem 2rem 1.5rem',
                         boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
@@ -536,7 +535,7 @@ function Userprofile() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
                                 {friendid === userid ? (
                                     <button className="primary-btn" onClick={profileOpen}>
-                                        ✏️ Edit Profile
+                                        Edit Profile
                                     </button>
                                 ) : blockStatus.blockedByMe ? (
                                     <button className="secondary-btn themed light" onClick={handleUnblock}>
