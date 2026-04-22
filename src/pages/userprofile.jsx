@@ -7,6 +7,12 @@ import { useUserContext } from './usercontext';
 import { getImageUrl } from '../components/Utilities/adjusturl';
 import { API } from '../components/Utilities/apiUrl';
 
+const characterNameMap = {
+        'Rosalina & Luma': 'Rosalina and Luma',
+        'Mr. Game & Watch': 'Mr. Game and Watch',
+        'Banjo & Kazooie': 'Banjo and Kazooie',
+    };
+
 function Userprofile() {
     const { profilePicture, setProfilePicture } = useUserContext();
     const initialProfileImage = getImageUrl(profilePicture.characterName, profilePicture.selectedSkin, 'userProfile')
@@ -69,20 +75,16 @@ function Userprofile() {
     ];
 
     // Generates all 8 skin portrait paths for a given character
-    const characterNameMap = {
-        'Rosalina & Luma': 'Rosalina and Luma',
-        'Mr. Game & Watch': 'Mr. Game and Watch',
-        'Banjo & Kazooie': 'Banjo and Kazooie',
-    };
 
-    const generateImages = (character) => {
+
+    const generateImages = useCallback((character) => {
         const miis = ['mii swordfighter', 'mii brawler', 'mii gunner'];
         const isMii = miis.includes(character.toLowerCase());
         const safeName = characterNameMap[character] || character;
         return Array.from({ length: isMii ? 2 : 8 }, (_, index) =>
             `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${safeName}/chara_3_${safeName.toLowerCase()}_0${index}.png`
         );
-    };
+    }, []);
 
     const openImagePicker = () => {
         setShowProfile(false);
@@ -96,7 +98,7 @@ function Userprofile() {
 
     useEffect(() => {
         setImages(generateImages(profilePicture.characterName));
-    }, [profilePicture.characterName]);
+    }, [profilePicture.characterName, generateImages]);
 
     // Falls back to the Mario portrait if the friend has no profile picture set
     const getfriendImage = useCallback(async () => {
