@@ -11,7 +11,11 @@ export default function Footer() {
         script.onload = () => {
             if (window.kofiwidget2) {
                 window.kofiwidget2.init('Support me on Ko-fi', '#72a4f2', 'I3I81YL5SG');
-                window.kofiwidget2.draw();
+                const html = window.kofiwidget2.getHTML();
+                const container = document.getElementById('kofi-widget-container');
+                if (container && html) {
+                    container.innerHTML = html;
+                }
             }
         };
         document.body.appendChild(script);
@@ -52,7 +56,6 @@ export default function Footer() {
                     </div>
                 </div>
 
-                {/* Ko-fi + copyright row */}
                 <div style={{
                     borderTop: '1px solid rgba(255,255,255,0.15)',
                     marginTop: '1.5rem',
@@ -69,9 +72,17 @@ export default function Footer() {
                     }}>
                         © {new Date().getFullYear()} SmashPoint. All rights reserved.
                     </div>
-
-                    {/* Ko-fi widget */}
-                    <div id='kofi-widget-container' />
+                    <a
+                        href='https://ko-fi.com/I3I81YL5SG'
+                        target='_blank'
+                        rel='noreferrer'
+                    >
+                        <img
+                            src='https://storage.ko-fi.com/cdn/kofi2.png?v=3'
+                            alt='Buy Me a Coffee at ko-fi.com'
+                            style={{ height: '36px', border: 0 }}
+                        />
+                    </a>
                 </div>
             </Container>
         </footer>
