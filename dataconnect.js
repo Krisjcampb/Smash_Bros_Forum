@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require("crypto")
 const bcrypt = require("bcrypt")
 const http = require('http');
+const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const { verifyToken, verifyRole } = require('./auth');
 const { S3Client } = require('@aws-sdk/client-s3');
@@ -88,7 +89,23 @@ function authenticateToken(req, res, next) {
   });
 }
 
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
+const uploadLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 uploads per hour
+    message: {
+        error: "Too many images uploaded. Please wait an hour before trying again."
+    }
+});
+
+app.use(globalLimiter);
 //ROUTES//
 
 //USERS ACCOUNT
@@ -582,7 +599,7 @@ app.delete("/forumusers/:userId", async (req, res) =>{
 
 /////////////////////////////////// FORUM IMAGES //////////////////////////////////////
 
-app.post('/forumimages', (req, res) => {
+app.post('/forumimages', uploadLimiter, (req, res) => {
     upload.single('image')(req, res, async (err) => {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({ error: 'Image must be under 10MB' });
@@ -2212,7 +2229,7 @@ app.post('/messages', async (req, res) => {
     res.json(newMessage);
 });
 
-app.post('/uploadEncryptedImage', (req, res) => {
+app.post('/uploadEncryptedImage', uploadLimiter, (req, res) => {
     upload.single('image')(req, res, async (err) => {
 
         if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
