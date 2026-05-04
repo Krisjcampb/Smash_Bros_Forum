@@ -202,7 +202,7 @@ app.post('/userlogin', async (req, res) => {
             }
             else if(response){
                 console.log(response)
-                const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username, role: user.rows[0].role}, process.env.JWT_SECRET)
+                const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username, role: user.rows[0].role}, process.env.JWT_SECRET, { expiresIn: '7d' })
                 res.json({ success: true, token: token });
             }
             else{
@@ -296,13 +296,17 @@ app.put('/forumusers/edit/:userId', authenticateToken, async (req, res) => {
     const { userId } = req.params;
     const { username, location, description } = req.body;
 
-    // Check role directly from the JWT since authenticateToken already decoded it
-    const requestingRole = req.user.role;
-    if (requestingRole !== 'admin' && requestingRole !== 'moderator') {
-        return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
     try {
+        const roleCheck = await pool.query(
+            'SELECT role FROM forumusers WHERE users_id = $1',
+            [req.user.users_id]
+        );
+
+        const requestingRole = roleCheck.rows[0]?.role;
+        if (requestingRole !== 'admin' && requestingRole !== 'moderator') {
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+
         if (username) {
             const existing = await pool.query(
                 'SELECT users_id FROM forumusers WHERE username = $1 AND users_id != $2',
@@ -313,6 +317,7 @@ app.put('/forumusers/edit/:userId', authenticateToken, async (req, res) => {
             }
         }
 
+        // Update main user record
         const result = await pool.query(
             `UPDATE forumusers
              SET username = COALESCE($1, username),
@@ -325,6 +330,17 @@ app.put('/forumusers/edit/:userId', authenticateToken, async (req, res) => {
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (username) {
+            await pool.query(
+                `UPDATE forumthreads SET username = $1 WHERE users_id = $2`,
+                [username, userId]
+            );
+            await pool.query(
+                `UPDATE forumcomments SET username = $1 WHERE users_id = $2`,
+                [username, userId]
+            );
         }
 
         res.json({ success: true, user: result.rows[0] });
