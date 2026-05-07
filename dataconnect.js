@@ -334,7 +334,7 @@ app.put('/forumusers/edit/:userId', authenticateToken, async (req, res) => {
 
         if (username) {
             await pool.query(
-                `UPDATE forumthreads SET username = $1 WHERE users_id = $2`,
+                `UPDATE forumcontent SET username = $1 WHERE users_id = $2`,
                 [username, userId]
             );
             await pool.query(
