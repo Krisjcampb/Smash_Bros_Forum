@@ -4,6 +4,66 @@ import { BsEnvelopeFill, BsLockFill, BsEye, BsEyeSlash, BsKeyFill } from 'react-
 import { useNavigate } from 'react-router-dom'
 import { API } from '../components/Utilities/apiUrl';
 
+// Shared card wrapper so all 3 steps look identical
+const CardWrapper = ({ badge, title, subtitle, children }) => (
+    <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem 1rem',
+    }}>
+        <div style={{ width: '100%', maxWidth: '440px' }}>
+            <div style={{
+                background: '#393933',
+                borderRadius: '16px 16px 0 0',
+                padding: '2rem 2.5rem 1.5rem',
+                borderBottom: '4px solid #FFD443',
+            }}>
+                <div style={{
+                    display: 'inline-block',
+                    background: '#FFD443',
+                    borderRadius: '6px',
+                    padding: '3px 10px',
+                    fontSize: '0.68rem',
+                    fontWeight: '700',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#393933',
+                    marginBottom: '0.75rem',
+                }}>
+                    {badge}
+                </div>
+                <h2 style={{
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '1.75rem',
+                    margin: 0,
+                    letterSpacing: '-0.02em',
+                }}>
+                    {title}
+                </h2>
+                <p style={{
+                    color: 'rgba(255,255,255,0.5)',
+                    fontSize: '0.875rem',
+                    marginTop: '0.4rem',
+                    marginBottom: 0,
+                }}>
+                    {subtitle}
+                </p>
+            </div>
+            <div style={{
+                background: '#ffffff',
+                borderRadius: '0 0 16px 16px',
+                padding: '2rem 2.5rem 2.5rem',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            }}>
+                {children}
+            </div>
+        </div>
+    </div>
+);
+
 function ForgotPassword() {
     const [confirmpass, setConfirmPass] = useState("")
     const [email, setEmail] = useState("");
@@ -67,7 +127,6 @@ function ForgotPassword() {
 
     const handleEmailSubmit = async (e) => {
         e.preventDefault()
-        // Don't bother hitting the server with an obviously invalid email
         if (re.test(email)) {
             setStep(2);
             try {
@@ -118,66 +177,6 @@ function ForgotPassword() {
         color: '#FFD443',
         transition: 'all 0.2s ease',
     };
-
-    // Shared card wrapper so all 3 steps look identical
-    const CardWrapper = ({ badge, title, subtitle, children }) => (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem 1rem',
-        }}>
-            <div style={{ width: '100%', maxWidth: '440px' }}>
-                <div style={{
-                    background: '#393933',
-                    borderRadius: '16px 16px 0 0',
-                    padding: '2rem 2.5rem 1.5rem',
-                    borderBottom: '4px solid #FFD443',
-                }}>
-                    <div style={{
-                        display: 'inline-block',
-                        background: '#FFD443',
-                        borderRadius: '6px',
-                        padding: '3px 10px',
-                        fontSize: '0.68rem',
-                        fontWeight: '700',
-                        letterSpacing: '0.12em',
-                        textTransform: 'uppercase',
-                        color: '#393933',
-                        marginBottom: '0.75rem',
-                    }}>
-                        {badge}
-                    </div>
-                    <h2 style={{
-                        color: '#ffffff',
-                        fontWeight: '800',
-                        fontSize: '1.75rem',
-                        margin: 0,
-                        letterSpacing: '-0.02em',
-                    }}>
-                        {title}
-                    </h2>
-                    <p style={{
-                        color: 'rgba(255,255,255,0.5)',
-                        fontSize: '0.875rem',
-                        marginTop: '0.4rem',
-                        marginBottom: 0,
-                    }}>
-                        {subtitle}
-                    </p>
-                </div>
-                <div style={{
-                    background: '#ffffff',
-                    borderRadius: '0 0 16px 16px',
-                    padding: '2rem 2.5rem 2.5rem',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-                }}>
-                    {children}
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <Container>
