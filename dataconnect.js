@@ -89,23 +89,25 @@ function authenticateToken(req, res, next) {
   });
 }
 
-const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again after 15 minutes',
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 500
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20
 });
 
 const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // Limit each IP to 10 uploads per hour
+    max: 20, // Limit each IP to 20 uploads per hour
     message: {
         error: "Too many images uploaded. Please wait an hour before trying again."
     }
 });
 
-app.use(globalLimiter);
+app.use(generalLimiter);
 //ROUTES//
 
 //USERS ACCOUNT
@@ -113,7 +115,7 @@ app.use(globalLimiter);
 //create a user
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-app.post('/forumusers', async (req, res) => {
+app.post('/forumusers', authLimiter, async (req, res) => {
     try {
         const { username, email, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -187,7 +189,7 @@ app.post("/forumusers/savePublicKey", async (req, res) => {
 });
 
 //user sign in
-app.post('/userlogin', async (req, res) => {
+app.post('/userlogin', authLimiter, async (req, res) => {
     const {email, password} = req.body;
     try{
         const user = await pool.query('SELECT * FROM forumusers WHERE email = $1', [email])
