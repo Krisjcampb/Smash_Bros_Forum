@@ -51,7 +51,7 @@ const ModerationReports = () => {
         }
     };
     
-    const resolveReport = async (resolutionStatus) => {
+    const resolvereport = async (resolutionStatus) => {
         if (!selectedReport) return;
 
         // Threads and comments use different id fields so this checks which one exists
@@ -245,13 +245,13 @@ const ModerationReports = () => {
                     {(!selectedReport?.is_reviewed || allowResolutionChange) ? (
                         <>
                             <div>
-                                <Button variant="secondary" className="w-100" onClick={() => resolveReport('dismissed')}>
+                                <Button variant="secondary" className="w-100" onClick={() => resolvereport('dismissed')}>
                                     Dismiss Report
                                 </Button>
                                 <div className="text-muted small">No violation found. Content remains unchanged.</div>
                             </div>
                             <div className="mt-2">
-                                <Button variant="warning" className="w-100" onClick={() => resolveReport('resolved')}>
+                                <Button variant="warning" className="w-100" onClick={() => resolvereport('resolved')}>
                                     Mark Resolved
                                 </Button>
                                 <div className="text-muted small">Reviewed with no content action taken.</div>
@@ -287,7 +287,7 @@ const ModerationReports = () => {
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
-                    <Button variant="danger" onClick={() => { resolveReport('content_removed'); setShowDeleteConfirm(false); }}>
+                    <Button variant="danger" onClick={() => { resolvereport('content_removed'); setShowDeleteConfirm(false); }}>
                         Yes, Delete Content
                     </Button>
                 </Modal.Footer>
