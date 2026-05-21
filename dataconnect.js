@@ -13,7 +13,7 @@ const bcrypt = require("bcrypt")
 const http = require('http');
 const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
-const { verifyToken, verifyRole } = require('./auth');
+const { verifyRole } = require('./auth');
 const { S3Client } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const { Readable } = require('stream');
@@ -79,12 +79,12 @@ function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
   if (token == null) return res.sendStatus(401);
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       console.error(err);
       return res.sendStatus(403);
     }
-    req.user = user;
+    req.user = decoded;
     next();
   });
 }
@@ -1618,7 +1618,7 @@ app.get('/viewreports', async (req, res) => {
     }
 })
 
-app.put('/resolvereport', verifyToken, verifyRole(['admin', 'moderator']), async (req, res) => {
+app.put('/resolvereport', authenticateToken, verifyRole(['admin', 'moderator']), async (req, res) => {
     const client = await pool.connect();
 
     try {
