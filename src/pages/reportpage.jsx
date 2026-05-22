@@ -7,6 +7,7 @@ const ModerationReports = () => {
     const [selectedReport, setSelectedReport] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [reviewedCount, setReviewedCount] = useState(0);
+    const [reportedContent, setReportedContent] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [modNotes, setModNotes] = useState('');
     const [allowResolutionChange, setAllowResolutionChange] = useState(false);
