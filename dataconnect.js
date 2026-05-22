@@ -1236,6 +1236,15 @@ app.get('/forumcomments/:thread_id', async (req, res) => {
     }
 });
 
+app.get('/forumcomments/:commentId', authenticateToken, async (req, res) => {
+    const result = await pool.query(
+        'SELECT * FROM forumcomments WHERE comment_id = $1',
+        [req.params.commentId]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+});
+
 app.get('/usercomments/:userid', async (req, res) => {
     try {
         const {userid} = req.params
@@ -1581,6 +1590,7 @@ app.get('/viewreports', async (req, res) => {
                 tr.reported_at, 
                 tr.is_reviewed, 
                 tr.thread_id,
+                NULL AS comment_id,
                 tr.resolution_status, 
                 COALESCE(tr.mod_notes, '') AS mod_notes, 
                 'thread' AS report_type, 
@@ -1600,6 +1610,7 @@ app.get('/viewreports', async (req, res) => {
                 cr.report_desc, 
                 cr.reported_at, 
                 cr.is_reviewed, 
+                NULL AS thread_id,
                 cr.comment_id,
                 cr.resolution_status, 
                 COALESCE(cr.mod_notes, '') AS mod_notes, 
@@ -1610,13 +1621,11 @@ app.get('/viewreports', async (req, res) => {
             JOIN forumusers reporter ON cr.reporting_uid = reporter.users_id
             JOIN forumusers reported ON cr.reported_uid = reported.users_id
         `);
-        console.log("Reports: ", result)
-        res.json(result.rows)
-
-    } catch (err){
-        res.status(500).json({error: 'Internal server error'});
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal server error' });
     }
-})
+});
 
 app.put('/resolvereport', authenticateToken, verifyRole(['admin', 'moderator']), async (req, res) => {
     const client = await pool.connect();

@@ -45,7 +45,22 @@ const ModerationReports = () => {
             setAllowResolutionChange(false);
             setModNotes(report.mod_notes || '');
             setSelectedReport(report);
+            setReportedContent(null);
             setShowModal(true);
+
+            if (report.report_type === 'thread') {
+                const res = await fetch(`${API}/forumcontent/${report.thread_id}`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                setReportedContent(data);
+            } else if (report.report_type === 'comment') {
+                const res = await fetch(`${API}/forumcomments/${report.comment_id}`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                setReportedContent(data);
+            }
         } catch (error) {
             console.error('Error displaying details.');
         }
@@ -229,6 +244,53 @@ const ModerationReports = () => {
                             </Col>
                         </Row>
                     )}
+                    <div style={{
+                        margin: '1rem 0',
+                        padding: '1rem',
+                        background: '#fff8e1',
+                        border: '1.5px solid #FFD443',
+                        borderRadius: '8px',
+                    }}>
+                        <h6 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>
+                            Reported {selectedReport?.report_type === 'thread' ? 'Thread' : 'Comment'}
+                        </h6>
+                        {reportedContent ? (
+                            selectedReport?.report_type === 'thread' ? (
+                                <>
+                                    <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                                        {reportedContent.title}
+                                    </p>
+                                    <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '0.25rem' }}>
+                                        {reportedContent.content}
+                                    </p>
+                                    <span style={{ fontSize: '0.78rem', color: '#888' }}>
+                                        by {reportedContent.username} · {new Date(reportedContent.postdate).toLocaleString()}
+                                    </span>
+                                    {reportedContent.is_deleted && (
+                                        <div style={{ marginTop: '0.5rem', color: '#d00000', fontSize: '0.82rem', fontWeight: 600 }}>
+                                            ⚠ This content has already been deleted
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '0.25rem' }}>
+                                        {reportedContent.comment}
+                                    </p>
+                                    <span style={{ fontSize: '0.78rem', color: '#888' }}>
+                                        by {reportedContent.username} · {new Date(reportedContent.timeposted).toLocaleString()}
+                                    </span>
+                                    {reportedContent.is_deleted && (
+                                        <div style={{ marginTop: '0.5rem', color: '#d00000', fontSize: '0.82rem', fontWeight: 600 }}>
+                                            ⚠ This content has already been deleted
+                                        </div>
+                                    )}
+                                </>
+                            )
+                        ) : (
+                            <p style={{ color: '#888', fontSize: '0.9rem', margin: 0 }}>Loading content...</p>
+                        )}
+                    </div>
                     <Form.Group className="mt-3">
                         <Form.Label>Resolution Notes</Form.Label>
                         <Form.Control
