@@ -39,7 +39,7 @@ const ModerationReports = () => {
         setReviewedCount(count);
     }, [reports]);
 
-    const handleViewReport = (report) => {
+    const handleViewReport = async (report) => {
         try {
             // Reset the resolution toggle so reviewed reports stay locked by default
             setAllowResolutionChange(false);
