@@ -42,28 +42,38 @@ const ModerationReports = () => {
 
     const handleViewReport = async (report) => {
         try {
-            // Reset the resolution toggle so reviewed reports stay locked by default
             setAllowResolutionChange(false);
             setModNotes(report.mod_notes || '');
             setSelectedReport(report);
             setReportedContent(null);
             setShowModal(true);
 
-            if (report.report_type === 'thread') {
+            console.log('Report:', report);
+            console.log('report_type:', report.report_type);
+            console.log('thread_id:', report.thread_id);
+            console.log('comment_id:', report.comment_id);
+
+            if (report.report_type === 'thread' && report.thread_id) {
                 const res = await fetch(`${API}/forumcontent/${report.thread_id}`, {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
+                console.log('Thread fetch status:', res.status);
                 const data = await res.json();
+                console.log('Thread content:', data);
                 setReportedContent(data);
-            } else if (report.report_type === 'comment') {
+            } else if (report.report_type === 'comment' && report.comment_id) {
                 const res = await fetch(`${API}/forumcomments/${report.comment_id}`, {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
+                console.log('Comment fetch status:', res.status);
                 const data = await res.json();
+                console.log('Comment content:', data);
                 setReportedContent(data);
+            } else {
+                console.log('Neither condition met — check report_type and IDs');
             }
         } catch (error) {
-            console.error('Error displaying details.');
+            console.error('Error fetching reported content:', error);
         }
     };
     
