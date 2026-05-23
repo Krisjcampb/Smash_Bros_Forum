@@ -1236,13 +1236,21 @@ app.get('/forumcomments/:thread_id', async (req, res) => {
     }
 });
 
-app.get('/forumcomments/:commentId', authenticateToken, async (req, res) => {
-    const result = await pool.query(
-        'SELECT * FROM forumcomments WHERE comment_id = $1',
-        [req.params.commentId]
-    );
-    if (!result.rows[0]) return res.status(404).json({ error: 'Not found' });
-    res.json(result.rows[0]);
+app.get('/forumcomments/:comment_id', authenticateToken, async (req, res) => {
+    try {
+        const { comment_id } = req.params;
+        const result = await pool.query(`
+            SELECT fc.*, fu.username 
+            FROM forumcomments fc
+            JOIN forumusers fu ON fc.users_id = fu.users_id
+            WHERE fc.comment_id = $1
+        `, [comment_id]);
+        if (result.rows.length === 0) return res.sendStatus(404);
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
 });
 
 app.get('/usercomments/:userid', async (req, res) => {

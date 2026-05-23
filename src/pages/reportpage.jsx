@@ -188,7 +188,7 @@ const ModerationReports = () => {
                                                     {RESOLUTION_LABELS[report.resolution_status] ?? 'Pending'}
                                                 </Badge>
                                             </td>
-                                            <td>user id #{report.reported_uid}</td>
+                                            <td>user id #{report.reporting_uid}</td>
                                             <td>{new Date(report.reported_at).toLocaleDateString()}</td>
                                             <td>
                                                 <Button
