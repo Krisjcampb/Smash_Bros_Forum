@@ -17,7 +17,8 @@ function Homepage() {
     const [username, setUsername] = useState('')
     const [usersId, setUsersId] = useState('')
     const [userRole, setUserRole] = useState('')
-    const [newPost, setNewPost] = useState(null)
+    const [newThread, setNewThread] = useState(null)
+
     const changeOpen = () => setShow(true)
     const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); }
 
@@ -25,7 +26,6 @@ function Homepage() {
         setFile(event.target.files[0])
     }
 
-    // We need the username and id to attach to the post on submit
     useEffect(() => {
         if (token) {
             fetch(`${API}/userauthenticate`, {
@@ -47,24 +47,24 @@ function Homepage() {
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
-        const postdate = new Date().toLocaleString();
         try {
-            const body = { title, content, username, postdate, usersId };
+            const body = { title, content, username, usersId };
             const response = await fetch(`${API}/forumcontent`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
                 body: JSON.stringify(body),
-            });
+        });
 
             if (!response.ok) throw new Error('Failed to create forum content');
 
-            const newThread = await response.json();
-            const { thread_id } = newThread;
-            setNewPost(newThread);
+            const createdThread = await response.json();
+            const { thread_id } = createdThread;
 
+            let filepath = null;
 
-
-            // Image upload is separate from thread creation since it needs the thread_id first
             if (file) {
                 const formData = new FormData();
                 formData.append('image', file);
@@ -76,7 +76,19 @@ function Homepage() {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
                 if (imageUploadResponse.status !== 200) throw new Error('Failed to upload image');
+                filepath = imageUploadResponse.data.filepath;
             }
+
+            // Prepend the new thread to the list without remounting ListContent
+            setNewThread({
+                ...createdThread,
+                filepath,
+                username,
+                character_name: null,
+                selected_skin: null,
+                comment_count: 0,
+            });
+
             changeClose();
         } catch (err) {
             console.log('Error:', err.message);
@@ -109,7 +121,6 @@ function Homepage() {
             <Container className="create-post-container d-flex flex-column">
                 <Row className='mt-24 text-center'>
                     <Col>
-                        {/* Redirect guests to sign in rather than showing a broken create form */}
                         {token ? (
                             <Button
                                 onClick={changeOpen}
@@ -139,7 +150,6 @@ function Homepage() {
             </Container>
 
             <Modal show={show} onHide={changeClose} centered>
-                {/* Dark header band matching the rest of the site */}
                 <div style={{
                     background: '#393933',
                     borderRadius: '8px 8px 0 0',
@@ -192,7 +202,6 @@ function Homepage() {
                                     style={inputStyle}
                                 />
                             </InputGroup>
-                            {/* Counter turns orange when close to the limit */}
                             <div style={{ textAlign: 'right', fontSize: '0.75rem', color: title.length >= 55 ? '#e39647' : '#bbb', marginTop: '0.25rem' }}>
                                 {title.length}/69
                             </div>
@@ -255,11 +264,7 @@ function Homepage() {
                 </Form>
             </Modal>
 
-            <ListContent
-                userRole={userRole}
-                usersId={usersId}
-                newPostTrigger={newPost}
-            />
+            <ListContent newThread={newThread} userRole={userRole} usersId={usersId} />
         </Container>
     )
 }

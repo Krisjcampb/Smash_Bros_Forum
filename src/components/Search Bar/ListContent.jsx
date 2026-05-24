@@ -33,7 +33,7 @@ const ListContent = (props) => {
     const [showReportModal, setShowReportModal] = useState(false)
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
-    const { userRole, usersId } = props;
+    const { userRole, usersId, newThread } = props;
 
     // ── Modal helpers ─────────────────────────────────────────────────────────
 
@@ -44,6 +44,11 @@ const ListContent = (props) => {
         setCurrentThread(thread);
         setShowEditModal(true);
     };
+
+    useEffect(() => {
+        if (!newThread) return;
+        setOriginalList(prev => [newThread, ...prev]);
+    }, [newThread]);
 
     useEffect(() => {
         if (showEditModal) {
@@ -293,48 +298,17 @@ const ListContent = (props) => {
         }
     }, []);
 
-    const likesMap = useMemo(() => {
-        const map = {};
-
-        likesdislikes.forEach(item => {
-            map[item.post_id] = item.net_likes;
-        });
-
-        return map;
-    }, [likesdislikes]);
-
-    useEffect(() => {
-        if (!newPostTrigger) return;
-
-        setOriginalList(prev => {
-            const exists = prev.some(
-                p => p.thread_id === newPostTrigger.thread_id
-            );
-
-            if (exists) return prev;
-
-            return [newPostTrigger, ...prev];
-        });
-    }, [newPostTrigger]);
-
     useEffect(() => { fetchPostsWithImages(page); }, [fetchPostsWithImages, page]);
 
     useEffect(() => {
+        const token = localStorage.getItem('token');
         if (token) {
             fetch(`${API}/userauthenticate`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token,
-                },
-            })
-            .then(r => r.json())
-            .then(data => {
-                setUser(data.name);
-                setUserId(data.id);
-            });
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            }).then(r => r.json()).then(data => { setUser(data.name); setUserId(data.id); });
         }
-    }, [token]);
+    }, []);
 
     useEffect(() => {
         const fetchInitialLikes = async () => {
@@ -454,7 +428,7 @@ const ListContent = (props) => {
 
                 <div className="forum-grid mt-48">
                     {list.map((e, index) => (
-                        <div key={e.thread_id} className="position-relative m-1">
+                        <div key={index} className="position-relative m-1">
 
                             {/* ── Thread Card ─────────────────────────────── */}
                             <Card
@@ -507,7 +481,7 @@ const ListContent = (props) => {
 
                                                 <span className="vote-count">
                                                     {formatCompactNumber(
-                                                        likesMap[e.thread_id] || 0
+                                                        likesdislikes.find(item => item.post_id === e.thread_id)?.net_likes || 0
                                                     )}
                                                 </span>
 

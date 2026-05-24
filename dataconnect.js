@@ -716,8 +716,8 @@ app.post('/forumcontent', authenticateToken, async (req, res) => {
     if (!content || content.length > 50000) return res.status(400).json({ error: 'Invalid content' });
 
     const newForumcontent = await pool.query(
-      "INSERT INTO forumcontent (title, content, username, postdate, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *",
-      [title, content, username, postdate, usersId]
+      "INSERT INTO forumcontent (title, content, username, postdate, users_id) VALUES($1, $2, $3, NOW(), $4) RETURNING *",
+      [title, content, username, usersId]
     );
     res.json(newForumcontent.rows[0])
     
@@ -827,7 +827,10 @@ app.put('/forumcontent/:thread_id', authenticateToken, async (req, res) => {
 app.get('/forumuserposts/:friendid', async (req, res) => {
     try {
         const { friendid } = req.params;
-        postQuery = await pool.query('SELECT * FROM forumcontent WHERE users_id = $1', [friendid]);
+        postQuery = await pool.query(
+            'SELECT * FROM forumcontent WHERE users_id = $1 AND is_deleted = FALSE',
+            [friendid]
+        );
         res.json(postQuery.rows)
     } catch(err) {
         console.error(err.message);
@@ -839,7 +842,7 @@ app.delete('/forumcontent/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params
     const deleteForumcontent = await pool.query(
-      'DELETE FROM forumcontent WHERE thread_id = $1',
+      'UPDATE forumcontent SET is_deleted = TRUE WHERE thread_id = $1',
       [id]
     )
     res.json(deleteForumcontent.rows)
