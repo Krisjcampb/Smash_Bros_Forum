@@ -10,7 +10,7 @@ import { SkeletonGrid } from '../Utilities/skeletoncard'
 import { getImageUrl } from '../Utilities/adjusturl'
 import { API } from '../Utilities/apiUrl';
 
-const ListContent = ({ userRole, usersId, newPostTrigger }) => {
+const ListContent = (props) => {
     const [originalList, setOriginalList] = useState([])
     const [loading, setLoading] = useState(true)
     const [initialLoad, setInitialLoad] = useState(true) // true only on first page load
