@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLocation, useParams, NavLink } from 'react-router-dom';
-import { Container } from 'react-bootstrap';
-import { Form } from 'react-bootstrap';
+import { Form, Modal, Container } from 'react-bootstrap';
 import { useState, useEffect } from 'react';
 import Button from 'react-bootstrap/Button';
 import UserComments from '../components/User Comments/UserComments';
