@@ -17,9 +17,45 @@ function Threads() {
     const [userid, setUserId] = useState("");
     const [userrole, setUserRole] = useState("");
     const [mentions, setMentions] = useState([]);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [reportDescription, setReportDescription] = useState('');
     // Incrementing this key forces UserComments to re-fetch after a new comment is posted
     const [commentsKey, setCommentsKey] = useState(0);
     const thread_id = forumContent?.thread_id || threadId
+
+    const reportReasons = [
+        "Sexual content", "Hateful or abusive content", "Harmful or dangerous acts",
+        "Promotes terrorism", "Repulsive or violent content", "Minor abuse or sexualization",
+        "Spam", "Misinformation", "Self-harm or suicide",
+    ];
+    const handleReportSubmit = async () => {
+        if (!reportReason) {
+            alert('Please select a reason for reporting');
+            return;
+        }
+        try {
+            const response = await fetch(`${API}/threadreport`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userid,
+                    thread_id: thread_id,
+                    reported_user: forumContent.users_id,
+                    reason: reportReason,
+                    report_desc: reportDescription
+                })
+            });
+            if (response.ok) {
+                setShowReportModal(false);
+                setReportReason('');
+                setReportDescription('');
+                alert('Report submitted successfully');
+            }
+        } catch (err) {
+            console.error('Error submitting report:', err);
+        }
+    };
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
@@ -55,7 +91,7 @@ function Threads() {
             console.error('Error submitting comment:', err.message);
         }
     };
-
+    
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -128,6 +164,17 @@ function Threads() {
                     {forumContent.title}
                 </h2>
             </div>
+            {user && userid !== forumContent.users_id && (
+                <div style={{ marginTop: '0.75rem' }}>
+                    <button
+                        className="secondary-btn themed light"
+                        style={{ fontSize: '0.78rem', color: '#d00000', borderColor: '#d00000' }}
+                        onClick={() => setShowReportModal(true)}
+                    >
+                        Report Thread
+                    </button>
+                </div>
+            )}
 
             <div className='thread-page-background'>
                 {/* Thread image */}
@@ -138,10 +185,11 @@ function Threads() {
                         style={{
                             display: 'block',
                             width: '100%',
-                            maxHeight: '500px',
-                            objectFit: 'cover',
+                            maxHeight: '600px',
+                            objectFit: 'contain',
                             borderRadius: '10px',
                             marginBottom: '1.5rem',
+                            background: 'transparent',
                         }}
                     />
                 )}
@@ -211,6 +259,55 @@ function Threads() {
                 userId={userid}
                 forumContent={forumContent}
             />
+        <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" centered>
+            <div className="settings-modal-header">
+                <div>
+                    <div className="settings-modal-badge">Report</div>
+                    <h5 className="edit-modal-title">Report Thread</h5>
+                </div>
+                <button className="edit-modal-close" onClick={() => setShowReportModal(false)}>×</button>
+            </div>
+            <Modal.Body>
+                <Form>
+                    <Form.Group>
+                        <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                            Reason for reporting
+                        </Form.Label>
+                        {reportReasons.map(reason => (
+                            <Form.Check
+                                key={reason}
+                                label={reason}
+                                name="reportReason"
+                                type='radio'
+                                onChange={() => setReportReason(reason)}
+                            />
+                        ))}
+                        <Form.Label className='mt-3' style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                            Additional details (optional)
+                        </Form.Label>
+                        <Form.Control
+                            as="textarea"
+                            rows={3}
+                            placeholder="Describe why you are reporting this thread..."
+                            value={reportDescription}
+                            onChange={(e) => setReportDescription(e.target.value)}
+                        />
+                    </Form.Group>
+                </Form>
+            </Modal.Body>
+            <div className="edit-modal-footer">
+                <button className="secondary-btn themed light" onClick={() => setShowReportModal(false)}>
+                    Cancel
+                </button>
+                <button
+                    className="primary-btn"
+                    onClick={handleReportSubmit}
+                    disabled={!reportReason}
+                >
+                    Submit Report
+                </button>
+            </div>
+        </Modal>
         </Container>
     );
 }
