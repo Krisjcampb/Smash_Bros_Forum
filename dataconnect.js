@@ -203,7 +203,6 @@ app.post('/userlogin', authLimiter, async (req, res) => {
                 console.log(err)
             }
             else if(response){
-                console.log(response)
                 const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username, role: user.rows[0].role}, process.env.JWT_SECRET, { expiresIn: '7d' })
                 res.json({ success: true, token: token });
             }
@@ -246,7 +245,6 @@ app.get('/userauthenticate', authenticateToken, (req, res) => {
             console.error(err)
             res.sendStatus(500);
         } else if (result.rows.length === 0) {
-            // console.log(req.user.users_id)
             res.sendStatus(404);
         } else {
             res.json({name: result.rows[0].username, id: result.rows[0].users_id, role: result.rows[0].role, location: result.rows[0].location, description: result.rows[0].description, last_online: result.rows[0].last_online});
@@ -256,22 +254,21 @@ app.get('/userauthenticate', authenticateToken, (req, res) => {
 
 //get all forum users
 app.get("/forumusers", async(req, res) => {
-    try{
-        const allUsers = await pool.query("SELECT * FROM forumusers")
-        res.json(allUsers.rows);
-    }
-    catch (err) {
-        console.error(err.message)
-    }
+    const allUsers = await pool.query(
+        "SELECT users_id, username, role, last_online FROM forumusers"
+    )
+    res.json(allUsers.rows);
 })
 
 //get a forum user by id
 app.get("/forumusers/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        console.log("ID: ", id);
 
-        const forumusers = await pool.query("SELECT * FROM forumusers WHERE users_id = $1", [id]);
+        const forumusers = await pool.query(
+            "SELECT users_id, username, role, location, description, last_online FROM forumusers WHERE users_id = $1",
+            [id]
+        );
 
         if (forumusers.rows.length === 0) {
             return res.status(404).json({ error: "User not found" });
@@ -356,7 +353,6 @@ app.put('/forumusers/edit/:userId', authenticateToken, async (req, res) => {
 app.get("/forumusers/get-user/:username", async (req, res) => {
     try {
         const { username } = req.params;
-        console.log("Username: ", username);
 
         const forumusers = await pool.query(
             "SELECT * FROM forumusers WHERE username ILIKE $1 ORDER BY username LIMIT 6",
@@ -512,7 +508,6 @@ app.put("/resendcode", async (req, res) => {
 app.put("/forumusers", async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log(email, password)
         // Validate input
         if (!email || !password) {
             return res.status(400).json({ 
@@ -539,7 +534,6 @@ app.put("/forumusers", async (req, res) => {
         );
 
         const resetRecord = resetResult.rows[0];
-        console.log(resetRecord)
 
         // Update the user's password
         const updateResult = await pool.query(
@@ -580,10 +574,9 @@ app.put("/forumusers", async (req, res) => {
     }
 });
 
-app.put("/forumrole", async (req, res) => {
+app.put("/forumrole", authenticateToken, verifyRole(['admin']), async (req, res) => {
     try{
         const {selectedRole, selectedId} = req.body;
-        console.log(selectedRole, selectedId)
         await pool.query(`UPDATE forumusers SET role = $1 WHERE users_id = $2`, [selectedRole, selectedId]);
         
         res.json("Forum role was updated!");   
@@ -594,7 +587,7 @@ app.put("/forumrole", async (req, res) => {
 
 
 //ban a user
-app.delete("/forumusers/:userId", async (req, res) =>{
+app.delete("/forumusers/:userId", authenticateToken, verifyRole(['admin', 'moderator']), async (req, res) =>{
     try {
         const { userId } = req.params;
         const { banReason, commentId, banDuration } = req.body;
@@ -715,14 +708,17 @@ app.post('/saveProfilePicture', async (req, res) => {
 
 /////////////////////////////////// FORUM CONTENT //////////////////////////////////////
 
-app.post('/forumcontent', async (req, res) => {
+app.post('/forumcontent', authenticateToken, async (req, res) => {
   try {
     const {title, content, likes, comments, username, postdate, usersId} = req.body
+
+    if (!title || title.length > 200) return res.status(400).json({ error: 'Invalid title' });
+    if (!content || content.length > 50000) return res.status(400).json({ error: 'Invalid content' });
+
     const newForumcontent = await pool.query(
       "INSERT INTO forumcontent (title, content, username, postdate, users_id) VALUES($1, $2, $3, $4, $5) RETURNING *",
       [title, content, username, postdate, usersId]
     );
-    console.log(newForumcontent.rows[0])
     res.json(newForumcontent.rows[0])
     
   } catch (err) {
@@ -789,7 +785,7 @@ app.get('/forumcontent/:thread_id', async (req, res) => {
 });
 
 //update a forum thread
-app.put('/forumcontent/:thread_id', async (req, res) => {
+app.put('/forumcontent/:thread_id', authenticateToken, async (req, res) => {
     const client = await pool.connect();
 
     try {
@@ -804,9 +800,6 @@ app.put('/forumcontent/:thread_id', async (req, res) => {
 
         const timeDiff = currentTime - postdate;
         const timeDiffInHours = timeDiff / (1000 * 60 * 60);
-        console.log("Thread date: ", thread.postdate, "Time in hours: ", timeDiffInHours)
-        
-        console.log(`Updating thread ${thread_id} with title: ${title}`);
 
         await client.query('BEGIN');
 
@@ -834,7 +827,6 @@ app.put('/forumcontent/:thread_id', async (req, res) => {
 app.get('/forumuserposts/:friendid', async (req, res) => {
     try {
         const { friendid } = req.params;
-        console.log("User ID for forumcontent: ", friendid)
         postQuery = await pool.query('SELECT * FROM forumcontent WHERE users_id = $1', [friendid]);
         res.json(postQuery.rows)
     } catch(err) {
@@ -843,7 +835,7 @@ app.get('/forumuserposts/:friendid', async (req, res) => {
 })
 
 //delete a forum thread
-app.delete('/forumcontent/:id', async (req, res) => {
+app.delete('/forumcontent/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params
     const deleteForumcontent = await pool.query(
@@ -877,7 +869,7 @@ app.get('/threadcontent/:userid', async (req, res) => {
 });
 
 //FORUM CONTENT LIKES AND DISLIKES
-app.post('/forumlikes', async (req, res) => {
+app.post('/forumlikes', authenticateToken, async (req, res) => {
     const {userid, thread_id} = req.body
 
     try {
@@ -903,7 +895,7 @@ app.post('/forumlikes', async (req, res) => {
     }
 })
 
-app.post('/forumdislikes', async (req, res) => {
+app.post('/forumdislikes', authenticateToken, async (req, res) => {
     const { userid, thread_id} = req.body;
 
     try {
@@ -981,7 +973,7 @@ app.get('/userlikesdislikes', async (req, res) => {
 
 //////////////////////////////// FORUM COMMENTS ////////////////////////////////////////
 
-app.post('/forumcomments', async (req, res) => {
+app.post('/forumcomments', authenticateToken, async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -994,7 +986,7 @@ app.post('/forumcomments', async (req, res) => {
     };
 
     const { thread_id, comment, user, userid } = req.body;
-
+    if (!comment || comment.length > 8000) return res.status(400).json({ error: 'Invalid comment' });
     const validThreadId = validateId(thread_id, 'thread_id');
     const validUserId = validateId(userid, 'userid');
 
@@ -1265,7 +1257,7 @@ app.get('/usercomments/:userid', async (req, res) => {
     }
 })
 
-app.put('/forumcomments/:commentId', async (req, res) => {
+app.put('/forumcomments/:commentId', authenticateToken, async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1310,7 +1302,6 @@ app.put('/forumcomments/:commentId', async (req, res) => {
 
     for (const mention of mentionMatches) {
       const { username, position, length } = mention;
-      console.log(`Processing mention: ${username} at position ${position} with length ${length}`);
       const userResult = await client.query(
         `SELECT users_id FROM forumusers WHERE username = $1`,
         [username]
@@ -1390,7 +1381,7 @@ app.put('/forumcomments/:commentId', async (req, res) => {
   }
 });
 
-app.delete('/forumcomments/:commentId', async (req, res) => {
+app.delete('/forumcomments/:commentId', authenticateToken, async (req, res) => {
   try {
     const { commentId } = req.params
     const deleteForumucontent = await pool.query(
@@ -1415,7 +1406,6 @@ app.get('/edithistory/:commentId', async(req, res) => {
              WHERE ce.comment_id = $1
              ORDER BY ce.edited_at DESC`, [commentId]
         );
-        console.log(edithistory)
         res.json(edithistory.rows)
     } catch(err){
         console.error(err.message)
@@ -1423,7 +1413,7 @@ app.get('/edithistory/:commentId', async(req, res) => {
 })
 
 //FORUM COMMENT LIKES AND DISLIKES
-app.post('/commentlikes', async (req, res) => {
+app.post('/commentlikes', authenticateToken, async (req, res) => {
     const {userId, comment_id} = req.body
     try {
         const like = await pool.query('SELECT * FROM commentlikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
@@ -1449,7 +1439,7 @@ app.post('/commentlikes', async (req, res) => {
     }
 })
 
-app.post('/commentdislikes', async (req, res) => {
+app.post('/commentdislikes', authenticateToken, async (req, res) => {
     const { userId, comment_id} = req.body;
 
     try {
@@ -1560,10 +1550,9 @@ app.get('/commentlikesdislikes', async (req, res) => {
 
 //////////////////////////////// REPORT SYSTEM ///////////////////////////////////////
 
-app.post('/threadreport', async (req, res) => {
+app.post('/threadreport', authenticateToken, async (req, res) => {
     try {
         const { user_id, thread_id, reported_user, reason, report_desc } = req.body
-        console.log(user_id, thread_id, reported_user, reason, report_desc)
 
         const result = await pool.query('INSERT INTO threadreports (reporting_uid, thread_id, reported_uid, reason, report_desc) VALUES ($1, $2, $3, $4, $5)', [user_id, thread_id, reported_user, reason, report_desc])
         res.json(result.rows[0])
@@ -1573,10 +1562,9 @@ app.post('/threadreport', async (req, res) => {
     }
 })
 
-app.post('/commentreport', async (req, res) => {
+app.post('/commentreport', authenticateToken, async (req, res) => {
     try {
         const { user_id, comment_id, reported_user, reason, report_desc } = req.body
-        console.log(user_id, comment_id, reported_user, reason, report_desc)
 
         const result = await pool.query('INSERT INTO commentreports (reporting_uid, comment_id, reported_uid, reason, report_desc) VALUES ($1, $2, $3, $4, $5)', [user_id, comment_id, reported_user, reason, report_desc])
         res.json(result.rows[0])
@@ -1647,7 +1635,7 @@ app.put('/resolvereport', authenticateToken, verifyRole(['admin', 'moderator']),
             content_id,
         } = req.body;
 
-        const moderator_id = req.userId
+        const moderator_id = req.user.users_id
 
         if (!report_id || !resolution_status || !report_type) {
             return res.status(400).json({
@@ -1793,7 +1781,6 @@ app.post('/passwordverify', async (req, res) => {
 app.post('/emailverify', async (req, res) => {
     try {
         const { emailCode, email } = req.body;
-        console.log(emailCode, email)
         const query = `
             SELECT COUNT(*) AS count
             FROM emailverify e
@@ -1889,7 +1876,6 @@ app.post('/remove-friend/:friendsid', authenticateToken, async (req, res) => {
             )
         `, [users_id, friends_id]);
 
-        console.log("Rows deleted:", result.rowCount);
 
         if (result.rowCount === 0) {
             return res.status(404).json({ error: "Friendship not found." });
@@ -1926,7 +1912,6 @@ app.get('/all-friends', authenticateToken, async (req, res) => {
         `;
 
         const friends = await pool.query(allFriendsQuery, [users_id]);
-        console.log("Friends retrieved:", friends.rows);
         if (friends.rows.length === 0) {
             return res.json({ friends: "no_friends" });
         }
@@ -2004,7 +1989,7 @@ app.post('/block/:blockedId', authenticateToken, async (req, res) => {
 
 // Unblock a user
 app.post('/unblock/:blockedId', authenticateToken, async (req, res) => {
-    const blockerId = req.user.id;
+    const blockerId = req.user.users_id;
     const { blockedId } = req.params;
     try {
         await pool.query(
@@ -2077,14 +2062,12 @@ app.post('/change-pfp/:userid', async (req, res) => {
     const character_name = newCharacter;
     const selected_skin = parseInt(numberStr, 10);
     
-    console.log("Selected Image: ", clickedImage)
     try {
         const updatepfpimage = `
         UPDATE forumusers SET character_name = $1, selected_skin = $2 WHERE users_id = $3
         `;
 
         await pool.query(updatepfpimage, [character_name, selected_skin, userid]);
-        console.log(character_name, selected_skin)
         res.json({ success: true });
     } catch (error) {
         console.error('Error changing profile picture:', error);
@@ -2139,7 +2122,6 @@ app.get('/retrieve-image/:userid', async (req, res) => {
         `;
 
         const result = await pool.query(getpfpimage, [userid]);
-        console.log(result)
         res.json( result.rows );
     } catch (error) {
         console.error('Error changing profile picture:', error);
@@ -2195,7 +2177,6 @@ app.get('/user-stats/:userid', async (req, res) => {
 //Saves encrypted messages to database
 const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username }) => {
     try {
-        console.log("📩 Storing message:", message_text);
 
         const parts = message_text.split("|");
         if (parts.length !== 4) {
@@ -2301,14 +2282,6 @@ app.post('/uploadEncryptedImage', uploadLimiter, (req, res) => {
 
             const file = req.file;
 
-            console.log('📤 Upload request:', {
-                hasFile: !!file,
-                fileSize: file?.size,
-                message_id,
-                sender_id,
-                receiver_id
-            });
-
             if (!file) {
                 return res.status(400).json({ error: 'No file uploaded' });
             }
@@ -2328,7 +2301,6 @@ app.post('/uploadEncryptedImage', uploadLimiter, (req, res) => {
             const ext = 'enc'; // Always use .enc for encrypted files
             const uniqueName = `encrypted-messages/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-            console.log('📤 Uploading to B2:', uniqueName);
 
             // Upload to B2
             const uploader = new Upload({
@@ -2542,7 +2514,6 @@ app.post('/contact', async (req, res) => {
 app.post('/notifications/mark-read', authenticateToken, async (req, res) => {
     try {
         const { userid } = req.body;
-        console.log(userid)
         await pool.query(
             'UPDATE notifications SET is_read = TRUE WHERE users_id = $1',
             [userid]

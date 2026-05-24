@@ -128,9 +128,12 @@ const ListUsers = () => {
     };
 
     const handleCloseRoleModal = () => {
-        setbuttonSelected('');
+        setbuttonSelected(null);
+        setSelectedRole('');
+        setSelectedId('');
+        setUserAssigned('');
         setShowRoleModal(false);
-    }
+    };
 
     // — Edit user —
 
@@ -201,7 +204,7 @@ const ListUsers = () => {
                 console.error('Error fetching user role:', error);
             })
         }
-    }, [userRole]);
+    }, []);
 
     const isPrivileged = userRole === 'admin' || userRole === 'moderator';
 
