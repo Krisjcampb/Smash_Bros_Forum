@@ -17,9 +17,7 @@ function Homepage() {
     const [username, setUsername] = useState('')
     const [usersId, setUsersId] = useState('')
     const [userRole, setUserRole] = useState('')
-    // Incrementing this key forces ListContent to re-fetch after a new post is created
-    const [refreshKey, setRefreshKey] = useState(0)
-
+    const [newPost, setNewPost] = useState(null)
     const changeOpen = () => setShow(true)
     const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); }
 
@@ -62,9 +60,9 @@ function Homepage() {
 
             const newThread = await response.json();
             const { thread_id } = newThread;
+            setNewPost(newThread);
 
-            // Bump the key so ListContent re-fetches and shows the new post immediately
-            setRefreshKey(prevKey => prevKey + 1);
+
 
             // Image upload is separate from thread creation since it needs the thread_id first
             if (file) {
@@ -257,7 +255,11 @@ function Homepage() {
                 </Form>
             </Modal>
 
-            <ListContent key={refreshKey} userRole={userRole} usersId={usersId} />
+            <ListContent
+                userRole={userRole}
+                usersId={usersId}
+                newPostTrigger={newPost}
+            />
         </Container>
     )
 }
