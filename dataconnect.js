@@ -2094,8 +2094,8 @@ app.post('/change-pfp/:userid', async (req, res) => {
 
 //Update user profile info
 app.post('/update-profile/:userid', async (req, res) => {
-    const {userid} = req.params
-    const {username, location, description} = req.body
+    const { userid } = req.params;
+    const { username, location, description } = req.body;
 
     try {
         const result = await pool.query(
@@ -2107,16 +2107,27 @@ app.post('/update-profile/:userid', async (req, res) => {
             [username, location, description, userid]
         );
 
-         if (result.rowCount === 0) {
-            return res.status(404).json({ error: "User not found." });
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'User not found.' });
         }
 
-        res.status(200).json({ message: "Profile updated successfully!" });
+        if (username) {
+            await pool.query(
+                `UPDATE forumcontent SET username = $1 WHERE users_id = $2`,
+                [username, userid]
+            );
+            await pool.query(
+                `UPDATE forumcomments SET username = $1 WHERE users_id = $2`,
+                [username, userid]
+            );
+        }
+
+        res.status(200).json({ message: 'Profile updated successfully!' });
     } catch (error) {
-        console.error("Error updating profile:", error);
-        res.status(500).json({ error: "Internal server error." });
+        console.error('Error updating profile:', error);
+        res.status(500).json({ error: 'Internal server error.' });
     }
-})
+});
 
 //Get user profile 
 app.get('/retrieve-image/:userid', async (req, res) => {
