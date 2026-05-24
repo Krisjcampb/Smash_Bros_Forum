@@ -1236,7 +1236,7 @@ app.get('/forumcomments/:thread_id', async (req, res) => {
     }
 });
 
-app.get('/forumcomments/:comment_id', authenticateToken, async (req, res) => {
+app.get('/forumcomment/:comment_id', authenticateToken, async (req, res) => {
     try {
         const { comment_id } = req.params;
         const result = await pool.query(`

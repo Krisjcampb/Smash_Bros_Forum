@@ -56,12 +56,12 @@ const ModerationReports = () => {
                 setReportedContent(Array.isArray(data) ? data[0] : data);
 
             } else if (report.report_type === 'comment' && report.comment_id) {
-                const res = await fetch(`${API}/forumcomments/${report.comment_id}`, {
+                const res = await fetch(`${API}/forumcomment/${report.comment_id}`, {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
                 const data = await res.json();
                 setReportedContent(Array.isArray(data) ? data[0] : data);
-                
+
             } else {
                 console.log('Neither condition met — check report_type and IDs');
             }
