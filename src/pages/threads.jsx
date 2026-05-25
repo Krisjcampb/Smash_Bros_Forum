@@ -21,6 +21,7 @@ function Threads() {
     const [reportDescription, setReportDescription] = useState('');
     // Incrementing this key forces UserComments to re-fetch after a new comment is posted
     const [commentsKey, setCommentsKey] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
     const thread_id = forumContent?.thread_id || threadId
 
     const reportReasons = [
@@ -33,6 +34,7 @@ function Threads() {
             alert('Please select a reason for reporting');
             return;
         }
+        setSubmitting(true);
         try {
             const response = await fetch(`${API}/threadreport`, {
                 method: 'POST',
@@ -53,6 +55,8 @@ function Threads() {
             }
         } catch (err) {
             console.error('Error submitting report:', err);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -145,35 +149,45 @@ function Threads() {
                     marginBottom: '2rem',
                 }}
             >
-                <div style={{
-                    display: 'inline-block',
-                    background: '#FFD443',
-                    borderRadius: '6px',
-                    padding: '3px 10px',
-                    fontSize: '0.68rem',
-                    fontWeight: '700',
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: '#393933',
-                    marginBottom: '0.75rem',
-                }}>
-                    Thread
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{
+                            display: 'inline-block',
+                            background: '#FFD443',
+                            borderRadius: '6px',
+                            padding: '3px 10px',
+                            fontSize: '0.68rem',
+                            fontWeight: '700',
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                            color: '#393933',
+                            marginBottom: '0.75rem',
+                        }}>
+                            Thread
+                        </div>
+                        <h2 className='thread-page-title'>
+                            {forumContent.title}
+                        </h2>
+                    </div>
+
+                    {/* Report button  */}
+                    {user && userid !== forumContent.users_id && (
+                        <button
+                            className="secondary-btn muted"
+                            style={{
+                                fontSize: '0.75rem',
+                                marginLeft: '1rem',
+                                marginTop: '0.25rem',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                            }}
+                            onClick={() => setShowReportModal(true)}
+                        >
+                            Report
+                        </button>
+                    )}
                 </div>
-                <h2 className='thread-page-title'>
-                    {forumContent.title}
-                </h2>
             </div>
-            {user && userid !== forumContent.users_id && (
-                <div style={{ marginTop: '0.75rem' }}>
-                    <button
-                        className="secondary-btn themed light"
-                        style={{ fontSize: '0.78rem', color: '#d00000', borderColor: '#d00000' }}
-                        onClick={() => setShowReportModal(true)}
-                    >
-                        Report Thread
-                    </button>
-                </div>
-            )}
 
             <div className='thread-page-background'>
                 {/* Thread image */}
@@ -303,7 +317,7 @@ function Threads() {
                     onClick={handleReportSubmit}
                     disabled={!reportReason}
                 >
-                    Submit Report
+                    {submitting ? 'Submitting...' : 'Submit Report'}
                 </button>
             </div>
         </Modal>

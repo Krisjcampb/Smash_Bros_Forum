@@ -32,6 +32,7 @@ const ListContent = (props) => {
     const [showReportModal, setShowReportModal] = useState(false)
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
+    const [submitting, setSubmitting] = useState(false);
     const { userRole, usersId, newThread } = props;
 
     // ── Modal helpers ─────────────────────────────────────────────────────────
@@ -75,6 +76,8 @@ const ListContent = (props) => {
     };
 
     const handleReportSubmit = async () => {
+        if (submitting) return;
+        setSubmitting(true);
         try {
             const response = await fetch(`${API}/threadreport`, {
                 method: 'POST',
@@ -98,6 +101,8 @@ const ListContent = (props) => {
         } catch (err) {
             console.error("Error submitting report:", err.message);
             toast.error('Something went wrong. Please try again.');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -659,7 +664,9 @@ const ListContent = (props) => {
                     </Form>
                 </Modal.Body>
                 <Modal.Footer className="justify-content-center">
-                    <Button size="lg" onClick={handleReportSubmit}>Submit Report</Button>
+                    <Button size="lg" onClick={handleReportSubmit} disabled={submitting}>
+                        {submitting ? 'Submitting...' : 'Submit Report'}
+                    </Button>
                     <Button size="lg" variant="secondary" onClick={() => setShowReportModal(false)}>Cancel</Button>
                 </Modal.Footer>
             </Modal>

@@ -17,7 +17,6 @@ function Registration() {
     const [passwordRequirementsError, setPasswordRequirementsError] = useState('');
     const [passwordsMatchError, setPasswordsMatchError] = useState('');
     const [validated, setValidated] = useState(false);
-    const [userData, setUserData] = useState([])
     const [emailError, setEmailError] = useState('')
     const [emailCode, setEmailCode] = useState('')
     const [showError, setShowError] = useState(false);
@@ -39,7 +38,6 @@ function Registration() {
 
     const navigate = useNavigate();
     const profanityFilter = new Filter();
-    // Regex for basic email format check before hitting the server
     const re =
       /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
 
@@ -65,39 +63,6 @@ function Registration() {
         setPasswordsMatchError(password === newConfirmPass ? '' : 'Passwords do not match');
     };
 
-    const getUserDetails = async () => {
-        try {
-            const response = await fetch(`${API}/forumusers`)
-            const jsonData = await response.json()
-            setUserData(jsonData)
-        } catch (err) {
-            console.error(err.message)
-        }
-    }
-
-    useEffect(() => { getUserDetails() }, [])
-
-    // Email uniqueness check waits 500ms after typing stops to avoid spamming the server
-    useEffect(() => {
-        let timer;
-        if (email !== '') {
-            timer = setTimeout(() => {
-                const usercheck = userData.find((user) => user.email === email)
-                if (usercheck) {
-                    setEmailError('Email is already taken')
-                    setShowError(true)
-                } else {
-                    setEmailError('')
-                    setShowError(false)
-                }
-            }, 500);
-        } else {
-            setEmailError('')
-            setShowError(false);
-        }
-        return () => clearTimeout(timer)
-    }, [email, userData])
-
     // Countdown timer that starts after successful registration then redirects to sign in
     useEffect(() => {
         if (step < 3) return;
@@ -112,7 +77,6 @@ function Registration() {
     }, [step, secondsRemaining, navigate]);
 
     const onResendCode = async () => {
-        // Cap resends at 3 to prevent abuse then lock them out with step 4
         if (resendCount < 3) {
             try {
                 await fetch(`${API}/resendcode`, {
@@ -147,7 +111,6 @@ function Registration() {
                     body: JSON.stringify({ email }),
                 });
 
-                // Generate the keypair in a worker so the page doesn't freeze during the RSA operation
                 const result = await new Promise((resolve, reject) => {
                     const worker = new Worker(
                         new URL('../workers/keygenWorker.js', import.meta.url),
@@ -186,6 +149,9 @@ function Registration() {
 
                 setPrivateKey(privKeyPem);
                 setKeyModalStep('passphrase');
+                setPassphrase('');
+                setConfirmPassphrase('');
+                setPassphraseError('');
                 setShowKeyModal(true);
             } else {
                 setValidCode(false);
@@ -211,8 +177,6 @@ function Registration() {
         setIsSavingKey(true);
         setPassphraseError('');
         try {
-            // The private key is encrypted client side before being sent
-            // the passphrase never leaves the browser
             const { encryptedKey, salt, iv } = await encryptPrivateKey(privateKey, passphrase);
             const response = await fetch(`${API}/save-encrypted-key`, {
                 method: 'POST',
@@ -239,6 +203,9 @@ function Registration() {
 
     const handleFinish = () => {
         setShowKeyModal(false);
+        setPrivateKey('');
+        setPassphrase('');
+        setConfirmPassphrase('');
         setStep(3);
     };
 
@@ -246,22 +213,15 @@ function Registration() {
         e.preventDefault();
         setValidated(true);
         setNameError('');
-        
+
         const isPasswordValid = validatePassword(password);
         const doPasswordsMatch = password === confirmpass;
-        
-        // 1. Check for the email error state from your useEffect
-        if (emailError) {
-            setShowError(true);
-            return; 
-        }
 
         if (profanityFilter.isProfane(username)) {
             setNameError('Username cannot contain profanity');
             return;
         }
 
-        // 2. Explicitly handle empty username
         if (!username.trim()) {
             setNameError('Username is required');
             return;
@@ -276,10 +236,15 @@ function Registration() {
                 body: JSON.stringify({ email, username, password }),
             });
 
+            if (response.status === 409) {
+                setEmailError('Email is already taken');
+                setShowError(true);
+                return;
+            }
+
             if (response.ok) {
                 setStep(2);
             } else {
-                // 3. Catch server-side validation errors (like "Email already exists")
                 const errorData = await response.json();
                 setEmailError(errorData.message || 'Registration failed. Please try again.');
                 setShowError(true);
@@ -293,11 +258,9 @@ function Registration() {
 
     const handleUsernameChange = (e) => {
         const { value } = e.target;
-        // Hard cap at 20 characters rather than relying solely on maxLength
         if (value.length <= 20) setUserName(value);
     };
 
-    // Shared input styles to keep things consistent across all fields
     const inputStyle = {
         border: '1.5px solid #e0e0dc',
         borderLeft: 'none',
@@ -415,7 +378,6 @@ function Registration() {
                                         ? <span style={{ fontSize: '0.8rem', color: '#d00000', fontWeight: '500' }}>{nameError}</span>
                                         : <span style={{ fontSize: '0.78rem', color: '#999' }}>This will be your public display name</span>
                                     }
-                                    {/* Counter turns orange when close to the limit */}
                                     <span style={{ fontSize: '0.78rem', color: username.length >= 18 ? '#e39647' : '#bbb', fontWeight: username.length >= 18 ? '600' : '400' }}>
                                         {username.length}/20
                                     </span>
@@ -467,7 +429,7 @@ function Registration() {
                 </>
             )}
 
-            {/* Step 2 — email verification matching the same card design as step 1 */}
+            {/* Step 2 — email verification */}
             {step === 2 && centeredWrapper(
                 <>
                     {cardHeader('Step 2 of 2', 'Verify Your Email', 'Enter the code we sent to ' + email)}
@@ -513,7 +475,7 @@ function Registration() {
                 </>
             )}
 
-            {/* Step 3 — success countdown to redirect */}
+            {/* Step 3 — success countdown */}
             {step === 3 && centeredWrapper(
                 <>
                     {cardHeader('All Done', 'Account Created', 'Welcome to SmashPoint')}
@@ -527,6 +489,7 @@ function Registration() {
                 </>
             )}
 
+            {/* Step 4 — too many resend attempts */}
             {step === 4 && centeredWrapper(
                 <>
                     {cardHeader('Limit Reached', 'Too Many Attempts', 'Please try again later')}
@@ -538,18 +501,7 @@ function Registration() {
                 </>
             )}
 
-            {step === 5 && centeredWrapper(
-                <>
-                    {cardHeader('Limit Reached', 'Too Many Attempts', 'Please try again later')}
-                    {cardBody(
-                        <p style={{ color: '#555', textAlign: 'center', marginBottom: 0 }}>
-                            Too many failed verification attempts. Please try registering again.
-                        </p>
-                    )}
-                </>
-            )}
-
-            {/* Forced modal — user must set a passphrase and optionally download their key before continuing */}
+            {/* Key setup modal — forced, cannot be dismissed */}
             <Modal show={showKeyModal} onHide={() => {}} backdrop="static" keyboard={false}>
                 <Modal.Header>
                     <Modal.Title>
@@ -558,7 +510,6 @@ function Registration() {
                     </Modal.Title>
                 </Modal.Header>
 
-                {/* Step A — set the passphrase that protects their private key */}
                 {keyModalStep === 'passphrase' && (
                     <>
                         <Modal.Body>
@@ -596,7 +547,6 @@ function Registration() {
                     </>
                 )}
 
-                {/* Step B — offer a plaintext backup in case they ever forget their passphrase */}
                 {keyModalStep === 'download' && (
                     <>
                         <Modal.Body>

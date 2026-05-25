@@ -118,6 +118,16 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 app.post('/forumusers', authLimiter, async (req, res) => {
     try {
         const { username, email, password } = req.body;
+
+        // Check for duplicate email before attempting insert
+        const existing = await pool.query(
+            'SELECT users_id FROM forumusers WHERE email = $1',
+            [email]
+        );
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ error: 'Email already taken' });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const newForumusers = await pool.query(
@@ -139,7 +149,6 @@ app.post('/forumusers', authLimiter, async (req, res) => {
             message: 'User registered successfully. Please check your email.' 
         });
 
-        // Send verification email via Resend
         resend.emails.send({
             from: 'SmashPoint <no-reply@smashpoint.gg>',
             to: email,
@@ -153,7 +162,7 @@ app.post('/forumusers', authLimiter, async (req, res) => {
             res.status(500).json({ error: 'Internal Server Error' });
         }
     }
-    });
+});
 
 app.put("/forumusers/updateVerified", async (req, res) => {
     try{
@@ -610,7 +619,7 @@ app.delete("/forumusers/:userId", authenticateToken, verifyRole(['admin', 'moder
 
 /////////////////////////////////// FORUM IMAGES //////////////////////////////////////
 
-app.post('/forumimages', uploadLimiter, (req, res) => {
+app.post('/forumimages', authenticateToken, uploadLimiter, (req, res) => {
     upload.single('image')(req, res, async (err) => {
         if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({ error: 'Image must be under 10MB' });
