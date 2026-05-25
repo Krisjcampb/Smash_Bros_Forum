@@ -15,7 +15,6 @@ const ListContent = (props) => {
     const [loading, setLoading] = useState(true)
     const [initialLoad, setInitialLoad] = useState(true) // true only on first page load
     const [searchTerm, setSearchTerm] = useState('')
-    const [user, setUser] = useState("")
     const [userid, setUserId] = useState("")
     const [likedStatus, setLikedStatus] = useState({})
     const [dislikedStatus, setDislikedStatus] = useState({})
@@ -306,7 +305,7 @@ const ListContent = (props) => {
             fetch(`${API}/userauthenticate`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            }).then(r => r.json()).then(data => { setUser(data.name); setUserId(data.id); });
+            }).then(r => r.json()).then(data => { setUserId(data.id); });
         }
     }, []);
 
