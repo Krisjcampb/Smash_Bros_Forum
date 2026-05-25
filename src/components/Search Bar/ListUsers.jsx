@@ -3,7 +3,7 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import { Form, InputGroup } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { BsPersonFill, BsGeoAltFill, BsChatFill } from 'react-icons/bs';
+import { BsPersonFill, BsGeoAltFill, BsChatFill, BsSearch } from 'react-icons/bs';
 import { API } from '../Utilities/apiUrl';
 
 const roleBadgeStyle = (role) => {
@@ -49,6 +49,7 @@ const labelStyle = {
 const ListUsers = () => {
     const [userList, setUserList] = useState([]);
     const [userRole, setUserRole] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Role assignment state
     const [selectedRole, setSelectedRole] = useState('');
@@ -68,6 +69,10 @@ const ListUsers = () => {
     const [editSuccess, setEditSuccess] = useState(false);
 
     const navigate = useNavigate();
+
+    const filteredUsers = userList.filter(user =>
+        user.username.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const getUserList = async () => {
         try {
@@ -210,9 +215,25 @@ const ListUsers = () => {
 
     return (
         <>
-            {userList.length === 0 ? (
+            {/* Search bar */}
+            <div style={{ marginBottom: '1rem' }}>
+                <InputGroup style={{ maxWidth: '320px' }}>
+                    <InputGroup.Text style={iconGroupStyle}>
+                        <BsSearch size={14} />
+                    </InputGroup.Text>
+                    <Form.Control
+                        type="text"
+                        placeholder="Search users..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={inputStyle}
+                    />
+                </InputGroup>
+            </div>
+
+            {filteredUsers.length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#999', padding: '2rem', fontSize: '0.9rem' }}>
-                    No users found
+                    {searchTerm ? `No users found matching "${searchTerm}"` : 'No users found'}
                 </div>
             ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -235,7 +256,7 @@ const ListUsers = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {userList.map((e, index) => (
+                            {filteredUsers.map((e, index) => (
                                 <tr
                                     key={e.users_id}
                                     style={{
@@ -246,7 +267,6 @@ const ListUsers = () => {
                                     onMouseEnter={el => el.currentTarget.style.background = '#fff8e1'}
                                     onMouseLeave={el => el.currentTarget.style.background = index % 2 === 0 ? '#ffffff' : '#fafaf8'}
                                 >
-                                    {/* Username links to their profile */}
                                     <td
                                         onClick={() => navigate(`/userprofile/${e.username}/${e.users_id}`)}
                                         style={{
