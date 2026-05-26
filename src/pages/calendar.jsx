@@ -472,6 +472,24 @@ function Calendar() {
                     border-color: #555 !important;
                     color: #e9e9e9 !important;
                 }
+                .light-theme .fc-daygrid-day {
+                    background-color: #ffffff;
+                }
+                .light-theme .fc {
+                    background-color: #ffffff;
+                }
+                .dark-theme .fc {
+                    background-color: #2b2b2b;
+                }
+                .light-theme .fc-scrollgrid,
+                .light-theme .fc-scrollgrid td,
+                .light-theme .fc-scrollgrid th {
+                    border-color: #dcdcdc !important;
+                }
+
+                .light-theme .fc-day-today {
+                    background-color: #fff6d6 !important;
+                }
                 .dark-theme .fc-button {
                     background-color: #393933 !important;
                     border-color: #555 !important;
