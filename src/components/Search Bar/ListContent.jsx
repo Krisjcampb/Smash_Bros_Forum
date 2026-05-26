@@ -318,10 +318,6 @@ const ListContent = (props) => {
         return () => clearTimeout(searchTimeout.current);
     }, [fetchPostsWithImages, page, searchTerm]);
 
-    useEffect(() => { 
-        fetchPostsWithImages(page, searchTerm); 
-    }, [fetchPostsWithImages, page, searchTerm]);
-
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -604,7 +600,7 @@ const ListContent = (props) => {
 
                 {/* ── Pagination ────────────────────────────────────────────── */}
                 <div className="forum-footer w-100 text-center mt-4 mb-4">
-                    {hasMore && !searchTerm && (
+                    {hasMore && (
                         <Button
                             variant="primary"
                             size="lg"

@@ -7,6 +7,61 @@ import Filter from 'bad-words';
 import { encryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
 
+const cardHeader = (badge, title, subtitle) => (
+    <div style={{
+        background: '#393933',
+        borderRadius: '16px 16px 0 0',
+        padding: '2rem 2.5rem 1.5rem',
+        borderBottom: '4px solid #FFD443',
+    }}>
+        <div style={{
+            display: 'inline-block',
+            background: '#FFD443',
+            borderRadius: '6px',
+            padding: '3px 10px',
+            fontSize: '0.68rem',
+            fontWeight: '700',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#393933',
+            marginBottom: '0.75rem',
+        }}>
+            {badge}
+        </div>
+        <h2 style={{ color: '#ffffff', fontWeight: '800', fontSize: '1.75rem', margin: 0, letterSpacing: '-0.02em' }}>
+            {title}
+        </h2>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '0.4rem', marginBottom: 0 }}>
+            {subtitle}
+        </p>
+    </div>
+);
+
+const cardBody = (children) => (
+    <div style={{
+        background: '#ffffff',
+        borderRadius: '0 0 16px 16px',
+        padding: '2rem 2.5rem 2.5rem',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+    }}>
+        {children}
+    </div>
+);
+
+const centeredWrapper = (children) => (
+    <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem 1rem',
+    }}>
+        <div style={{ width: '100%', maxWidth: '480px' }}>
+            {children}
+        </div>
+    </div>
+);
+
 function Registration() {
     const [email, setEmail] = useState('')
     const [username, setUserName] = useState('')
@@ -25,6 +80,9 @@ function Registration() {
     const [step, setStep] = useState(1);
     const [resendCount, setResendCount] = useState(1);
     const [secondsRemaining, setSecondsRemaining] = useState(3)
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [isGeneratingKey, setIsGeneratingKey] = useState(false);
 
     // Key and passphrase state
     const [showKeyModal, setShowKeyModal] = useState(false);
@@ -95,6 +153,8 @@ function Registration() {
 
     const onVerifyEmail = async (e) => {
         e.preventDefault();
+        if (isVerifying) return;
+        setIsVerifying(true);
         if (!re.test(email)) return;
         try {
             const response = await fetch(`${API}/emailverify`, {
@@ -110,6 +170,8 @@ function Registration() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email }),
                 });
+                
+                setIsGeneratingKey(true);
 
                 const result = await new Promise((resolve, reject) => {
                     const worker = new Worker(
@@ -144,6 +206,7 @@ function Registration() {
 
                 if (!saveKeyResponse.ok) {
                     console.error('Failed to save public key');
+                    setIsGeneratingKey(false);
                     return;
                 }
 
@@ -152,6 +215,7 @@ function Registration() {
                 setPassphrase('');
                 setConfirmPassphrase('');
                 setPassphraseError('');
+                setIsGeneratingKey(false);
                 setShowKeyModal(true);
             } else {
                 setValidCode(false);
@@ -159,6 +223,9 @@ function Registration() {
             }
         } catch (err) {
             console.error(err);
+            setIsGeneratingKey(false);
+        } finally {
+            setIsVerifying(false);
         }
     };
 
@@ -211,12 +278,14 @@ function Registration() {
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return;
+
         setValidated(true);
         setNameError('');
 
         const isPasswordValid = validatePassword(password);
         const doPasswordsMatch = password === confirmpass;
-
+e
         if (profanityFilter.isProfane(username)) {
             setNameError('Username cannot contain profanity');
             return;
@@ -228,6 +297,9 @@ function Registration() {
         }
 
         if (!isPasswordValid || !doPasswordsMatch) return;
+
+        // Only lock the button once validation passed
+        setIsSubmitting(true);
 
         try {
             const response = await fetch(`${API}/forumusers`, {
@@ -253,6 +325,8 @@ function Registration() {
             console.error(err.message);
             setEmailError('Server connection lost. Please try again.');
             setShowError(true);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -294,61 +368,6 @@ function Registration() {
         color: '#FFD443',
         transition: 'all 0.2s ease',
     };
-
-    const cardHeader = (badge, title, subtitle) => (
-        <div style={{
-            background: '#393933',
-            borderRadius: '16px 16px 0 0',
-            padding: '2rem 2.5rem 1.5rem',
-            borderBottom: '4px solid #FFD443',
-        }}>
-            <div style={{
-                display: 'inline-block',
-                background: '#FFD443',
-                borderRadius: '6px',
-                padding: '3px 10px',
-                fontSize: '0.68rem',
-                fontWeight: '700',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: '#393933',
-                marginBottom: '0.75rem',
-            }}>
-                {badge}
-            </div>
-            <h2 style={{ color: '#ffffff', fontWeight: '800', fontSize: '1.75rem', margin: 0, letterSpacing: '-0.02em' }}>
-                {title}
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '0.4rem', marginBottom: 0 }}>
-                {subtitle}
-            </p>
-        </div>
-    );
-
-    const cardBody = (children) => (
-        <div style={{
-            background: '#ffffff',
-            borderRadius: '0 0 16px 16px',
-            padding: '2rem 2.5rem 2.5rem',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-        }}>
-            {children}
-        </div>
-    );
-
-    const centeredWrapper = (children) => (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem 1rem',
-        }}>
-            <div style={{ width: '100%', maxWidth: '480px' }}>
-                {children}
-            </div>
-        </div>
-    );
 
     return (
         <Container>
@@ -408,10 +427,10 @@ function Registration() {
                                 </InputGroup>
                             </Form.Group>
 
-                            <Button type='submit' style={submitButtonStyle}
+                            <Button type='submit' disabled={isSubmitting} style={submitButtonStyle}
                                 onMouseEnter={e => { e.target.style.background = '#FFD443'; e.target.style.color = '#393933'; }}
                                 onMouseLeave={e => { e.target.style.background = '#393933'; e.target.style.color = '#FFD443'; }}>
-                                Create Account
+                                {isSubmitting ? 'Creating Account...' : 'Create Account'}
                             </Button>
 
                             <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#999', marginTop: '1rem', marginBottom: 0 }}>
@@ -458,11 +477,18 @@ function Registration() {
                                 </InputGroup>
                             </Form.Group>
 
-                            <Button type='submit' style={submitButtonStyle}
+                            <Button type='submit' disabled={isVerifying} style={submitButtonStyle}
                                 onMouseEnter={e => { e.target.style.background = '#FFD443'; e.target.style.color = '#393933'; }}
                                 onMouseLeave={e => { e.target.style.background = '#393933'; e.target.style.color = '#FFD443'; }}>
-                                Verify Email
+                                {isVerifying ? 'Verifying...' : 'Verify Email'}
                             </Button>
+
+                            {isGeneratingKey && (
+                                <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem', color: '#888' }}>
+                                    <span className="spinner-border spinner-border-sm me-2" />
+                                    Generating your encryption keys...
+                                </div>
+                            )}
 
                             <p style={{ textAlign: 'center', fontSize: '0.82rem', color: '#888', marginTop: '1rem', marginBottom: 0 }}>
                                 Didn't receive it?{' '}

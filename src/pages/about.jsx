@@ -74,7 +74,7 @@ function About() {
 
                     <p style={{ color: '#444', lineHeight: '1.8', marginBottom: '1.5rem' }}>
                         The Smash Bros. scene is a special scene to many, with so much to do and see,
-                        especially in regards to playing smash. From Smash 64 to Ultimate and
+                        especially in regards to playing smash. From casual to competitive and
                         everything in between, there is something so special with every person
                         that chooses to compete, hang out, or even just watch online. Everyone
                         that has been a part of that has made an impact on someone somehow in
