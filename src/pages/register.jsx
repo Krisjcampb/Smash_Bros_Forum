@@ -285,7 +285,7 @@ function Registration() {
 
         const isPasswordValid = validatePassword(password);
         const doPasswordsMatch = password === confirmpass;
-e
+        
         if (profanityFilter.isProfane(username)) {
             setNameError('Username cannot contain profanity');
             return;

@@ -34,6 +34,7 @@ function UserComments({ userRole, userId, forumContent }) {
     const [reportDescription, setReportDescription] = useState('');
     const [editMentions, setEditMentions] = useState([]);
     const contentInputRef = useRef(null);
+    const token = localStorage.getItem('token');
 
     const sortOptions = [
         { value: 'newest', label: 'Newest First' },
@@ -267,9 +268,8 @@ function UserComments({ userRole, userId, forumContent }) {
     };
 
     useEffect(() => {
-        const timeout = setTimeout(() => fetchData(), 100);
-        return () => clearTimeout(timeout);
-    }, [likedStatus, dislikedStatus]);
+        fetchData();
+    }, []);
 
     useEffect(() => {
         if (!userId) return;
@@ -302,16 +302,34 @@ function UserComments({ userRole, userId, forumContent }) {
 
         setLikedStatus(prev => ({ ...prev, [comment_id]: !isCurrentlyLiked }));
         setDislikedStatus(prev => ({ ...prev, [comment_id]: false }));
-        setInitialComments(prev =>
-            prev.map(c => c.comment_id === comment_id
-                ? { ...c, type: isCurrentlyLiked ? null : 'like' } : c)
-        );
+        setInitialComments(prev => {
+            const exists = prev.some(c => c.comment_id === comment_id);
+
+            if (exists) {
+                return prev.map(c =>
+                    c.comment_id === comment_id
+                        ? { ...c, type: isCurrentlyLiked ? null : 'like' }
+                        : c
+                );
+            }
+
+            return [
+                ...prev,
+                {
+                    comment_id,
+                    type: isCurrentlyLiked ? null : 'like'
+                }
+            ];
+        });
 
         try {
             const response = await fetch(`${API}/commentlikes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, comment_id }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ comment_id }),
             });
             if (response.ok) {
                 fetchData();
@@ -330,16 +348,34 @@ function UserComments({ userRole, userId, forumContent }) {
 
         setDislikedStatus(prev => ({ ...prev, [comment_id]: !isCurrentlyDisliked }));
         setLikedStatus(prev => ({ ...prev, [comment_id]: false }));
-        setInitialComments(prev =>
-            prev.map(c => c.comment_id === comment_id
-                ? { ...c, type: isCurrentlyDisliked ? null : 'dislike' } : c)
-        );
+        setInitialComments(prev => {
+            const exists = prev.some(c => c.comment_id === comment_id);
+
+            if (exists) {
+                return prev.map(c =>
+                    c.comment_id === comment_id
+                        ? { ...c, type: isCurrentlyDisliked ? null : 'dislike' }
+                        : c
+                );
+            }
+
+            return [
+                ...prev,
+                {
+                    comment_id,
+                    type: isCurrentlyDisliked ? null : 'dislike'
+                }
+            ];
+        });
 
         try {
             const response = await fetch(`${API}/commentdislikes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, comment_id }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ comment_id }),
             });
             if (response.ok) fetchData();
             else toast.error('Failed to dislike comment.');

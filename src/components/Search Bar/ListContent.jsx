@@ -34,6 +34,7 @@ const ListContent = (props) => {
     const [reportDescription, setReportDescription] = useState('')
     const [submitting, setSubmitting] = useState(false);
     const { userRole, usersId, newThread } = props;
+    const token = localStorage.getItem('token');
 
     // ── Modal helpers ─────────────────────────────────────────────────────────
 
@@ -194,8 +195,11 @@ const ListContent = (props) => {
         try {
             await fetch(`${API}/forumlikes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userid, thread_id }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ thread_id }),
             });
             if (!wasLiked) toast.success('👍 Post liked!', { autoClose: 1500, hideProgressBar: true });
         } catch (err) {
@@ -227,8 +231,11 @@ const ListContent = (props) => {
         try {
             await fetch(`${API}/forumdislikes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userid, thread_id }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ thread_id }),
             });
         } catch (err) {
             toast.error('Failed to dislike post.');

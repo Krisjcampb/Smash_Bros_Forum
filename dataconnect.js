@@ -174,7 +174,7 @@ app.put("/forumusers/updateVerified", async (req, res) => {
         `;
         await pool.query(updateQuery, [email]);
         res.status(201).send("User email verified");
-    } catch {
+    } catch (err) {
         console.error(err.message);
         res.status(500).send("Internal server error");
     }
@@ -364,7 +364,7 @@ app.get("/forumusers/get-user/:username", async (req, res) => {
         const { username } = req.params;
 
         const forumusers = await pool.query(
-            "SELECT * FROM forumusers WHERE username ILIKE $1 ORDER BY username LIMIT 6",
+            "SELECT users_id, username, role, character_name, selected_skin, location, description, last_online FROM forumusers WHERE username ILIKE $1 ORDER BY username LIMIT 6",
             [`${username}%`]
         );
 
@@ -912,7 +912,8 @@ app.get('/threadcontent/:userid', async (req, res) => {
 
 //FORUM CONTENT LIKES AND DISLIKES
 app.post('/forumlikes', authenticateToken, async (req, res) => {
-    const {userid, thread_id} = req.body
+    const userid = req.user.users_id;
+    const {thread_id} = req.body
 
     try {
         const like = await pool.query('SELECT * FROM likes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
@@ -938,7 +939,8 @@ app.post('/forumlikes', authenticateToken, async (req, res) => {
 })
 
 app.post('/forumdislikes', authenticateToken, async (req, res) => {
-    const { userid, thread_id} = req.body;
+    const userid = req.user.users_id;
+    const {thread_id} = req.body;
 
     try {
         const dislike = await pool.query('SELECT * FROM dislikes WHERE user_id = $1 AND post_id = $2', [userid, thread_id]);
@@ -1078,9 +1080,9 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
 
       const mentionedUserId = userResult.rows[0]?.users_id;
       if (!mentionedUserId) continue;
-
       if (mentionedUserId === validUserId) continue;
       if (mentionedUsers.has(mentionedUserId)) continue;
+      mentionedUsers.add(mentionedUserId);
 
       mentionObjects.push({ username, position, length });
 
@@ -1456,7 +1458,8 @@ app.get('/edithistory/:commentId', async(req, res) => {
 
 //FORUM COMMENT LIKES AND DISLIKES
 app.post('/commentlikes', authenticateToken, async (req, res) => {
-    const {userId, comment_id} = req.body
+    const {comment_id} = req.body
+    const userId = req.user.users_id;
     try {
         const like = await pool.query('SELECT * FROM commentlikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
 
@@ -1482,7 +1485,8 @@ app.post('/commentlikes', authenticateToken, async (req, res) => {
 })
 
 app.post('/commentdislikes', authenticateToken, async (req, res) => {
-    const { userId, comment_id} = req.body;
+    const { comment_id} = req.body;
+    const userId = req.user.users_id;
 
     try {
         const dislike = await pool.query('SELECT * FROM commentdislikes WHERE user_id = $1 AND comment_id = $2', [userId, comment_id]);
@@ -1531,38 +1535,6 @@ app.get('/commentdislikes', async (req, res) => {
         `SELECT comment_id, COUNT(*) AS dislike_count
         FROM commentdislikes
         GROUP BY comment_id;
-        `)
-        const result = dislikes.rows;
-
-        res.json(result)
-
-    } catch (err) {
-        console.error(err.message)
-    }
-})
-
-app.get('/forumlikes', async (req, res) => {
-    try {
-        const likes = await pool.query(
-        `SELECT comment_id, COUNT(*) AS like_count
-        FROM commentlikes
-        GROUP BY comment_id;
-        `)
-        const result = likes.rows;
-
-        res.json(result)
-
-    } catch (err) {
-        console.error(err.message)
-    }
-})
-
-app.get('/forumdislikes', async (req, res) => {
-    try {
-        const dislikes = await pool.query(
-        `SELECT post_id, COUNT(*) AS dislike_count
-        FROM dislikes
-        GROUP BY post_id;
         `)
         const result = dislikes.rows;
 
@@ -1764,6 +1736,10 @@ app.post('/passwordreset', async (req, res) => {
     const { email } = req.body;
     const result = await pool.query('SELECT * FROM forumusers WHERE email = $1', [email]);
     const user = result.rows[0];
+
+    if (!user) {
+        return res.status(404).json({ error: 'Email not found' });
+    }
 
     const generateRandomCode = () => {
         const buffer = crypto.randomBytes(3);
@@ -2357,8 +2333,6 @@ app.post('/uploadEncryptedImage', uploadLimiter, (req, res) => {
 
             await uploader.done();
 
-            console.log('✅ B2 upload complete');
-
             const filepath = `${process.env.CDN_URL}/${uniqueName}`;
 
             // Insert into database
@@ -2379,8 +2353,6 @@ app.post('/uploadEncryptedImage', uploadLimiter, (req, res) => {
                     filename
                 ]
             );
-
-            console.log('✅ Database insert complete');
 
             const savedImage = result.rows[0];
 
