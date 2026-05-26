@@ -6,6 +6,7 @@ import { NavLink } from 'react-router-dom'
 import { BsTextLeft, BsCardHeading, BsImageFill } from 'react-icons/bs'
 import ListContent from '../components/Search Bar/ListContent'
 import axios from 'axios';
+import imageCompression from 'browser-image-compression';
 import { API } from '../components/Utilities/apiUrl';
 
 function Homepage() {
@@ -66,8 +67,16 @@ function Homepage() {
             let filepath = null;
 
             if (file) {
+                const compressionOptions = {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1920,
+                    useWebWorker: true,
+                };
+
+                const compressedFile = await imageCompression(file, compressionOptions);
+
                 const formData = new FormData();
-                formData.append('image', file);
+                formData.append('image', compressedFile);
                 formData.append('thread_id', thread_id);
                 const imageUploadResponse = await axios({
                     method: 'POST',

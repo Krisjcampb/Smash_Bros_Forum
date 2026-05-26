@@ -1,5 +1,5 @@
 // src/components/Search Bar/ListContent.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Card from 'react-bootstrap/Card'
 import { NavLink } from 'react-router-dom'
 import { Row, Col, Button, Modal, Container, Image } from 'react-bootstrap'
@@ -33,6 +33,7 @@ const ListContent = (props) => {
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
     const [submitting, setSubmitting] = useState(false);
+    const searchTimeout = useRef(null)
     const { userRole, usersId, newThread } = props;
 
     // ── Modal helpers ─────────────────────────────────────────────────────────
@@ -249,13 +250,25 @@ const ListContent = (props) => {
         }
     }, [initialposts]);
 
-    const handleSearch = (e) => { setSearchTerm(e.target.value); setPage(1); setHasMore(true); };
+    const handleSearch = (e) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        setPage(1);
+        setHasMore(true);
+    };
+
+    useEffect(() => {
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        searchTimeout.current = setTimeout(() => {
+            fetchPostsWithImages(page, searchTerm);
+        }, 400);
+        return () => clearTimeout(searchTimeout.current);
+    }, [fetchPostsWithImages, page, searchTerm]);
+
     const handleSortChange = (e) => { setSortBy(e.target.value); setPage(1); setHasMore(true); };
 
     const list = useMemo(() => {
-        const filtered = originalList.filter(item =>
-            item.title.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        const filtered = [...originalList];
         if (sortBy === 'newest') filtered.sort((a, b) => new Date(b.postdate) - new Date(a.postdate));
         else if (sortBy === 'oldest') filtered.sort((a, b) => new Date(a.postdate) - new Date(b.postdate));
         else if (sortBy === 'mostPopular') {
@@ -274,14 +287,15 @@ const ListContent = (props) => {
             });
         }
         return filtered;
-    }, [originalList, searchTerm, sortBy, likesdislikes]);
+    }, [originalList, sortBy, likesdislikes]);
 
-    const fetchPostsWithImages = useCallback(async (pageNum) => {
+    const fetchPostsWithImages = useCallback(async (pageNum, search = '') => {
         try {
             setLoading(true);
             const limit = 24;
             const scrollPos = window.scrollY || document.documentElement.scrollTop;
-            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}`);
+            const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}`);
             const newPosts = await response.json();
             if (newPosts.length === 0 || newPosts.length < limit) setHasMore(false);
             setOriginalList(prev => {
@@ -302,7 +316,9 @@ const ListContent = (props) => {
         }
     }, []);
 
-    useEffect(() => { fetchPostsWithImages(page); }, [fetchPostsWithImages, page]);
+    useEffect(() => { 
+        fetchPostsWithImages(page, searchTerm); 
+    }, [fetchPostsWithImages, page, searchTerm]);
 
     useEffect(() => {
         const token = localStorage.getItem('token');

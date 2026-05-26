@@ -737,40 +737,70 @@ app.post('/forumcontent', authenticateToken, async (req, res) => {
 })
 
 app.get('/forumcontent', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 24;
-    const offset = (page - 1) * limit;
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 24;
+        const offset = (page - 1) * limit;
+        const search = req.query.search?.trim() || '';
 
-    const paginatedQuery = `
-      SELECT
-        fc.*,
-        fi.filepath,
-        fu.character_name,
-        fu.selected_skin,
-        COALESCE(cc.comment_count, 0) AS comment_count
-      FROM forumcontent fc
-      LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
-      JOIN forumusers fu ON fc.users_id = fu.users_id
-      LEFT JOIN (
-        SELECT thread_id, COUNT(*) AS comment_count
-        FROM forumcomments
-        WHERE is_deleted = FALSE
-        GROUP BY thread_id
-      ) cc ON fc.thread_id = cc.thread_id
-      WHERE fu.is_banned = FALSE
-      AND fc.is_deleted = FALSE
-      ORDER BY fc.postdate DESC
-      LIMIT $1 OFFSET $2
-    `;
+        let paginatedQuery;
+        let params;
 
-    const allForumcontent = await pool.query(paginatedQuery, [limit, offset]);
+        if (search) {
+            paginatedQuery = `
+                SELECT
+                    fc.*,
+                    fi.filepath,
+                    fu.character_name,
+                    fu.selected_skin,
+                    COALESCE(cc.comment_count, 0) AS comment_count
+                FROM forumcontent fc
+                LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
+                JOIN forumusers fu ON fc.users_id = fu.users_id
+                LEFT JOIN (
+                    SELECT thread_id, COUNT(*) AS comment_count
+                    FROM forumcomments
+                    WHERE is_deleted = FALSE
+                    GROUP BY thread_id
+                ) cc ON fc.thread_id = cc.thread_id
+                WHERE fu.is_banned = FALSE
+                AND fc.is_deleted = FALSE
+                AND (fc.title ILIKE $3 OR fc.content ILIKE $3)
+                ORDER BY fc.postdate DESC
+                LIMIT $1 OFFSET $2
+            `;
+            params = [limit, offset, `%${search}%`];
+        } else {
+            paginatedQuery = `
+                SELECT
+                    fc.*,
+                    fi.filepath,
+                    fu.character_name,
+                    fu.selected_skin,
+                    COALESCE(cc.comment_count, 0) AS comment_count
+                FROM forumcontent fc
+                LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
+                JOIN forumusers fu ON fc.users_id = fu.users_id
+                LEFT JOIN (
+                    SELECT thread_id, COUNT(*) AS comment_count
+                    FROM forumcomments
+                    WHERE is_deleted = FALSE
+                    GROUP BY thread_id
+                ) cc ON fc.thread_id = cc.thread_id
+                WHERE fu.is_banned = FALSE
+                AND fc.is_deleted = FALSE
+                ORDER BY fc.postdate DESC
+                LIMIT $1 OFFSET $2
+            `;
+            params = [limit, offset];
+        }
 
-    res.json(allForumcontent.rows);
-  } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
-  }
+        const allForumcontent = await pool.query(paginatedQuery, params);
+        res.json(allForumcontent.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
 });
 
 //get a forum thread
