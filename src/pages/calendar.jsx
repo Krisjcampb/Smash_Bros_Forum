@@ -156,9 +156,10 @@ function Calendar() {
 
     return (
         <div style={{
-            width: '85vw',
-            maxWidth: '100vw',
+            width: '100%',
+            maxWidth: '1400px',
             margin: '2rem auto',
+            padding: '0 1rem',
             boxSizing: 'border-box',
         }}>
             {/* Hint for privileged users so they know they can click dates */}
