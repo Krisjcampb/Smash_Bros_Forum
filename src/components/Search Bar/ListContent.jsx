@@ -33,7 +33,6 @@ const ListContent = (props) => {
     const [reportReason, setReportReason] = useState('')
     const [reportDescription, setReportDescription] = useState('')
     const [submitting, setSubmitting] = useState(false);
-    const searchTimeout = useRef(null)
     const { userRole, usersId, newThread } = props;
 
     // ── Modal helpers ─────────────────────────────────────────────────────────
@@ -257,14 +256,6 @@ const ListContent = (props) => {
         setHasMore(true);
     };
 
-    useEffect(() => {
-        if (searchTimeout.current) clearTimeout(searchTimeout.current);
-        searchTimeout.current = setTimeout(() => {
-            fetchPostsWithImages(page, searchTerm);
-        }, 400);
-        return () => clearTimeout(searchTimeout.current);
-    }, [fetchPostsWithImages, page, searchTerm]);
-
     const handleSortChange = (e) => { setSortBy(e.target.value); setPage(1); setHasMore(true); };
 
     const list = useMemo(() => {
@@ -315,6 +306,17 @@ const ListContent = (props) => {
             setInitialLoad(false);
         }
     }, []);
+
+    // ← put these right here, after fetchPostsWithImages
+    const searchTimeout = useRef(null);
+
+    useEffect(() => {
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        searchTimeout.current = setTimeout(() => {
+            fetchPostsWithImages(page, searchTerm);
+        }, 400);
+        return () => clearTimeout(searchTimeout.current);
+    }, [fetchPostsWithImages, page, searchTerm]);
 
     useEffect(() => { 
         fetchPostsWithImages(page, searchTerm); 
