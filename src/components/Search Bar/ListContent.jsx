@@ -145,7 +145,7 @@ const ListContent = (props) => {
         }
     };
 
-    const handleDeleteAsModerator = async (userRole) => {
+    const handleDelete = async (userRole) => {
         if (userRole === 'admin' || userRole === 'moderator') {
             try {
                 const response = await fetch(`${API}/forumcontent/${currentThread.thread_id}`, {
@@ -164,25 +164,6 @@ const ListContent = (props) => {
                 }
             } catch (err) {
                 toast.error('Something went wrong.');
-            }
-        }
-    };
-
-    const handleDeleteAsUser = async (userRole) => {
-        if (userRole !== 'admin' && userRole !== 'moderator') {
-            try {                
-                const response = await fetch(`${API}/forumcontent/${currentThread.thread_id}`, {
-                    method: 'DELETE',
-                    headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                    },
-                });
-                if (response.ok) {
-                    setOriginalList(prev => prev.filter(t => t.thread_id !== currentThread.thread_id));
-                }
-            } catch (err) {
-                toast.error('Failed to delete thread.');
             }
         }
     };
@@ -668,7 +649,7 @@ const ListContent = (props) => {
                     <div className='text-center'>Are you sure you would like to delete this thread?</div>
                 </Modal.Body>
                 <Modal.Footer className="justify-content-center">
-                    <Button size="lg" onClick={() => handleDeleteAsUser(userRole)}>Confirm</Button>
+                    <Button size="lg" onClick={() => handleDelete(userRole)}>Confirm</Button>
                     <Button size="lg" className="ps-22 pe-22" onClick={DeleteClose}>Cancel</Button>
                 </Modal.Footer>
             </Modal>
