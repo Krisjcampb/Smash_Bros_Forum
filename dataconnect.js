@@ -722,7 +722,7 @@ app.post('/forumcontent', authenticateToken, async (req, res) => {
     const {title, content, likes, comments, username, postdate, usersId} = req.body
 
     if (!title || title.length > 200) return res.status(400).json({ error: 'Invalid title' });
-    if (!content || content.length > 50000) return res.status(400).json({ error: 'Invalid content' });
+    if (content && content.length > 50000) return res.status(400).json({ error: 'Invalid content' });
 
     const inserted = await pool.query(
         `
