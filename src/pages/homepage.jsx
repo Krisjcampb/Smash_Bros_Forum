@@ -18,7 +18,6 @@ function Homepage() {
     const [username, setUsername] = useState('')
     const [usersId, setUsersId] = useState('')
     const [userRole, setUserRole] = useState('')
-    const [newThread, setNewThread] = useState(null)
     const [isPosting, setIsPosting] = useState(false);
 
     const changeOpen = () => setShow(true)
@@ -103,16 +102,6 @@ function Homepage() {
 
                 filepath = imageUploadResponse.data.filepath;
             }
-
-            setNewThread({
-                ...createdThread,
-                filepath,
-                username,
-                character_name: null,
-                selected_skin: null,
-                comment_count: 0,
-            });
-
             changeClose();
 
         } catch (err) {
@@ -293,7 +282,7 @@ function Homepage() {
                 </Form>
             </Modal>
 
-            <ListContent newThread={newThread} userRole={userRole} usersId={usersId} />
+            <ListContent userRole={userRole} usersId={usersId} />
         </Container>
     )
 }
