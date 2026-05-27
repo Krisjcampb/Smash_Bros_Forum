@@ -23,6 +23,7 @@ function Threads() {
     const [commentsKey, setCommentsKey] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const thread_id = forumContent?.thread_id || threadId
+    const token = localStorage.getItem('token');
 
     const reportReasons = [
         "Sexual content", "Hateful or abusive content", "Harmful or dangerous acts",
@@ -78,7 +79,10 @@ function Threads() {
             };
             const response = await fetch(`${API}/forumcomments`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
                 body: JSON.stringify(body),
             });
 
