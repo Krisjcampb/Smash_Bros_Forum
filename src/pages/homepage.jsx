@@ -72,7 +72,6 @@ function Homepage() {
             const createdThread = await response.json();
             const { thread_id } = createdThread;
 
-            let filepath = null;
 
             if (file) {
                 const compressionOptions = {
@@ -99,8 +98,6 @@ function Homepage() {
                 if (imageUploadResponse.status !== 200) {
                     throw new Error('Failed to upload image');
                 }
-
-                filepath = imageUploadResponse.data.filepath;
             }
             changeClose();
 
