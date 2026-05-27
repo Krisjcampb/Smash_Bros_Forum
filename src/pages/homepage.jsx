@@ -19,10 +19,11 @@ function Homepage() {
     const [usersId, setUsersId] = useState('')
     const [userRole, setUserRole] = useState('')
     const [isPosting, setIsPosting] = useState(false);
+    const [newThread, setNewThread] = useState(null);
 
     const changeOpen = () => setShow(true)
     const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); }
-
+    
     const handleFileChange = (event) => {
         setFile(event.target.files[0])
     }
@@ -70,6 +71,7 @@ function Homepage() {
             }
 
             const createdThread = await response.json();
+            setNewThread(createdThread);
             const { thread_id } = createdThread;
 
 
@@ -100,6 +102,7 @@ function Homepage() {
                 }
             }
             changeClose();
+            setRefreshTrigger(prev => prev + 1);
 
         } catch (err) {
             console.log('Error:', err.message);
@@ -279,7 +282,7 @@ function Homepage() {
                 </Form>
             </Modal>
 
-            <ListContent userRole={userRole} usersId={usersId} />
+            <ListContent userRole={userRole} usersId={usersId} newThread={newThread}/>
         </Container>
     )
 }

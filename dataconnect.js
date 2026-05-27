@@ -724,11 +724,41 @@ app.post('/forumcontent', authenticateToken, async (req, res) => {
     if (!title || title.length > 200) return res.status(400).json({ error: 'Invalid title' });
     if (!content || content.length > 50000) return res.status(400).json({ error: 'Invalid content' });
 
-    const newForumcontent = await pool.query(
-      "INSERT INTO forumcontent (title, content, username, postdate, users_id) VALUES($1, $2, $3, NOW(), $4) RETURNING *",
-      [title, content, username, usersId]
+    const inserted = await pool.query(
+        `
+        INSERT INTO forumcontent
+        (title, content, username, postdate, users_id)
+        VALUES($1, $2, $3, NOW(), $4)
+        RETURNING *
+        `,
+        [title, content, username, usersId]
     );
-    res.json(newForumcontent.rows[0])
+
+    const threadId = inserted.rows[0].thread_id;
+
+    const fullThread = await pool.query(
+        `
+        SELECT
+            fc.*,
+            fi.filepath,
+            fu.character_name,
+            fu.selected_skin,
+            COALESCE(cc.comment_count, 0) AS comment_count
+        FROM forumcontent fc
+        LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
+        JOIN forumusers fu ON fc.users_id = fu.users_id
+        LEFT JOIN (
+            SELECT thread_id, COUNT(*) AS comment_count
+            FROM forumcomments
+            WHERE is_deleted = FALSE
+            GROUP BY thread_id
+        ) cc ON fc.thread_id = cc.thread_id
+        WHERE fc.thread_id = $1
+        `,
+        [threadId]
+    );
+
+res.json(fullThread.rows[0]);
     
   } catch (err) {
     console.error(err.message)
