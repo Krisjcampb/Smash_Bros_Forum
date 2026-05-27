@@ -154,7 +154,10 @@ const ListContent = (props) => {
             try {
                 const response = await fetch(`${API}/forumcontent/${currentThread.thread_id}`, {
                     method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                    },
                 });
                 if (response.ok) {
                     setOriginalList(prev => prev.filter(t => t.thread_id !== currentThread.thread_id));
