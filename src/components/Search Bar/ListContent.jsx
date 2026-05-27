@@ -146,25 +146,23 @@ const ListContent = (props) => {
     };
 
     const handleDelete = async (userRole) => {
-        if (userRole === 'admin' || userRole === 'moderator') {
-            try {
-                const response = await fetch(`${API}/forumcontent/${currentThread.thread_id}`, {
-                    method: 'DELETE',
-                    headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                    },
-                });
-                if (response.ok) {
-                    setOriginalList(prev => prev.filter(t => t.thread_id !== currentThread.thread_id));
-                    DeleteClose();
-                    toast.success('Thread deleted.');
-                } else {
-                    toast.error('Failed to delete thread.');
-                }
-            } catch (err) {
-                toast.error('Something went wrong.');
+        try {
+            const response = await fetch(`${API}/forumcontent/${currentThread.thread_id}`, {
+                method: 'DELETE',
+                headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+                },
+            });
+            if (response.ok) {
+                setOriginalList(prev => prev.filter(t => t.thread_id !== currentThread.thread_id));
+                DeleteClose();
+                toast.success('Thread deleted.');
+            } else {
+                toast.error('Failed to delete thread.');
             }
+        } catch (err) {
+            toast.error('Something went wrong.');
         }
     };
 
