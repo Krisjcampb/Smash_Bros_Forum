@@ -19,6 +19,7 @@ function Homepage() {
     const [usersId, setUsersId] = useState('')
     const [userRole, setUserRole] = useState('')
     const [newThread, setNewThread] = useState(null)
+    const [isPosting, setIsPosting] = useState(false);
 
     const changeOpen = () => setShow(true)
     const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); }
@@ -48,8 +49,14 @@ function Homepage() {
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
+
+        if (isPosting) return;
+
+        setIsPosting(true);
+
         try {
             const body = { title, content, username, usersId };
+
             const response = await fetch(`${API}/forumcontent`, {
                 method: 'POST',
                 headers: {
@@ -57,9 +64,11 @@ function Homepage() {
                     'Authorization': 'Bearer ' + token
                 },
                 body: JSON.stringify(body),
-        });
+            });
 
-            if (!response.ok) throw new Error('Failed to create forum content');
+            if (!response.ok) {
+                throw new Error('Failed to create forum content');
+            }
 
             const createdThread = await response.json();
             const { thread_id } = createdThread;
@@ -78,17 +87,23 @@ function Homepage() {
                 const formData = new FormData();
                 formData.append('image', compressedFile);
                 formData.append('thread_id', thread_id);
+
                 const imageUploadResponse = await axios({
                     method: 'POST',
                     url: `${API}/forumimages`,
                     data: formData,
-                    headers: { 'Content-Type': 'multipart/form-data' },
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
                 });
-                if (imageUploadResponse.status !== 200) throw new Error('Failed to upload image');
+
+                if (imageUploadResponse.status !== 200) {
+                    throw new Error('Failed to upload image');
+                }
+
                 filepath = imageUploadResponse.data.filepath;
             }
 
-            // Prepend the new thread to the list without remounting ListContent
             setNewThread({
                 ...createdThread,
                 filepath,
@@ -99,8 +114,11 @@ function Homepage() {
             });
 
             changeClose();
+
         } catch (err) {
             console.log('Error:', err.message);
+        } finally {
+            setIsPosting(false);
         }
     };
 
@@ -258,6 +276,7 @@ function Homepage() {
                         </Button>
                         <Button
                             type='submit'
+                            disabled={isPosting}
                             style={{
                                 background: '#393933',
                                 border: 'none',
@@ -265,9 +284,10 @@ function Homepage() {
                                 fontWeight: '700',
                                 color: '#FFD443',
                                 padding: '0.5rem 1.5rem',
+                                opacity: isPosting ? 0.7 : 1,
                             }}
                         >
-                            Post Thread
+                            {isPosting ? 'Posting...' : 'Post Thread'}
                         </Button>
                     </Modal.Footer>
                 </Form>
