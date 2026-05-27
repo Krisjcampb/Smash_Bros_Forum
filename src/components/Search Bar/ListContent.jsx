@@ -46,10 +46,6 @@ const ListContent = (props) => {
         setShowEditModal(true);
     };
 
-    useEffect(() => {
-        if (!newThread) return;
-        setOriginalList(prev => [newThread, ...prev]);
-    }, [newThread]);
 
     useEffect(() => {
         if (showEditModal) {
