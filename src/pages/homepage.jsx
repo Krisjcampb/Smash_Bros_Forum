@@ -50,6 +50,12 @@ function Homepage() {
     const onSubmitForm = async (e) => {
         e.preventDefault();
 
+        const trimmedContent = content.trim();
+
+        if (!trimmedContent) {
+            toast.error('Please enter content.');
+            return;
+        }
         if (isPosting) return;
 
         setIsPosting(true);
@@ -57,7 +63,7 @@ function Homepage() {
         try {
             const body = {
                 title,
-                content,
+                content: trimmedContent,
                 username,
                 usersId
             };
