@@ -909,16 +909,44 @@ app.get('/forumuserposts/:friendid', async (req, res) => {
 //delete a forum thread
 app.delete('/forumcontent/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params
-    const deleteForumcontent = await pool.query(
+    const { id } = req.params;
+    const userId = req.user.users_id;
+    const userRole = req.user.role;
+
+    const threadQuery = await pool.query(
+      'SELECT users_id FROM forumcontent WHERE thread_id = $1',
+      [id]
+    );
+
+    if (threadQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Thread not found' });
+    }
+
+    const threadOwnerId = threadQuery.rows[0].users_id;
+
+    const isModerator =
+      userRole === 'admin' || userRole === 'moderator';
+
+    const isOwner = Number(threadOwnerId) === Number(userId);
+
+    if (!isModerator && !isOwner) {
+      return res.status(403).json({
+        error: 'Unauthorized to delete this thread'
+      });
+    }
+
+    await pool.query(
       'UPDATE forumcontent SET is_deleted = TRUE WHERE thread_id = $1',
       [id]
-    )
-    res.json(deleteForumcontent.rows)
+    );
+
+    res.json({ success: true });
+
   } catch (err) {
-    console.log(err.message)
+    console.log(err.message);
+    res.status(500).json({ error: 'Server error' });
   }
-})
+});
 
 app.get('/threadcontent/:userid', async (req, res) => {
     try {
