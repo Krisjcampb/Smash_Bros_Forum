@@ -102,7 +102,6 @@ function Homepage() {
                 }
             }
             changeClose();
-            setRefreshTrigger(prev => prev + 1);
 
         } catch (err) {
             console.log('Error:', err.message);
