@@ -183,8 +183,12 @@ function UserComments({ userRole, userId, forumContent }) {
         try {
             const response = await fetch(`${API}/forumcomments/${commentId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
                 body: JSON.stringify({ content, mentions: editMentions, userId }),
+
             });
             if (response.ok) {
                 setShowEditModal(false);
