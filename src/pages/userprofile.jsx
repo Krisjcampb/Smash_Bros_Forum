@@ -71,7 +71,8 @@ function Userprofile() {
         "Corrin", "Bayonetta", "Inkling", "Ridley", "Simon", "Richter",
         "King K. Rool", "Isabelle", "Incineroar", "Piranha Plant", "Joker",
         "Hero", "Banjo & Kazooie", "Terry", "Byleth", "Min Min", "Steve",
-        "Sephiroth", "Pyra and Mythra", "Kazuya", "Sora"
+        "Sephiroth", "Pyra and Mythra", "Kazuya", "Sora", "Squirtle", "Ivysaur", 
+        "Charizard"
     ];
 
     // Generates all 8 skin portrait paths for a given character
