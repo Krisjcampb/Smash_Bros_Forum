@@ -55,7 +55,12 @@ function Homepage() {
         setIsPosting(true);
 
         try {
-            const body = { title, content, username, usersId };
+            const body = {
+                title,
+                content,
+                username,
+                usersId
+            };
 
             const response = await fetch(`${API}/forumcontent`, {
                 method: 'POST',
@@ -71,9 +76,7 @@ function Homepage() {
             }
 
             const createdThread = await response.json();
-            setNewThread(createdThread);
             const { thread_id } = createdThread;
-
 
             if (file) {
                 const compressionOptions = {
@@ -82,9 +85,13 @@ function Homepage() {
                     useWebWorker: true,
                 };
 
-                const compressedFile = await imageCompression(file, compressionOptions);
+                const compressedFile = await imageCompression(
+                    file,
+                    compressionOptions
+                );
 
                 const formData = new FormData();
+
                 formData.append('image', compressedFile);
                 formData.append('thread_id', thread_id);
 
@@ -93,8 +100,7 @@ function Homepage() {
                     url: `${API}/forumimages`,
                     data: formData,
                     headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'Authorization': 'Bearer ' + token
+                        Authorization: 'Bearer ' + token
                     },
                 });
 
@@ -102,6 +108,18 @@ function Homepage() {
                     throw new Error('Failed to upload image');
                 }
             }
+
+            const updatedThreadResponse = await fetch(
+                `${API}/forumcontent/${thread_id}`
+            );
+
+            if (!updatedThreadResponse.ok) {
+                throw new Error('Failed to fetch updated thread');
+            }
+
+            const updatedThread = await updatedThreadResponse.json();
+            setNewThread(updatedThread);
+
             changeClose();
 
         } catch (err) {

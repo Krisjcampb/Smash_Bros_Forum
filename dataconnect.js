@@ -2384,7 +2384,7 @@ app.post('/uploadEncryptedImage', uploadLimiter, (req, res) => {
                 params: {
                     Bucket: process.env.B2_BUCKET_NAME,
                     Key: uniqueName,
-                    Body: Readable.from(file.buffer),
+                    Body: req.file.buffer,
                     ContentType: 'application/octet-stream',
                 },
             });
