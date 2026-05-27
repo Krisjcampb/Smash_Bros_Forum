@@ -317,9 +317,21 @@ const ListContent = (props) => {
     // ← put these right here, after fetchPostsWithImages
     const searchTimeout = useRef(null);
 
+    const skipNextFetch = useRef(false);
+
+    useEffect(() => {
+        if (!newThread) return;
+        skipNextFetch.current = true;
+        setOriginalList(prev => [newThread, ...prev]);
+    }, [newThread]);
+
     useEffect(() => {
         if (searchTimeout.current) clearTimeout(searchTimeout.current);
         searchTimeout.current = setTimeout(() => {
+            if (skipNextFetch.current) {
+                skipNextFetch.current = false;
+                return;
+            }
             fetchPostsWithImages(page, searchTerm);
         }, 400);
         return () => clearTimeout(searchTimeout.current);
