@@ -151,100 +151,82 @@ function Header() {
     }, [handleClickOutside]);
 
     return (
-        <Navbar bg='primary' variant='dark' style={{ padding: '0px', height: '72px', position: 'relative', zIndex: 2000 }}>
-            <Link to="/">
-                <img className='flex' style={{ marginLeft: '12px', width: 290 }} alt='Logo' src={Logo} />
+        <Navbar className="site-header">
+            <Link to="/" className="site-header__brand">
+                <img className="site-header__logo" alt="Smash Point" src={Logo} />
             </Link>
-            <Nav className='container-fluid'>
-                {/* Banner hidden on small screens to prevent overlap with logo and icons */}
-                <Nav.Item className="centered-banner d-none d-md-block">
+
+            <Nav className="site-header__nav">
+                <Nav.Item className="site-header__banner d-none d-xl-flex">
                     <RotatingBanner banners={banners} />
                 </Nav.Item>
-                <Nav.Item
-                    className='ms-auto d-flex align-items-center justify-content-between'
-                    style={{ position: 'relative', gap: '24px' }}
-                    ref={dropdownRef}
-                >
-                    {/* Highlight calendar icon when on that page */}
-                    <div
-                        onClick={() => navigate(`/calendar`)}
-                        style={{
-                            cursor: 'pointer',
-                            position: 'relative',
-                            color: location.pathname === '/calendar' ? '#FFD443' : 'inherit'
-                        }}
+
+                <Nav.Item className="site-header__actions" ref={dropdownRef}>
+                    <button
+                        type="button"
+                        aria-label="Calendar"
+                        onClick={() => navigate('/calendar')}
+                        className={`site-header__icon-button ${location.pathname === '/calendar' ? 'is-active' : ''}`}
                     >
-                        <FaCalendarAlt size={24} style={{ marginBottom: '2px' }} />
-                    </div>
+                        <FaCalendarAlt size={20} />
+                    </button>
 
                     {loading ? (
-                        // Placeholder while auth resolves so the header doesn't jump around
-                        <div style={{ width: 38, height: 38, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                        <div className="site-header__avatar-skeleton" />
                     ) : loginstate && (
                         <>
-                            <div onClick={handleBellClick} style={{ cursor: 'pointer', position: 'relative' }}>
-                                <FaBell className={hasUnread || showDropdown ? 'highlight' : ''} size={25} />
+                            <button
+                                type="button"
+                                aria-label="Notifications"
+                                onClick={handleBellClick}
+                                className={`site-header__icon-button ${hasUnread || showDropdown ? 'is-active' : ''}`}
+                            >
+                                <FaBell size={20} />
                                 {hasUnread && <span className="notification-dot"></span>}
-                            </div>
+                            </button>
 
-                            {/* Bootstrap needs the show class added manually since we control visibility with React state */}
                             {showDropdown && (
-                                <div
-                                    className='dropdown-menu show'
-                                    style={{
-                                        position: 'absolute',
-                                        right: 0,
-                                        top: '100%',
-                                        minWidth: '250px',
-                                        maxHeight: '300px',
-                                        overflowY: 'auto',
-                                        zIndex: 1051
-                                    }}
-                                >
+                                <div className="dropdown-menu show notification-panel">
                                     {notifications.length > 0 ? (
                                         notifications.map((notification, index) => (
-                                            <div
+                                            <button
                                                 key={index}
+                                                type="button"
                                                 onClick={() => handleNotifications(notification)}
-                                                className="dropdown-item"
+                                                className="dropdown-item notification-panel__item"
                                             >
                                                 {notification.message}
-                                            </div>
+                                            </button>
                                         ))
                                     ) : (
-                                        <div className="dropdown-item">No new notifications</div>
+                                        <div className="dropdown-item notification-panel__empty">No new notifications</div>
                                     )}
                                 </div>
                             )}
 
-                            {/* Highlight messaging icon when on the messaging page */}
-                            <div
+                            <button
+                                type="button"
+                                aria-label="Messages"
                                 onClick={() => navigate(`/messaging/${user}/${userid}`)}
-                                style={{
-                                    cursor: 'pointer',
-                                    position: 'relative',
-                                    color: location.pathname.startsWith('/messaging') ? '#FFD443' : 'inherit'
-                                }}
+                                className={`site-header__icon-button ${location.pathname.startsWith('/messaging') ? 'is-active' : ''}`}
                             >
-                                <FaEnvelope size={25} />
-                            </div>
+                                <FaEnvelope size={20} />
+                            </button>
 
                             <NavDropdown
                                 title={
-                                    // Falls back to Mario portrait if the profile image fails to load
                                     <Image
                                         src={imgError ? FALLBACK_IMAGE : headerImageUrl}
                                         alt="User Profile"
                                         roundedCircle
                                         onError={() => setImgError(true)}
-                                        style={{ width: '38px', height: '38px', cursor: 'pointer' }}
+                                        className="site-header__avatar"
                                     />
                                 }
-                                align='end'
-                                className="no-padding-dropdown"
-                                style={{ marginRight: '32px' }}
+                                align="end"
+                                className="no-padding-dropdown site-header__profile"
                             >
-                                <NavDropdown.Item className='no-highlight'>{user}</NavDropdown.Item>
+                                <NavDropdown.Item className="no-highlight">{user}</NavDropdown.Item>
                                 <hr className="dropdown-divider" />
                                 <NavDropdown.Item as={NavLink} to={userprofile}>Profile</NavDropdown.Item>
                                 <NavDropdown.Item
@@ -266,8 +248,8 @@ function Header() {
                 </Nav.Item>
 
                 {!loginstate && !loading && (
-                    <Nav.Item>
-                        <Nav.Link as={NavLink} to='/signin'>Sign In</Nav.Link>
+                    <Nav.Item className="site-header__signin">
+                        <Nav.Link as={NavLink} to="/signin">Sign In</Nav.Link>
                     </Nav.Item>
                 )}
             </Nav>

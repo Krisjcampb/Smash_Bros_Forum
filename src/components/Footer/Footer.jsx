@@ -23,64 +23,40 @@ export default function Footer() {
     }, []);
 
     return (
-        <footer className='bg-primary pt-32 pb-32 w-100 mt-auto'>
-            <Container fluid className='px-4'>
-                <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '1.5rem',
-                }}>
-                    <img
-                        src={Logo}
-                        alt='Logo'
-                        style={{ width: '200px', maxWidth: '100%' }}
-                    />
+        <footer className="site-footer">
+            <Container fluid className="site-footer__inner">
+                <div className="site-footer__top">
+                    <div className="site-footer__brand">
+                        <img src={Logo} alt="Smash Point" className="site-footer__logo" />
+                        <span className="site-footer__tagline">Community, brackets, and conversation.</span>
+                    </div>
 
-                    <Nav style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '0.25rem 1rem',
-                        justifyContent: 'center',
-                    }}>
-                        <Nav.Link href='/userlist'>User List</Nav.Link>
-                        <Nav.Link href='/contact'>Contact Us</Nav.Link>
-                        <Nav.Link href='/about'>About Us</Nav.Link>
-                        <Nav.Link href='/'>Home</Nav.Link>
+                    <Nav className="site-footer__links">
+                        <Nav.Link href="/">Home</Nav.Link>
+                        <Nav.Link href="/userlist">User List</Nav.Link>
+                        <Nav.Link href="/about">About Us</Nav.Link>
+                        <Nav.Link href="/contact">Contact Us</Nav.Link>
                     </Nav>
 
-                    <div className='d-flex flex-column gap-2 me-8'>
-                        <Nav.Link href='/terms'>Terms of Service</Nav.Link>
-                        <Nav.Link href='/privacy'>Privacy Policy</Nav.Link>
-                    </div>
+                    <Nav className="site-footer__legal">
+                        <Nav.Link href="/terms">Terms of Service</Nav.Link>
+                        <Nav.Link href="/privacy">Privacy Policy</Nav.Link>
+                    </Nav>
                 </div>
 
-                <div style={{
-                    borderTop: '1px solid rgba(255,255,255,0.15)',
-                    marginTop: '1.5rem',
-                    paddingTop: '1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '0.75rem',
-                }}>
-                    <div style={{
-                        color: 'rgba(255,255,255,0.4)',
-                        fontSize: '0.78rem',
-                    }}>
-                        © {new Date().getFullYear()} SmashPoint. All rights reserved.
+                <div className="site-footer__bottom">
+                    <div className="site-footer__copyright">
+                        &copy; {new Date().getFullYear()} SmashPoint. All rights reserved.
                     </div>
                     <a
-                        href='https://ko-fi.com/I3I81YL5SG'
-                        target='_blank'
-                        rel='noreferrer'
+                        href="https://ko-fi.com/I3I81YL5SG"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="site-footer__support"
                     >
                         <img
-                            src='https://storage.ko-fi.com/cdn/kofi2.png?v=3'
-                            alt='Buy Me a Coffee at ko-fi.com'
-                            style={{ height: '36px', border: 0 }}
+                            src="https://storage.ko-fi.com/cdn/kofi2.png?v=3"
+                            alt="Buy Me a Coffee at ko-fi.com"
                         />
                     </a>
                 </div>

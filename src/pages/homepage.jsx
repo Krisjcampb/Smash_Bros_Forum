@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Container, Row, Col, InputGroup, Form } from 'react-bootstrap'
+import { Container, InputGroup, Form } from 'react-bootstrap'
 import Button from 'react-bootstrap/Button'
 import Modal from 'react-bootstrap/Modal'
 import { NavLink } from 'react-router-dom'
@@ -23,7 +23,7 @@ function Homepage() {
 
     const changeOpen = () => setShow(true)
     const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); }
-    
+
     const handleFileChange = (event) => {
         setFile(event.target.files[0])
     }
@@ -49,7 +49,7 @@ function Homepage() {
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
-        
+
         if (isPosting) return;
 
         setIsPosting(true);
@@ -129,170 +129,109 @@ function Homepage() {
         }
     };
 
-    const inputStyle = {
-        border: '1.5px solid #e0e0dc',
-        borderLeft: 'none',
-        background: '#f5f5f3',
-        fontSize: '0.9rem',
-        padding: '0.6rem 0.9rem',
-    };
-
-    const iconGroupStyle = {
-        background: '#f5f5f3',
-        border: '1.5px solid #e0e0dc',
-        borderRight: 'none',
-        color: '#393933',
-    };
-
-    const labelStyle = {
-        fontWeight: '600',
-        fontSize: '0.85rem',
-        color: '#393933',
-    };
-
     return (
-        <Container fluid className='hello'>
-            <Container className="create-post-container d-flex flex-column">
-                <Row className='mt-24 text-center'>
-                    <Col>
-                        {token ? (
-                            <Button
-                                onClick={changeOpen}
-                                style={{
-                                    background: '#393933',
-                                    border: 'none',
-                                    borderRadius: '10px',
-                                    padding: '0.6rem 2rem',
-                                    fontWeight: '700',
-                                    color: '#FFD443',
-                                    transition: 'all 0.2s ease',
-                                }}
-                                onMouseEnter={e => { e.target.style.background = '#FFD443'; e.target.style.color = '#393933'; }}
-                                onMouseLeave={e => { e.target.style.background = '#393933'; e.target.style.color = '#FFD443'; }}
-                            >
-                                Create A New Post
+        <Container fluid className="homepage-shell">
+            <Container className="homepage-intro">
+                <div className="homepage-intro__copy">
+                    <span className="eyebrow-badge">Forum Hub</span>
+                    <h1>Smash Point Forums</h1>
+                    <p>Find match discussion, tournament updates, matchup advice, and local community threads in one place.</p>
+                </div>
+
+                <div className="homepage-intro__actions">
+                    {token ? (
+                        <Button onClick={changeOpen} className="primary-btn create-thread-btn">
+                            Create New Post
+                        </Button>
+                    ) : (
+                        <NavLink to="/signin" className="nav-link p-0">
+                            <Button className="secondary-btn sign-in-thread-btn">
+                                Sign In to Post
                             </Button>
-                        ) : (
-                            <NavLink to='/signin'>
-                                <Button variant='secondary' style={{ borderRadius: '10px', padding: '0.6rem 2rem', fontWeight: '600' }}>
-                                    Sign In to Create a Post
-                                </Button>
-                            </NavLink>
-                        )}
-                    </Col>
-                </Row>
+                        </NavLink>
+                    )}
+                </div>
             </Container>
 
-            <Modal show={show} onHide={changeClose} centered>
-                <div style={{
-                    background: '#393933',
-                    borderRadius: '8px 8px 0 0',
-                    padding: '1.5rem 2rem 1.25rem',
-                    borderBottom: '4px solid #FFD443',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                }}>
+            <Modal show={show} onHide={changeClose} centered className="thread-modal">
+                <div className="thread-modal__header">
                     <div>
-                        <div style={{
-                            display: 'inline-block',
-                            background: '#FFD443',
-                            borderRadius: '6px',
-                            padding: '2px 8px',
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
-                            color: '#393933',
-                            marginBottom: '0.5rem',
-                        }}>
-                            New Thread
-                        </div>
-                        <h5 style={{ color: '#ffffff', fontWeight: '800', margin: 0, letterSpacing: '-0.01em' }}>
-                            Create a Post
-                        </h5>
+                        <div className="eyebrow-badge">New Thread</div>
+                        <h5>Create a Post</h5>
                     </div>
                     <button
+                        type="button"
+                        aria-label="Close modal"
                         onClick={changeClose}
-                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}
+                        className="thread-modal__close"
                     >
-                        ×
+                        x
                     </button>
                 </div>
 
                 <Form onSubmit={onSubmitForm}>
-                    <Modal.Body style={{ padding: '1.5rem 2rem' }}>
-                        <Form.Group className="mb-3">
-                            <Form.Label style={labelStyle}>Title</Form.Label>
-                            <InputGroup>
-                                <InputGroup.Text style={iconGroupStyle}><BsCardHeading size={14} /></InputGroup.Text>
+                    <Modal.Body className="thread-modal__body">
+                        <Form.Group className="thread-form-field mb-3">
+                            <Form.Label className="thread-form-label">Title</Form.Label>
+                            <InputGroup className="thread-input-group">
+                                <InputGroup.Text><BsCardHeading size={14} /></InputGroup.Text>
                                 <Form.Control
-                                    type='text'
+                                    type="text"
                                     value={title}
-                                    placeholder='Give your thread a title'
+                                    placeholder="Give your thread a title"
                                     maxLength={69}
                                     onChange={(e) => setTitle(e.target.value)}
                                     required
-                                    style={inputStyle}
                                 />
                             </InputGroup>
-                            <div style={{ textAlign: 'right', fontSize: '0.75rem', color: title.length >= 55 ? '#e39647' : '#bbb', marginTop: '0.25rem' }}>
+                            <div className={`thread-character-count ${title.length >= 55 ? 'is-warning' : ''}`}>
                                 {title.length}/69
                             </div>
                         </Form.Group>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label style={labelStyle}>Content</Form.Label>
-                            <InputGroup style={{ alignItems: 'flex-start' }}>
-                                <InputGroup.Text style={{ ...iconGroupStyle, paddingTop: '0.65rem' }}><BsTextLeft size={14} /></InputGroup.Text>
+                        <Form.Group className="thread-form-field mb-3">
+                            <Form.Label className="thread-form-label">Content</Form.Label>
+                            <InputGroup className="thread-input-group align-items-start">
+                                <InputGroup.Text className="thread-input-group__textarea-icon"><BsTextLeft size={14} /></InputGroup.Text>
                                 <Form.Control
-                                    as='textarea'
+                                    as="textarea"
                                     rows={4}
                                     value={content}
-                                    placeholder='What do you want to share?'
+                                    placeholder="What do you want to share?"
                                     onChange={(e) => setContent(e.target.value)}
-                                    style={{ ...inputStyle, resize: 'none' }}
+                                    className="thread-form-textarea"
                                 />
                             </InputGroup>
                         </Form.Group>
 
-                        <Form.Group>
-                            <Form.Label style={labelStyle}>
-                                Image{' '}
-                                <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
+                        <Form.Group className="thread-form-field">
+                            <Form.Label className="thread-form-label">
+                                Image <span>(optional)</span>
                             </Form.Label>
-                            <InputGroup>
-                                <InputGroup.Text style={iconGroupStyle}><BsImageFill size={14} /></InputGroup.Text>
+                            <InputGroup className="thread-input-group">
+                                <InputGroup.Text><BsImageFill size={14} /></InputGroup.Text>
                                 <Form.Control
-                                    type='file'
-                                    accept='image/*'
+                                    type="file"
+                                    accept="image/*"
                                     onChange={handleFileChange}
-                                    style={{ ...inputStyle, paddingTop: '0.45rem' }}
                                 />
                             </InputGroup>
                         </Form.Group>
                     </Modal.Body>
 
-                    <Modal.Footer style={{ borderTop: '1px solid #e0e0dc', padding: '1rem 2rem' }}>
+                    <Modal.Footer className="thread-modal__footer">
                         <Button
-                            variant='outline-secondary'
+                            type="button"
+                            variant="outline-secondary"
                             onClick={changeClose}
-                            style={{ borderRadius: '8px', fontWeight: '600' }}
+                            className="thread-modal__secondary"
                         >
                             Cancel
                         </Button>
                         <Button
-                            type='submit'
+                            type="submit"
                             disabled={isPosting}
-                            style={{
-                                background: '#393933',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: '700',
-                                color: '#FFD443',
-                                padding: '0.5rem 1.5rem',
-                                opacity: isPosting ? 0.7 : 1,
-                            }}
+                            className="primary-btn thread-modal__submit"
                         >
                             {isPosting ? 'Posting...' : 'Post Thread'}
                         </Button>
