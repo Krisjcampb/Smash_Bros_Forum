@@ -2857,8 +2857,9 @@ body.dark-theme {
 
 .card-title.thread-title {
   margin-bottom: 0.35rem;
+  margin-top: 0.35rem;
   color: $primary;
-  font-size: 1.08rem;
+  font-size: 1.14rem;
   font-weight: 900;
   line-height: 1.25;
   letter-spacing: 0;
@@ -2866,7 +2867,7 @@ body.dark-theme {
 
 .thread-preview {
   color: rgba($primary, 0.62);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   line-height: 1.45;
 }
 
