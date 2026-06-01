@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Card from 'react-bootstrap/Card'
 import { NavLink } from 'react-router-dom'
-import { Row, Col, Button, Modal, Container, Image } from 'react-bootstrap'
+import { Row, Col, Button, Modal, Container, Image, InputGroup } from 'react-bootstrap'
 import Form from 'react-bootstrap/Form'
-import { BsArrowUp, BsArrowDown, BsThreeDotsVertical, BsChatFill } from 'react-icons/bs'
+import { BsArrowUp, BsArrowDown, BsThreeDotsVertical, BsChatFill, BsSearch, BsSortDownAlt } from 'react-icons/bs'
 import { toast } from 'react-toastify'
 import { SkeletonGrid } from '../Utilities/skeletoncard'
 import { getImageUrl } from '../Utilities/adjusturl'
@@ -416,15 +416,21 @@ const ListContent = (props) => {
         return (
             <Container fluid className="d-flex justify-content-center px-0">
                 <div className="content-box">
-                    <div className="search-sort-wrapper">
-                        <Row className="mt-4 mb-4 justify-content-center">
-                            <Col xs={12} md={4}>
-                                <Form.Control type="text" placeholder="Search" className="text-center" disabled />
+                    <div className="feed-controls search-sort-wrapper">
+                        <Row className="g-3 align-items-center">
+                            <Col xs={12} lg={7}>
+                                <InputGroup className="feed-control">
+                                    <InputGroup.Text><BsSearch /></InputGroup.Text>
+                                    <Form.Control type="text" placeholder="Search threads" disabled />
+                                </InputGroup>
                             </Col>
-                            <Col xs={12} md={4}>
-                                <Form.Select className="text-center" disabled>
-                                    <option>Sort by Newest</option>
-                                </Form.Select>
+                            <Col xs={12} lg={5}>
+                                <InputGroup className="feed-control">
+                                    <InputGroup.Text><BsSortDownAlt /></InputGroup.Text>
+                                    <Form.Select disabled>
+                                        <option>Sort by Newest</option>
+                                    </Form.Select>
+                                </InputGroup>
                             </Col>
                         </Row>
                     </div>
@@ -439,36 +445,38 @@ const ListContent = (props) => {
     return (
         <Container fluid className="d-flex justify-content-center px-0">
             <div className="content-box">
-                <div className="search-sort-wrapper">
-                    <Row className="mt-4 mb-4 justify-content-center">
-                        <Col xs={12} md={4}>
-                            <Form.Control
-                                type="text"
-                                placeholder="Search"
-                                className="text-center"
-                                onChange={handleSearch}
-                            />
+                <div className="feed-controls search-sort-wrapper">
+                    <Row className="g-3 align-items-center">
+                        <Col xs={12} lg={7}>
+                            <InputGroup className="feed-control">
+                                <InputGroup.Text><BsSearch /></InputGroup.Text>
+                                <Form.Control
+                                    type="text"
+                                    placeholder="Search threads"
+                                    onChange={handleSearch}
+                                />
+                            </InputGroup>
                         </Col>
-                        <Col xs={12} md={4}>
-                            <Form.Select value={sortBy} onChange={handleSortChange} className="text-center">
-                                <option value="newest">Sort by Newest</option>
-                                <option value="oldest">Sort by Oldest</option>
-                                <option value="mostPopular">Sort by Most Popular</option>
-                                <option value="Top">Sort by Top Liked</option>
-                            </Form.Select>
+                        <Col xs={12} lg={5}>
+                            <InputGroup className="feed-control">
+                                <InputGroup.Text><BsSortDownAlt /></InputGroup.Text>
+                                <Form.Select value={sortBy} onChange={handleSortChange}>
+                                    <option value="newest">Sort by Newest</option>
+                                    <option value="oldest">Sort by Oldest</option>
+                                    <option value="mostPopular">Sort by Most Popular</option>
+                                    <option value="Top">Sort by Top Liked</option>
+                                </Form.Select>
+                            </InputGroup>
                         </Col>
                     </Row>
                 </div>
 
-                <div className="forum-grid mt-48">
+                <div className="forum-grid">
                     {list.map((e, index) => (
-                        <div key={index} className="position-relative m-1">
+                        <div key={index} className="position-relative thread-card-wrap">
 
                             {/* ── Thread Card ─────────────────────────────── */}
-                            <Card
-                                style={{ height: '26.5rem', transition: 'transform 0.2s' }}
-                                className="hover-card thread-card"
-                            >
+                            <Card className="hover-card thread-card">
                                 {/* Yellow left border accent */}
                                 <div className="thread-card-accent" />
 
@@ -481,7 +489,6 @@ const ListContent = (props) => {
                                         {/* Image — hidden cleanly when no filepath */}
                                         {e.filepath ? (
                                             <Card.Img
-                                                height={250}
                                                 src={e.filepath}
                                                 className="mb-2 thread-card-image"
                                                 loading="lazy"
@@ -550,7 +557,7 @@ const ListContent = (props) => {
                                                     <Image
                                                         src={getImageUrl(e.character_name, e.selected_skin, 'header')}
                                                         roundedCircle
-                                                        className="thread-author-avatar me-4"
+                                                        className="thread-author-avatar"
                                                         alt={e.username}
                                                     />
                                                 )}
@@ -568,13 +575,12 @@ const ListContent = (props) => {
 
                             {/* ── Three-dot action menu ────────────────────── */}
                             {(UserPermissions(userRole, e.users_id) || (userid && userid !== e.users_id)) && (
-                                <div className='action-menu position-absolute' style={{ top: '5px', right: '5px', zIndex: 1000 }}>
-                                    <Button variant="light three-dot-button" onClick={() => toggleMenu(index)}>
+                                <div className="action-menu action-menu--card">
+                                    <Button variant="light" className="three-dot-button action-menu__toggle" onClick={() => toggleMenu(index)}>
                                         <BsThreeDotsVertical />
                                     </Button>
                                     {showMenu === index && (
-                                        <div className='position-absolute bg-light border rounded p-2 dropdown-animation action-dropdown'
-                                            style={{ zIndex: 1000, top: '100%', right: 0, minWidth: '8rem' }}>
+                                        <div className="position-absolute bg-light border rounded p-2 dropdown-animation action-dropdown">
                                             <ul className="list-unstyled mb-0">
                                                 {userid && userid !== e.users_id && (
                                                     <li className="p-2">
@@ -622,8 +628,7 @@ const ListContent = (props) => {
                             size="lg"
                             onClick={() => setPage(prev => prev + 1)}
                             disabled={loading}
-                            className="see-more-btn px-4 py-2"
-                            style={{ minWidth: '150px', borderRadius: '25px', fontWeight: '600' }}
+                            className="see-more-btn"
                         >
                             {loading
                                 ? <><span className="spinner-border spinner-border-sm me-2" />Loading...</>
@@ -638,26 +643,26 @@ const ListContent = (props) => {
             </div>
 
             {/* ── Modals ────────────────────────────────────────────────────── */}
-            <Modal show={showDeleteModal} onHide={DeleteClose} size="md" style={{ color: '#000000' }} centered>
-                <Modal.Header className="position-relative">
-                    <Modal.Title className="w-100 text-center">Delete Thread</Modal.Title>
-                    <Button variant="close" onClick={DeleteClose} className="position-absolute" style={{ top: '18px', right: '8px' }} />
+            <Modal show={showDeleteModal} onHide={DeleteClose} size="md" className="thread-action-modal" centered>
+                <Modal.Header className="thread-action-modal__header">
+                    <Modal.Title className="thread-action-modal__title">Delete Thread</Modal.Title>
+                    <Button variant="close" onClick={DeleteClose} className="thread-action-modal__close" />
                 </Modal.Header>
-                <Modal.Body>
+                <Modal.Body className="thread-action-modal__body">
                     <div className='text-center'>Are you sure you would like to delete this thread?</div>
                 </Modal.Body>
-                <Modal.Footer className="justify-content-center">
-                    <Button size="lg" onClick={() => handleDelete(userRole)}>Confirm</Button>
-                    <Button size="lg" className="ps-22 pe-22" onClick={DeleteClose}>Cancel</Button>
+                <Modal.Footer className="thread-action-modal__footer">
+                    <Button size="lg" className="primary-btn" onClick={() => handleDelete(userRole)}>Confirm</Button>
+                    <Button size="lg" className="secondary-btn" onClick={DeleteClose}>Cancel</Button>
                 </Modal.Footer>
             </Modal>
 
-            <Modal show={showEditModal} onHide={EditClose} size="lg" style={{ color: '#000000' }} centered>
-                <Modal.Header className="position-relative">
-                    <Modal.Title className="w-100 text-center">Edit Thread</Modal.Title>
-                    <Button variant="close" onClick={EditClose} className="position-absolute" style={{ top: '18px', right: '8px' }} />
+            <Modal show={showEditModal} onHide={EditClose} size="lg" className="thread-action-modal" centered>
+                <Modal.Header className="thread-action-modal__header">
+                    <Modal.Title className="thread-action-modal__title">Edit Thread</Modal.Title>
+                    <Button variant="close" onClick={EditClose} className="thread-action-modal__close" />
                 </Modal.Header>
-                <Modal.Body>
+                <Modal.Body className="thread-action-modal__body">
                     <Form>
                         <Form.Group controlId="formParagraph">
                             <Form.Control type="text" placeholder="Title" value={editModalTitle}
@@ -667,18 +672,18 @@ const ListContent = (props) => {
                         </Form.Group>
                     </Form>
                 </Modal.Body>
-                <Modal.Footer className="justify-content-center">
-                    <Button size="lg" onClick={handleEditAsModerator}>Confirm</Button>
-                    <Button size="lg" className="ps-22 pe-22" onClick={EditClose}>Cancel</Button>
+                <Modal.Footer className="thread-action-modal__footer">
+                    <Button size="lg" className="primary-btn" onClick={handleEditAsModerator}>Confirm</Button>
+                    <Button size="lg" className="secondary-btn" onClick={EditClose}>Cancel</Button>
                 </Modal.Footer>
             </Modal>
 
-            <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" style={{ color: '#000000' }} centered>
-                <Modal.Header className="position-relative">
-                    <Modal.Title className="w-100 text-center">Report Thread</Modal.Title>
-                    <Button variant="close" onClick={() => setShowReportModal(false)} className="position-absolute" style={{ top: '18px', right: '8px' }} />
+            <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" className="thread-action-modal" centered>
+                <Modal.Header className="thread-action-modal__header">
+                    <Modal.Title className="thread-action-modal__title">Report Thread</Modal.Title>
+                    <Button variant="close" onClick={() => setShowReportModal(false)} className="thread-action-modal__close" />
                 </Modal.Header>
-                <Modal.Body>
+                <Modal.Body className="thread-action-modal__body">
                     <Form>
                         <Form.Group controlId="formReportReason">
                             <Form.Label>Reason for reporting:</Form.Label>
@@ -693,11 +698,11 @@ const ListContent = (props) => {
                         </Form.Group>
                     </Form>
                 </Modal.Body>
-                <Modal.Footer className="justify-content-center">
-                    <Button size="lg" onClick={handleReportSubmit} disabled={submitting}>
+                <Modal.Footer className="thread-action-modal__footer">
+                    <Button size="lg" className="primary-btn" onClick={handleReportSubmit} disabled={submitting}>
                         {submitting ? 'Submitting...' : 'Submit Report'}
                     </Button>
-                    <Button size="lg" variant="secondary" onClick={() => setShowReportModal(false)}>Cancel</Button>
+                    <Button size="lg" className="secondary-btn" onClick={() => setShowReportModal(false)}>Cancel</Button>
                 </Modal.Footer>
             </Modal>
         </Container>
