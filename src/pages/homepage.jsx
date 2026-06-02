@@ -134,8 +134,8 @@ function Homepage() {
             <Container className="homepage-intro">
                 <div className="homepage-intro__copy">
                     <span className="eyebrow-badge">Forum Hub</span>
-                    <h1>Smash Point Forums</h1>
-                    <p>Find match discussion, tournament updates, matchup advice, and local community threads in one place.</p>
+                    <h1>SmashPoint</h1>
+                    <p>Find match discussion, tournament updates, matchup advice, and smash related threads in one place.</p>
                 </div>
 
                 <div className="homepage-intro__actions">
