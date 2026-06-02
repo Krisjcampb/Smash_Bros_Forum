@@ -260,7 +260,12 @@ const ListContent = (props) => {
         setHasMore(true);
     };
 
-    const handleSortChange = (e) => { setSortBy(e.target.value); setPage(1); setHasMore(true); setOriginalList([]);};
+    const handleSortChange = (e) => {
+        setSortBy(e.target.value);
+        setPage(1);
+        setHasMore(true);
+        fetchPostsWithImages(1, searchTerm, e.target.value);
+    };
 
     const list = useMemo(() => [...originalList], [originalList]);
 
