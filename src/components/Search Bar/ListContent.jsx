@@ -260,37 +260,18 @@ const ListContent = (props) => {
         setHasMore(true);
     };
 
-    const handleSortChange = (e) => { setSortBy(e.target.value); setPage(1); setHasMore(true); };
+    const handleSortChange = (e) => { setSortBy(e.target.value); setPage(1); setHasMore(true); setOriginalList([]);};
 
-    const list = useMemo(() => {
-        const filtered = [...originalList];
-        if (sortBy === 'newest') filtered.sort((a, b) => new Date(b.postdate) - new Date(a.postdate));
-        else if (sortBy === 'oldest') filtered.sort((a, b) => new Date(a.postdate) - new Date(b.postdate));
-        else if (sortBy === 'mostPopular') {
-            filtered.sort((a, b) => {
-                const popA = likesdislikes.find(x => x.post_id === a.thread_id)?.net_likes || 0;
-                const popB = likesdislikes.find(x => x.post_id === b.thread_id)?.net_likes || 0;
-                const recA = (new Date() - new Date(a.postdate)) / (1000*60*60*24);
-                const recB = (new Date() - new Date(b.postdate)) / (1000*60*60*24);
-                return (popB - popA) + 0.05 * (recA - recB);
-            });
-        } else if (sortBy === 'Top') {
-            filtered.sort((a, b) => {
-                const likesA = likesdislikes.find(x => x.post_id === a.thread_id)?.net_likes || 0;
-                const likesB = likesdislikes.find(x => x.post_id === b.thread_id)?.net_likes || 0;
-                return likesB - likesA;
-            });
-        }
-        return filtered;
-    }, [originalList, sortBy, likesdislikes]);
+    const list = useMemo(() => [...originalList], [originalList]);
 
-    const fetchPostsWithImages = useCallback(async (pageNum, search = '') => {
+    const fetchPostsWithImages = useCallback(async (pageNum, search = '', sort = 'newest') => {
         try {
             setLoading(true);
             const limit = 24;
             const scrollPos = window.scrollY || document.documentElement.scrollTop;
             const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}`);
+            const sortParam = `&sort=${sort}`;
+            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}`);
             const newPosts = await response.json();
             if (newPosts.length === 0 || newPosts.length < limit) setHasMore(false);
             setOriginalList(prev => {
@@ -329,10 +310,10 @@ const ListContent = (props) => {
                 skipNextFetch.current = false;
                 return;
             }
-            fetchPostsWithImages(page, searchTerm);
+            fetchPostsWithImages(page, searchTerm, sortBy);
         }, 400);
         return () => clearTimeout(searchTimeout.current);
-    }, [fetchPostsWithImages, page, searchTerm]);
+    }, [fetchPostsWithImages, page, searchTerm, sortBy]);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
