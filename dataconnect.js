@@ -772,6 +772,41 @@ app.get('/forumcontent', async (req, res) => {
         const limit = parseInt(req.query.limit) || 24;
         const offset = (page - 1) * limit;
         const search = req.query.search?.trim() || '';
+        const sort = req.query.sort || 'newest';
+
+        const orderBy = {
+            newest: 'fc.postdate DESC',
+            oldest: 'fc.postdate ASC',
+            mostPopular:
+                '(COALESCE(lc.like_count, 0) - COALESCE(dc.dislike_count, 0)) DESC, fc.postdate DESC',
+            Top:
+                '(COALESCE(lc.like_count, 0) - COALESCE(dc.dislike_count, 0)) DESC'
+        }[sort] || 'fc.postdate DESC';
+
+        const baseFrom = `
+            FROM forumcontent fc
+            LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
+            JOIN forumusers fu ON fc.users_id = fu.users_id
+
+            LEFT JOIN (
+                SELECT thread_id, COUNT(*) AS comment_count
+                FROM forumcomments
+                WHERE is_deleted = FALSE
+                GROUP BY thread_id
+            ) cc ON fc.thread_id = cc.thread_id
+
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) AS like_count
+                FROM likes
+                GROUP BY post_id
+            ) lc ON fc.thread_id = lc.post_id
+
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) AS dislike_count
+                FROM dislikes
+                GROUP BY post_id
+            ) dc ON fc.thread_id = dc.post_id
+        `;
 
         let paginatedQuery;
         let params;
@@ -784,19 +819,11 @@ app.get('/forumcontent', async (req, res) => {
                     fu.character_name,
                     fu.selected_skin,
                     COALESCE(cc.comment_count, 0) AS comment_count
-                FROM forumcontent fc
-                LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
-                JOIN forumusers fu ON fc.users_id = fu.users_id
-                LEFT JOIN (
-                    SELECT thread_id, COUNT(*) AS comment_count
-                    FROM forumcomments
-                    WHERE is_deleted = FALSE
-                    GROUP BY thread_id
-                ) cc ON fc.thread_id = cc.thread_id
+                ${baseFrom}
                 WHERE fu.is_banned = FALSE
                 AND fc.is_deleted = FALSE
                 AND (fc.title ILIKE $3 OR fc.content ILIKE $3)
-                ORDER BY fc.postdate DESC
+                ORDER BY ${orderBy}
                 LIMIT $1 OFFSET $2
             `;
             params = [limit, offset, `%${search}%`];
@@ -808,18 +835,10 @@ app.get('/forumcontent', async (req, res) => {
                     fu.character_name,
                     fu.selected_skin,
                     COALESCE(cc.comment_count, 0) AS comment_count
-                FROM forumcontent fc
-                LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
-                JOIN forumusers fu ON fc.users_id = fu.users_id
-                LEFT JOIN (
-                    SELECT thread_id, COUNT(*) AS comment_count
-                    FROM forumcomments
-                    WHERE is_deleted = FALSE
-                    GROUP BY thread_id
-                ) cc ON fc.thread_id = cc.thread_id
+                ${baseFrom}
                 WHERE fu.is_banned = FALSE
                 AND fc.is_deleted = FALSE
-                ORDER BY fc.postdate DESC
+                ORDER BY ${orderBy}
                 LIMIT $1 OFFSET $2
             `;
             params = [limit, offset];

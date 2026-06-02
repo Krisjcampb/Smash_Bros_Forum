@@ -261,10 +261,12 @@ const ListContent = (props) => {
     };
 
     const handleSortChange = (e) => {
-        setSortBy(e.target.value);
+        const newSort = e.target.value;
+
+        setSortBy(newSort);
         setPage(1);
         setHasMore(true);
-        fetchPostsWithImages(1, searchTerm, e.target.value);
+        setOriginalList([]);
     };
 
     const list = useMemo(() => [...originalList], [originalList]);
@@ -297,7 +299,6 @@ const ListContent = (props) => {
         }
     }, []);
 
-    // ← put these right here, after fetchPostsWithImages
     const searchTimeout = useRef(null);
 
     const skipNextFetch = useRef(false);
@@ -318,7 +319,7 @@ const ListContent = (props) => {
             fetchPostsWithImages(page, searchTerm, sortBy);
         }, 400);
         return () => clearTimeout(searchTimeout.current);
-    }, [fetchPostsWithImages, page, searchTerm, sortBy]);
+    }, [page, searchTerm, sortBy, fetchPostsWithImages]);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
