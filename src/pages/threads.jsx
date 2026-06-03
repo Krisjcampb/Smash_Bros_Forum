@@ -140,33 +140,13 @@ function Threads() {
     }
 
     return (
-        <Container style={{ maxWidth: '900px', margin: '2rem auto', padding: '0 1rem' }}>
+        <Container className="thread-page-container">
 
             {/* Thread content card */}
-            <div
-                className="thread-content-body"
-                style={{
-                    background: '#ffffff',
-                    borderRadius: '0 0 16px 16px',
-                    padding: '2rem 2.5rem',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-                    marginBottom: '2rem',
-                }}
-            >
+            <div className="thread-content-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
-                        <div style={{
-                            display: 'inline-block',
-                            background: '#FFD443',
-                            borderRadius: '6px',
-                            padding: '3px 10px',
-                            fontSize: '0.68rem',
-                            fontWeight: '700',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
-                            color: '#393933',
-                            marginBottom: '0.75rem',
-                        }}>
+                        <div className="thread-badge-label">
                             Thread
                         </div>
                         <h2 className='thread-page-title'>
@@ -177,14 +157,7 @@ function Threads() {
                     {/* Report button  */}
                     {user && userid !== forumContent.users_id && (
                         <button
-                            className="secondary-btn muted"
-                            style={{
-                                fontSize: '0.75rem',
-                                marginLeft: '1rem',
-                                marginTop: '0.25rem',
-                                whiteSpace: 'nowrap',
-                                flexShrink: 0,
-                            }}
+                            className="secondary-btn muted thread-report-button"
                             onClick={() => setShowReportModal(true)}
                         >
                             Report
@@ -199,15 +172,7 @@ function Threads() {
                     <img
                         src={forumContent.filepath.slice(6)}
                         alt='Thread'
-                        style={{
-                            display: 'block',
-                            width: '100%',
-                            maxHeight: '600px',
-                            objectFit: 'contain',
-                            borderRadius: '10px',
-                            marginBottom: '1.5rem',
-                            background: 'transparent',
-                        }}
+                        className="thread-image-display"
                     />
                 )}
 
@@ -218,10 +183,10 @@ function Threads() {
             </div>
 
             {/* Comment form */}
-            <div style={{ marginBottom: '2rem' }}>
+            <div className="thread-comment-form-wrap">
                 {user ? (
                     <Form>
-                        <Form.Group style={{ position: 'relative' }}>
+                        <Form.Group className="comment-form-group">
                             <TextMentionArea
                                 value={comment}
                                 onChange={setComment}
@@ -230,40 +195,21 @@ function Threads() {
                                 placeholder="Write a comment..."
                                 maxLength={8000}
                             />
-                            <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-                                <Button
-                                    type="submit"
-                                    onClick={onSubmitForm}
-                                    style={{
-                                        background: '#393933',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        fontWeight: '700',
-                                        color: '#FFD443',
-                                        padding: '0.5rem 1.5rem',
-                                    }}
-                                >
+                            <div className="comment-post-button-wrap">
+                                <button type="submit" onClick={onSubmitForm} className="comment-post-button">
                                     Post Comment
-                                </Button>
+                                </button>
                             </div>
                         </Form.Group>
                     </Form>
                 ) : (
                     // Prompt guests to sign in before commenting
-                    <div className="text-center thread-signin mt-4 pb-8 pt-8 mx-auto">
+                    <div className="text-center guest-signin-prompt mt-4 pb-8 pt-8 mx-auto">
                         <p>You must be signed in to post a comment.</p>
                         <NavLink to="/signin">
-                            <Button
-                                style={{
-                                    background: '#393933',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    fontWeight: '700',
-                                    color: '#FFD443',
-                                }}
-                            >
+                            <button type="button" className="guest-signin-button">
                                 Sign In
-                            </Button>
+                            </button>
                         </NavLink>
                     </div>
                 )}
@@ -282,12 +228,16 @@ function Threads() {
                     <div className="settings-modal-badge">Report</div>
                     <h5 className="edit-modal-title">Report Thread</h5>
                 </div>
-                <button className="edit-modal-close" onClick={() => setShowReportModal(false)}>×</button>
+                <button className="edit-modal-close" onClick={() => setShowReportModal(false)}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                </button>
             </div>
             <Modal.Body>
                 <Form>
                     <Form.Group>
-                        <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                        <Form.Label className="form-label-uppercase">
                             Reason for reporting
                         </Form.Label>
                         {reportReasons.map(reason => (
@@ -299,7 +249,7 @@ function Threads() {
                                 onChange={() => setReportReason(reason)}
                             />
                         ))}
-                        <Form.Label className='mt-3' style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                        <Form.Label className="form-label-optional form-label-uppercase">
                             Additional details (optional)
                         </Form.Label>
                         <Form.Control

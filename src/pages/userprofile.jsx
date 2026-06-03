@@ -460,50 +460,24 @@ function Userprofile() {
             <Row>
                 <Col xs={12}>
                     {/* Dark header banner */}
-                    <div style={{
-                        background: '#393933',
-                        borderRadius: '16px 16px 0 0',
-                        borderBottom: '4px solid #FFD443',
-                        padding: '1.5rem 2rem 4rem',
-                        position: 'relative'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem' }}>
+                    <div className="profile-header-banner">
+                        <div className="profile-header-content">
                             {/* Avatar */}
-                            <div style={{ flexShrink: 0 }}>
+                            <div className="profile-header-avatar-wrap">
                                 <Image
                                     src={userid === friendid ? userProfileImageUrl : friendUrl}
                                     alt="User Profile"
-                                    style={{
-                                        width: '180px',
-                                        height: '180px',
-                                        objectFit: 'cover',
-                                        objectPosition: '50% 5%',
-                                        borderRadius: '12px',
-                                        border: '3px solid #FFD443',
-                                        boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
-                                    }}
+                                    className="profile-header-avatar"
                                 />
                             </div>
 
                             {/* Name + role */}
-                            <div style={{ paddingTop: '0.25rem' }}>
-                                <h3 style={{ color: '#ffffff', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                            <div className="profile-header-info">
+                                <h3 className="profile-username">
                                     {user.name}
                                 </h3>
                                 {user.role && (
-                                    <span style={{
-                                        display: 'inline-block',
-                                        marginTop: '0.35rem',
-                                        background: 'rgba(255,211,67,0.15)',
-                                        border: '1px solid rgba(255,211,67,0.4)',
-                                        color: '#FFD443',
-                                        borderRadius: '6px',
-                                        padding: '2px 10px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 700,
-                                        letterSpacing: '0.08em',
-                                        textTransform: 'uppercase'
-                                    }}>
+                                    <span className="profile-role-badge">
                                         {user.role}
                                     </span>
                                 )}
@@ -512,22 +486,17 @@ function Userprofile() {
                     </div>
 
                     {/* White info card below banner */}
-                    <div style={{
-                        borderRadius: '0 0 16px 16px',
-                        padding: '1.25rem 2rem 1.5rem',
-                        boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-                        marginBottom: '1.5rem'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div className="profile-info-card">
+                        <div className="profile-info-content">
                             {/* Info */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                            <div className="profile-info-details">
                                 <span className="text-muted" style={{ fontSize: '0.875rem' }}>
                                     <strong>Last Online:</strong> {user.localTime}
                                 </span>
                                 <span className="text-muted" style={{ fontSize: '0.875rem' }}>
                                     <strong>Location:</strong> {user.location || '—'}
                                 </span>
-                                <span className="text-muted" style={{ fontSize: '0.875rem', maxWidth: '480px', wordBreak: 'break-word' }}>
+                                <span className="text-muted profile-about-text">
                                     <strong>About:</strong> {user.description || 'No description yet.'}
                                 </span>
                             </div>
@@ -600,7 +569,7 @@ function Userprofile() {
                             Posts and comments are not available
                         </div>
                     ) : (
-                        <Tabs defaultActiveKey="comments" id="user-profile-tabs" className="mb-3" style={{ borderBottom: 'none' }}>
+                        <Tabs defaultActiveKey="comments" id="user-profile-tabs" className="mb-3 profile-tabs-no-border">
                             <Tab eventKey="comments" title={`Comments (${comments.length})`}>
                                 {comments.slice(0, visibleComments).map(comment => {
                                     const threadContent = threadData.find(content => content.thread_id === comment.thread_id);
@@ -630,7 +599,7 @@ function Userprofile() {
                                     );
                                 })}
                                 {visibleComments < comments.length && (
-                                    <div ref={commentsSentinelRef} style={{ height: '1px' }} />
+                                    <div ref={commentsSentinelRef} className="sentinel-scroll-trigger" />
                                 )}
                                 {visibleComments >= comments.length && comments.length > 0 && (
                                     <div className="text-center text-muted small py-3">All comments loaded</div>
@@ -667,7 +636,7 @@ function Userprofile() {
                                     </Card>
                                 ))}
                                 {visiblePosts < threadPosts.length && (
-                                    <div ref={postsSentinelRef} style={{ height: '1px' }} />
+                                    <div ref={postsSentinelRef} className="sentinel-scroll-trigger" />
                                 )}
                                 {visiblePosts >= threadPosts.length && threadPosts.length > 0 && (
                                     <div className="text-center text-muted small py-3">All posts loaded</div>
@@ -720,21 +689,21 @@ function Userprofile() {
                     <button className="edit-modal-close" onClick={closeImagePicker}>×</button>
                 </div>
                 <Form onSubmit={(e) => { e.preventDefault(); handleImageSave(); }}>
-                    <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                    <Modal.Body className="modal-body-padding">
                         <div className='text-center'>
                             <div className='mt-24'>
                                 <ButtonGroup className='justify-content-center'>
-                                    <Button variant="secondary" onSelect={handleDropdownSelect}>Select Character</Button>
+                                    <button type="button" className="secondary-btn" onSelect={handleDropdownSelect}>Select Character</button>
                                     <Dropdown as={ButtonGroup} onSelect={handleDropdownSelect}>
-                                        <Dropdown.Toggle split variant="secondary" className="custom-split-toggle" />
+                                        <button type="button" className="secondary-btn-split-toggle custom-split-toggle" />
                                         <Dropdown.Menu className="custom-dropdown-menu">
                                             <input
                                                 type="text"
                                                 placeholder="Search..."
                                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                                style={{ margin: "8px 10px", width: "calc(100% - 20px)", borderRadius: "5px" }}
+                                                className="modal-dropdown-search-input"
                                             />
-                                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                            <div className="modal-dropdown-scroll-area">
                                                 {filteredOptions.map((character) => (
                                                     <Dropdown.Item key={character} eventKey={character}>
                                                         {character}
@@ -747,36 +716,22 @@ function Userprofile() {
                             </div>
 
                             {character && (
-                                <div style={{ marginTop: '1.5rem' }}>
+                                <div className="modal-image-display">
                                     <div className="d-flex justify-content-center mb-3">
                                         <Image
                                             src={clickedImage}
                                             alt="Selected portrait"
-                                            style={{
-                                                height: '260px',
-                                                borderRadius: '12px',
-                                                border: '3px solid #FFD443',
-                                                boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
-                                            }}
+                                            className="modal-image-selected"
                                             fluid
                                             loading="lazy"
                                         />
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '6px', marginTop: '1rem' }}>
+                                    <div className="modal-thumbnail-container">
                                         {images.map((src, index) => (
                                             <Image
                                                 key={index}
                                                 src={src}
-                                                style={{
-                                                    height: '56px',
-                                                    width: '56px',
-                                                    objectFit: 'cover',
-                                                    borderRadius: '8px',
-                                                    border: clickedIndex === index ? '2px solid #FFD443' : '2px solid transparent',
-                                                    cursor: 'pointer',
-                                                    boxShadow: clickedIndex === index ? '0 0 0 2px #393933' : 'none',
-                                                    transition: 'all 0.15s ease'
-                                                }}
+                                                className={`modal-thumbnail-image ${clickedIndex === index ? 'active' : ''}`}
                                                 onClick={() => handleImageClick(index)}
                                                 fluid
                                                 loading="lazy"
@@ -808,17 +763,12 @@ function Userprofile() {
                     <button className="edit-modal-close" onClick={profileClose}>×</button>
                 </div>
                 <Form onSubmit={(e) => { e.preventDefault(); handleProfileSave(); }}>
-                    <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                    <Modal.Body className="modal-body-padding">
                         <div className="text-center mb-4">
                             <Image
                                 src={selectedImage}
                                 alt="Selected portrait"
-                                style={{
-                                    height: '240px',
-                                    borderRadius: '12px',
-                                    border: '3px solid #FFD443',
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
-                                }}
+                                className="profile-edit-avatar"
                                 fluid
                                 rounded
                                 loading="lazy"
@@ -834,9 +784,9 @@ function Userprofile() {
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '480px', margin: '0 auto' }}>
+                        <div className="profile-edit-form-fields">
                             <Form.Group>
-                                <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                <Form.Label className="form-label-uppercase">
                                     Username
                                 </Form.Label>
                                 <Form.Control
@@ -849,7 +799,7 @@ function Userprofile() {
                             </Form.Group>
 
                             <Form.Group>
-                                <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                <Form.Label className="form-label-uppercase">
                                     Location
                                 </Form.Label>
                                 <Form.Control
@@ -862,7 +812,7 @@ function Userprofile() {
                             </Form.Group>
 
                             <Form.Group>
-                                <Form.Label style={{ fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                <Form.Label className="form-label-uppercase">
                                     About
                                 </Form.Label>
                                 <Form.Control

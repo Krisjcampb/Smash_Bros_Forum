@@ -431,7 +431,7 @@ function UserComments({ userRole, userId, forumContent }) {
     return (
         <>
             {/* Sort dropdown */}
-            <div className="d-flex justify-content-end mb-4">
+            <div className="comments-container-flex">
                 <Dropdown className="sort-dropdown">
                     <Dropdown.Toggle variant="outline-secondary" id="dropdown-sort">
                         <span className="me-2">Sort:</span>
@@ -521,7 +521,7 @@ function UserComments({ userRole, userId, forumContent }) {
                                         </div>
                                     )}
                                     {comment.users_id !== userId && (
-                                        <button className="action-button btn-report"
+                                        <button className="action-button report-button"
                                             onClick={() => handleReportComment(comment)}>
                                             Report
                                         </button>
@@ -529,9 +529,9 @@ function UserComments({ userRole, userId, forumContent }) {
                                     {UserPermissions(userRole) && (
                                         <div className="moderation-tools">
                                             <Dropdown>
-                                                <Dropdown.Toggle as={Button} variant="link" className="action-button">
+                                                <button type="button" className="action-button mod-tools-button">
                                                     <FaCog size={14} /> Mod Tools
-                                                </Dropdown.Toggle>
+                                                </button>
                                                 <Dropdown.Menu>
                                                     <Dropdown.Item onClick={() => handleModerationOption('Option 1', comment.comment_id, comment.comment)}>
                                                         View Edit History
@@ -621,17 +621,25 @@ function UserComments({ userRole, userId, forumContent }) {
                         <Form.Label>Are you sure you would like to delete this comment?</Form.Label>
                     </Modal.Body>
                     <Modal.Footer>
-                        <Button type='submit'>Confirm Deletion</Button>
-                        <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+                        <button type='submit' className="primary-btn">Confirm Deletion</button>
+                        <button type="button" className="secondary-btn" onClick={() => setShowDeleteModal(false)}>Cancel</button>
                     </Modal.Footer>
                 </Form>
             </Modal>
 
             {/* ── Edit History Modal ────────────────────────────────────────── */}
             <Modal show={showHistoryModal} onHide={() => setShowHistoryModal(false)} size="xl">
-                <Modal.Header closeButton>
-                    <Modal.Title>Edit History</Modal.Title>
-                </Modal.Header>
+                <div className="edit-modal-header">
+                    <div>
+                        <div className="edit-modal-badge">History</div>
+                        <h5 className="edit-modal-title">Comment Edit History</h5>
+                    </div>
+                    <button className="edit-modal-close" onClick={() => setShowHistoryModal(false)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                    </button>
+                </div>
                 <Modal.Body>
                     <Table striped bordered hover>
                         <thead>
@@ -663,8 +671,8 @@ function UserComments({ userRole, userId, forumContent }) {
                         </tbody>
                     </Table>
                 </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowHistoryModal(false)}>Close</Button>
+                <Modal.Footer className="edit-modal-footer">
+                    <button type="button" className="secondary-btn" onClick={() => setShowHistoryModal(false)}>Close</button>
                 </Modal.Footer>
             </Modal>
 
@@ -672,14 +680,12 @@ function UserComments({ userRole, userId, forumContent }) {
             <Modal show={showBanUserModal} onHide={() => setShowBanUserModal(false)}>
                 <Form onSubmit={(e) => { e.preventDefault(); BanUser(); }}>
                     <Modal.Body>
-                        <Form.Label className="text-center" style={{ width: "100%" }}>
+                        <Form.Label className="ban-user-form-label">
                             Are you sure you want to ban the following user?
                         </Form.Label>
                         <Form.Control
                             type='button' value={content} readOnly className="text-center"
-                            style={{ width: '50%', margin: 'auto' }}
                         />
-                        <br />
                         <Form.Control
                             as='textarea' rows={3} value={banReason}
                             placeholder='Reason for banning'
@@ -703,20 +709,26 @@ function UserComments({ userRole, userId, forumContent }) {
                             />
                         </Form.Group>
                     </Modal.Body>
-                    <Modal.Footer className="justify-content-center">
-                        <Button variant="secondary" style={{ flex: 1 }} onClick={() => setShowBanUserModal(false)}>Cancel</Button>
-                        <Button type='submit' variant='danger' style={{ flex: 1 }}>Confirm Ban</Button>
-                    </Modal.Footer>
+                    <div className="edit-modal-footer">
+                        <button type="button" className="secondary-btn muted" onClick={() => setShowBanUserModal(false)}>Cancel</button>
+                        <button type='submit' className='primary-btn'>Confirm Ban</button>
+                    </div>
                 </Form>
             </Modal>
 
             {/* ── Report Modal ──────────────────────────────────────────────── */}
-            <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" style={{ color: '#000000' }} centered>
-                <Modal.Header className="position-relative">
-                    <Modal.Title className="w-100 text-center">Report Comment</Modal.Title>
-                    <Button variant="close" onClick={() => setShowReportModal(false)}
-                        className="position-absolute" style={{ top: '18px', right: '8px' }} />
-                </Modal.Header>
+            <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" centered>
+                <div className="settings-modal-header">
+                    <div>
+                        <div className="settings-modal-badge">Report</div>
+                        <h5 className="edit-modal-title">Report Comment</h5>
+                    </div>
+                    <button className="edit-modal-close" onClick={() => setShowReportModal(false)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                    </button>
+                </div>
                 <Modal.Body>
                     <Form>
                         <Form.Group controlId="formReportReason">
@@ -727,7 +739,7 @@ function UserComments({ userRole, userId, forumContent }) {
                                     onChange={() => setReportReason(reason)}
                                 />
                             ))}
-                            <Form.Label className='mt-16'>Optional:</Form.Label>
+                            <Form.Label className="form-label-optional">Optional:</Form.Label>
                             <Form.Control
                                 as="textarea" rows={3}
                                 placeholder="Please describe why you are reporting this comment..."
@@ -737,10 +749,10 @@ function UserComments({ userRole, userId, forumContent }) {
                         </Form.Group>
                     </Form>
                 </Modal.Body>
-                <Modal.Footer className="justify-content-center">
-                    <Button size="lg" onClick={handleReportSubmit}>Submit Report</Button>
-                    <Button size="lg" variant="secondary" onClick={() => setShowReportModal(false)}>Cancel</Button>
-                </Modal.Footer>
+                <div className="edit-modal-footer">
+                    <button type="button" className="primary-btn" onClick={handleReportSubmit}>Submit Report</button>
+                    <button type="button" className="secondary-btn" onClick={() => setShowReportModal(false)}>Cancel</button>
+                </div>
             </Modal>
         </>
     );

@@ -140,14 +140,14 @@ function Homepage() {
 
                 <div className="homepage-intro__actions">
                     {token ? (
-                        <Button onClick={changeOpen} className="primary-btn create-thread-btn">
+                        <button type="button" onClick={changeOpen} className="primary-btn create-thread-btn">
                             Create New Post
-                        </Button>
+                        </button>
                     ) : (
                         <NavLink to="/signin" className="nav-link p-0">
-                            <Button className="secondary-btn sign-in-thread-btn">
+                            <button type="button" className="secondary-btn sign-in-thread-btn">
                                 Sign In to Post
-                            </Button>
+                            </button>
                         </NavLink>
                     )}
                 </div>
@@ -165,13 +165,15 @@ function Homepage() {
                         onClick={changeClose}
                         className="thread-modal__close"
                     >
-                        x
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
                     </button>
                 </div>
 
                 <Form onSubmit={onSubmitForm}>
                     <Modal.Body className="thread-modal__body">
-                        <Form.Group className="thread-form-field mb-3">
+                        <Form.Group className="thread-form-field">
                             <Form.Label className="thread-form-label">Title</Form.Label>
                             <InputGroup className="thread-input-group">
                                 <InputGroup.Text><BsCardHeading size={14} /></InputGroup.Text>
@@ -189,7 +191,7 @@ function Homepage() {
                             </div>
                         </Form.Group>
 
-                        <Form.Group className="thread-form-field mb-3">
+                        <Form.Group className="thread-form-field">
                             <Form.Label className="thread-form-label">Content</Form.Label>
                             <InputGroup className="thread-input-group align-items-start">
                                 <InputGroup.Text className="thread-input-group__textarea-icon"><BsTextLeft size={14} /></InputGroup.Text>
@@ -220,21 +222,12 @@ function Homepage() {
                     </Modal.Body>
 
                     <Modal.Footer className="thread-modal__footer">
-                        <Button
-                            type="button"
-                            variant="outline-secondary"
-                            onClick={changeClose}
-                            className="thread-modal__secondary"
-                        >
+                        <button type="button" onClick={changeClose} className="secondary-btn thread-modal__secondary">
                             Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={isPosting}
-                            className="primary-btn thread-modal__submit"
-                        >
+                        </button>
+                        <button type="submit" disabled={isPosting} className="primary-btn thread-modal__submit">
                             {isPosting ? 'Posting...' : 'Post Thread'}
-                        </Button>
+                        </button>
                     </Modal.Footer>
                 </Form>
             </Modal>

@@ -39,7 +39,6 @@ function UserSettings({ toggleTheme }) {
             onClick={onClick}
             disabled={disabled}
             className={`primary-btn ${className}`}
-            style={style}
         >
             {children}
         </button>
@@ -62,7 +61,6 @@ function UserSettings({ toggleTheme }) {
                 <label
                     htmlFor={htmlFor}
                     className={combinedClass}
-                    style={style}
                 >
                     {children}
                 </label>
@@ -74,7 +72,6 @@ function UserSettings({ toggleTheme }) {
                 onClick={onClick}
                 disabled={disabled}
                 className={combinedClass}
-                style={style}
             >
                 {children}
             </button>
@@ -165,7 +162,7 @@ function UserSettings({ toggleTheme }) {
 
     // Shared section card style adapts to theme
     return (
-        <Container className="mt-4" style={{ maxWidth: '640px' }}>
+        <Container className="mt-4 settings-page-container">
 
             {/* Page header */}
             <div className="settings-header">
@@ -194,7 +191,7 @@ function UserSettings({ toggleTheme }) {
 
                 {/* Key status indicator */}
                 <div className={`key-status ${keyInSession ? 'loaded' : 'missing'} ${isDark ? 'dark' : 'light'}`}>
-                    <span style={{ fontSize: '1.1rem' }}>{keyInSession ? '🔓' : '🔒'}</span>
+                    <span className="key-status-icon">{keyInSession ? '🔓' : '🔒'}</span>
                     {keyInSession
                         ? 'Your private key is loaded. Messages are decryptable.'
                         : 'Private key not loaded. Log out and back in, then enter your passphrase to read messages.'}
@@ -220,7 +217,7 @@ function UserSettings({ toggleTheme }) {
                         <BsDownload size={14} /> Download Backup Key
                     </SecondaryBtn>
                     {!keyInSession && (
-                        <p  className={`settings-desc ${isDark ? 'dark' : 'light'}`} style={{ marginTop: '0.4rem', marginBottom: 0 }}>
+                        <p  className={`settings-desc ${isDark ? 'dark' : 'light'} settings-block-paragraph`}>
                             Unlock your key with your passphrase first.
                         </p>
                     )}
@@ -259,39 +256,28 @@ function UserSettings({ toggleTheme }) {
             <Modal show={showChangePassphrase} onHide={() => setShowChangePassphrase(false)} centered>
                 <div className="settings-modal-header">
                     <div>
-                        <div style={{
-                            display: 'inline-block',
-                            background: '#FFD443',
-                            borderRadius: '6px',
-                            padding: '2px 8px',
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
-                            color: '#393933',
-                            marginBottom: '0.4rem',
-                        }}>
-                            Security
-                        </div>
-                        <h5 style={{ color: '#ffffff', fontWeight: '800', margin: 0 }}>
+                        <div className="settings-modal-badge">Security</div>
+                        <h5 className="edit-modal-title">
                             Change Passphrase
                         </h5>
                     </div>
                     <button
                         onClick={() => setShowChangePassphrase(false)}
-                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}
+                        className="edit-modal-close"
                     >
-                        ×
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
                     </button>
                 </div>
 
-                <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                <Modal.Body className="modal-body-padding">
                     {passphraseSuccess && (
                         <Alert variant="success" className="py-2">{passphraseSuccess}</Alert>
                     )}
 
                     <Form.Group className="mb-3">
-                        <Form.Label style={{ fontWeight: '600', fontSize: '0.85rem' }}>Current Passphrase</Form.Label>
+                        <Form.Label className="modal-label">Current Passphrase</Form.Label>
                         <InputGroup>
                             <Form.Control
                                 type={showCurrentPass ? 'text' : 'password'}
@@ -299,7 +285,7 @@ function UserSettings({ toggleTheme }) {
                                 onChange={(e) => setCurrentPassphrase(e.target.value)}
                                 placeholder="Enter current passphrase"
                             />
-                            <InputGroup.Text style={{ cursor: 'pointer' }} onClick={() => setShowCurrentPass(!showCurrentPass)}>
+                            <InputGroup.Text className="modal-input-group-text-cursor" onClick={() => setShowCurrentPass(!showCurrentPass)}>
                                 {showCurrentPass ? <BsEyeSlash size={16} /> : <BsEye size={16} />}
                             </InputGroup.Text>
                         </InputGroup>
@@ -335,7 +321,7 @@ function UserSettings({ toggleTheme }) {
                     )}
                 </Modal.Body>
 
-                <Modal.Footer style={{ borderTop: '1px solid #e0e0dc', padding: '1rem 2rem', gap: '0.5rem' }}>
+                <Modal.Footer className="modal-footer-settings">
                     <button onClick={() => setShowChangePassphrase(false)} className="secondary-btn muted">
                         Cancel
                     </button>
