@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { Container, InputGroup, Form } from 'react-bootstrap'
-import Button from 'react-bootstrap/Button'
 import Modal from 'react-bootstrap/Modal'
 import { NavLink } from 'react-router-dom'
 import { BsTextLeft, BsCardHeading, BsImageFill } from 'react-icons/bs'

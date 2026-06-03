@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Container, Image, Tabs, Tab, Modal, Button, ButtonGroup, Dropdown, Form, Row, Col, Card } from 'react-bootstrap'
+import { Container, Image, Tabs, Tab, Modal, ButtonGroup, Dropdown, Form, Row, Col, Card } from 'react-bootstrap'
 import { useParams, useNavigate } from 'react-router-dom';
 import FriendOptionsDropdown from '../components/Friend Dropdown/Friend_Dropdown'
 import { NavLink } from 'react-router-dom'

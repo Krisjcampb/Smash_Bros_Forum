@@ -1,7 +1,7 @@
 // src/components/UserComments.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Dropdown, Modal, Table, Image } from 'react-bootstrap';
+import { Dropdown, Modal, Table, Image } from 'react-bootstrap';
 import { FaEdit, FaTrash, FaCog } from 'react-icons/fa';
 import { PiArrowFatUpFill, PiArrowFatDownFill, PiArrowFatUp, PiArrowFatDown } from "react-icons/pi";
 import Form from 'react-bootstrap/Form';
