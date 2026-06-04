@@ -2254,7 +2254,18 @@ app.get('/user-stats/:userid', async (req, res) => {
                 (SELECT COUNT(*)
                 FROM commentlikes cl
                 JOIN forumcomments c ON c.comment_id = cl.comment_id
-                WHERE c.users_id = u.users_id) AS comment_likes
+                WHERE c.users_id = u.users_id) AS comment_likes,
+                (
+                    (SELECT COUNT(*)
+                    FROM likes l
+                    JOIN forumcontent fc ON fc.thread_id = l.post_id
+                    WHERE fc.users_id = u.users_id)
+                    +
+                    (SELECT COUNT(*)
+                    FROM commentlikes cl
+                    JOIN forumcomments c ON c.comment_id = cl.comment_id
+                    WHERE c.users_id = u.users_id)
+                ) AS total_likes
 
             FROM forumusers u
             WHERE u.users_id = $1;

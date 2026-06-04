@@ -230,7 +230,6 @@ function Homepage() {
                     </Modal.Footer>
                 </Form>
             </Modal>
-
             <ListContent userRole={userRole} usersId={usersId} newThread={newThread}/>
         </Container>
     )
