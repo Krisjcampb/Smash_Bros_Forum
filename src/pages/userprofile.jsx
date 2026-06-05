@@ -773,6 +773,7 @@ function Userprofile() {
                                 fluid
                                 rounded
                                 loading="lazy"
+                                style={{ maxHeight: '150px', maxWidth: '150px', width: '150px', height: '150px' }}
                             />
                             <div className="mt-3">
                                 <button
