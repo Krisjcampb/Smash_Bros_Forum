@@ -17,6 +17,7 @@ import UserSettings from './pages/usersettings'
 import Feedback from './pages/feedback'
 import ReportPage from './pages/reportpage'
 import NotFound from './pages/notfound'
+import SetupKeys from './pages/setupkeys'
 import ErrorBoundary from './components/Error Boundary/errorboundary'
 import './App.css'
 import { UserProvider } from './pages/usercontext';
@@ -61,6 +62,7 @@ export default function App() {
                                 <Route path='/forgotpassword' element={<ForgotPassword />} />
                                 <Route path='/messaging/:user/:userid' element={<Messaging />} />
                                 <Route path='/calendar' element={<Calendar />} />
+                                <Route path='/setup-keys' element={<SetupKeys />} />
                                 <Route path='/usersettings' element={<UserSettings toggleTheme={toggleTheme} />} />
                                 <Route
                                     path='/reportpage'

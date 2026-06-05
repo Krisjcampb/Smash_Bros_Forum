@@ -179,17 +179,18 @@ app.put("/forumusers/updateVerified", async (req, res) => {
         res.status(500).send("Internal server error");
     }
 })
-app.post("/forumusers/savePublicKey", async (req, res) => {
+app.post("/forumusers/savePublicKey", authenticateToken, async (req, res) => {
     try {
-        const { email, publicKey } = req.body;
-        const userQuery = await pool.query("SELECT users_id FROM forumusers WHERE email = $1", [email]);
-        const userId = userQuery.rows[0].users_id;
+        const { publicKey } = req.body;
+        const userId = req.user.users_id;
 
-        const keyQuery = `
-            INSERT INTO forumuser_public_keys (users_id, public_key)
-            VALUES ($1, $2);`;
-
-        await pool.query(keyQuery, [userId, publicKey]);
+        // Upsert in case they're regenerating
+        await pool.query(
+            `INSERT INTO forumuser_public_keys (users_id, public_key)
+             VALUES ($1, $2)
+             ON CONFLICT (users_id) DO UPDATE SET public_key = $2`,
+            [userId, publicKey]
+        );
         res.status(201).send("Public key saved successfully");
     } catch (err) {
         console.error(err.message);
@@ -391,22 +392,21 @@ app.post('/save-encrypted-key', async (req, res) => {
     try {
         const { email, encryptedKey, salt, iv } = req.body;
 
-        if (!email || !encryptedKey || !salt || !iv) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        // Support both email (registration) and token (setup-keys page)
+        let userId;
+        const authHeader = req.headers['authorization'];
+        if (authHeader) {
+            const token = authHeader.split(' ')[1];
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            userId = decoded.users_id;
+        } else {
+            const userResult = await pool.query(
+                'SELECT users_id FROM forumusers WHERE email = $1', [email]
+            );
+            if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+            userId = userResult.rows[0].users_id;
         }
 
-        const userResult = await pool.query(
-            'SELECT users_id FROM forumusers WHERE email = $1',
-            [email]
-        );
-
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const userId = userResult.rows[0].users_id;
-
-        // Upsert — handles re-registration edge cases
         await pool.query(
             `INSERT INTO forumuser_encrypted_keys (users_id, encrypted_key, salt, iv)
              VALUES ($1, $2, $3, $4)

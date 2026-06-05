@@ -200,8 +200,34 @@ function SignIn() {
             {/* Passphrase modal appears after a successful login to load the private key into session */}
             <PassphraseUnlock
                 show={showPassphraseModal}
-                onUnlocked={() => { setShowPassphraseModal(false); navigate('/'); navigate(0); }}
-                onSkip={() => { setShowPassphraseModal(false); navigate('/'); navigate(0); }}
+                onUnlocked={async () => {
+                    setShowPassphraseModal(false);
+                    const token = localStorage.getItem('token');
+                    const keyResponse = await fetch(`${API}/get-encrypted-key`, {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+
+                    if (keyResponse.status === 404) {
+                        navigate('/setup-keys');
+                    } else {
+                        navigate('/');
+                        navigate(0);
+                    }
+                }}
+                onSkip={async () => {
+                    setShowPassphraseModal(false);
+                    const token = localStorage.getItem('token');
+                    const keyResponse = await fetch(`${API}/get-encrypted-key`, {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+
+                    if (keyResponse.status === 404) {
+                        navigate('/setup-keys');
+                    } else {
+                        navigate('/');
+                        navigate(0);
+                    }
+                }}
             />
         </Container>
     )
