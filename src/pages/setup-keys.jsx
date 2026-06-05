@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Container, Alert, Modal, Button, Form, InputGroup } from 'react-bootstrap'
+import React, { useState, useEffect } from 'react'
+import { Container, Alert, Button, Form, InputGroup } from 'react-bootstrap'
 import { saveAs } from 'file-saver';
 import { useNavigate } from 'react-router-dom'
 import { BsShieldLock, BsEye, BsEyeSlash, BsDownload } from 'react-icons/bs'
@@ -56,7 +57,7 @@ export default function SetupKeys() {
             }
         };
         generate();
-    }, []);
+    }, [token]);
 
     const handleSetPassphrase = async () => {
         if (passphrase.length < 10) { setPassphraseError('Passphrase must be at least 10 characters'); return; }
@@ -107,7 +108,7 @@ export default function SetupKeys() {
 
                 <div style={{ background: '#ffffff', borderRadius: '0 0 16px 16px', padding: '2rem 2.5rem', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
 
-                    {keyStep === 'generating' && (
+                    {isGeneratingKey && (
                         <div className="text-center py-3">
                             <span className="spinner-border spinner-border-sm me-2" />
                             Generating your encryption keys...
