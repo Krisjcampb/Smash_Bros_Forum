@@ -17,7 +17,7 @@ import UserSettings from './pages/usersettings'
 import Feedback from './pages/feedback'
 import ReportPage from './pages/reportpage'
 import NotFound from './pages/notfound'
-import SetupKeys from './pages/setupkeys'
+import SetupKeys from './pages/setup-keys'
 import ErrorBoundary from './components/Error Boundary/errorboundary'
 import './App.css'
 import { UserProvider } from './pages/usercontext';
