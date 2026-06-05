@@ -242,7 +242,7 @@ function Userprofile() {
 
             await fetch(`${API}/update-profile/${userid}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ username, location, description }),
             })
         } catch {
@@ -693,9 +693,9 @@ function Userprofile() {
                         <div className='text-center'>
                             <div className='mt-24'>
                                 <ButtonGroup className='justify-content-center'>
-                                    <button type="button" className="secondary-btn" onSelect={handleDropdownSelect}>Select Character</button>
+                                    <button type="button" className="secondary-btn">Select Character</button>
                                     <Dropdown as={ButtonGroup} onSelect={handleDropdownSelect}>
-                                        <button type="button" className="secondary-btn-split-toggle custom-split-toggle" />
+                                        <Dropdown.Toggle split variant="secondary" id="dropdown-split-basic" className="secondary-btn-split-toggle custom-split-toggle" />
                                         <Dropdown.Menu className="custom-dropdown-menu">
                                             <input
                                                 type="text"
@@ -722,6 +722,7 @@ function Userprofile() {
                                             src={clickedImage}
                                             alt="Selected portrait"
                                             className="modal-image-selected"
+                                            style={{ maxHeight: '180px' }}
                                             fluid
                                             loading="lazy"
                                         />
