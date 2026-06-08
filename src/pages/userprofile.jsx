@@ -42,6 +42,7 @@ function Userprofile() {
     const [friendUrl, setFriendUrl] = useState('')
     const [showImagePicker, setShowImagePicker] = useState(false);
     const [stats, setStats] = useState(null);
+    const [isLoadingImages, setIsLoadingImages] = useState(false);
 
     // Infinite scroll state — start by showing 10 items in each tab
     const [visibleComments, setVisibleComments] = useState(10)
@@ -100,6 +101,13 @@ function Userprofile() {
     useEffect(() => {
         setImages(generateImages(profilePicture.characterName));
     }, [profilePicture.characterName, generateImages]);
+
+    // Set loading to false once images are generated
+    useEffect(() => {
+        if (images.length > 0) {
+            setIsLoadingImages(false);
+        }
+    }, [images]);
 
     // Falls back to the Mario portrait if the friend has no profile picture set
     const getfriendImage = useCallback(async () => {
@@ -170,6 +178,7 @@ function Userprofile() {
     }, [threadPosts, visiblePosts])
 
     const handleDropdownSelect = (eventKey, event) => {
+        setIsLoadingImages(true); // Set loading to true when a new character is selected
         setCharacter(eventKey);
         setImages(generateImages(eventKey));
         setHighlightedIndex(0);
@@ -693,9 +702,10 @@ function Userprofile() {
                         <div className='text-center'>
                             <div className='mt-24'>
                                 <ButtonGroup className='justify-content-center'>
-                                    <button type="button" className="secondary-btn">Select Character</button>
-                                    <Dropdown as={ButtonGroup} onSelect={handleDropdownSelect}>
-                                        <Dropdown.Toggle split variant="secondary" id="dropdown-split-basic" className="secondary-btn-split-toggle custom-split-toggle" />
+                                <Dropdown as={ButtonGroup} onSelect={handleDropdownSelect}>
+                                    <Dropdown.Toggle variant="secondary" id="dropdown-split-basic" className="secondary-btn">
+                                        Select Character
+                                    </Dropdown.Toggle>
                                         <Dropdown.Menu className="custom-dropdown-menu">
                                             <input
                                                 type="text"
@@ -715,31 +725,37 @@ function Userprofile() {
                                 </ButtonGroup>
                             </div>
 
-                            {character && (
-                                <div className="modal-image-display">
-                                    <div className="d-flex justify-content-center mb-3">
-                                        <Image
-                                            src={clickedImage}
-                                            alt="Selected portrait"
-                                            className="modal-image-selected"
-                                            style={{ maxHeight: '180px' }}
-                                            fluid
-                                            loading="lazy"
-                                        />
-                                    </div>
-                                    <div className="modal-thumbnail-container">
-                                        {images.map((src, index) => (
+                            {isLoadingImages ? (
+                                <div className="text-center mt-3">
+                                    <p>Loading images...</p>
+                                </div>
+                            ) : (
+                                character && (
+                                    <div className="modal-image-display">
+                                        <div className="d-flex justify-content-center mb-3">
                                             <Image
-                                                key={index}
-                                                src={src}
-                                                className={`modal-thumbnail-image ${clickedIndex === index ? 'active' : ''}`}
-                                                onClick={() => handleImageClick(index)}
+                                                src={clickedImage}
+                                                alt="Selected portrait"
+                                                className="modal-image-selected"
+                                                style={{ maxHeight: '180px' }}
                                                 fluid
                                                 loading="lazy"
                                             />
-                                        ))}
+                                        </div>
+                                        <div className="modal-thumbnail-container">
+                                            {images.map((src, index) => (
+                                                <Image
+                                                    key={index}
+                                                    src={src}
+                                                    className={`modal-thumbnail-image ${clickedIndex === index ? 'active' : ''}`}
+                                                    onClick={() => handleImageClick(index)}
+                                                    fluid
+                                                    loading="lazy"
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )
                             )}
                         </div>
                     </Modal.Body>
@@ -773,12 +789,12 @@ function Userprofile() {
                                 fluid
                                 rounded
                                 loading="lazy"
-                                style={{ maxHeight: '150px', maxWidth: '150px', width: '150px', height: '150px' }}
+                                style={{ maxHeight: '200px', maxWidth: '200px', width: '200px', height: '200px' }}
                             />
                             <div className="mt-3">
                                 <button
                                     type="button"
-                                    className="secondary-btn themed light"
+                                    className="secondary-btn"
                                     onClick={openImagePicker}
                                 >
                                     Change Profile Image
