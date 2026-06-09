@@ -3162,19 +3162,19 @@ body.dark-theme {
 }
 
 .forum-grid {
-  width: min(100%, 1280px);
-  max-width: 1320px;
+  width: min(100%, 1400px);
+  max-width: 1440px;
   margin: 0 auto;
   padding: 0 clamp(0.75rem, 2vw, 1.5rem);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 320px));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 340px));
   justify-content: center;
   gap: 1.35rem;
 }
 
 .thread-card-wrap {
   width: 100%;
-  max-width: 320px;
+  max-width: 340px;
 }
 
 .hover-card {
