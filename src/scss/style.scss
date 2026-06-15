@@ -1573,7 +1573,7 @@ footer {
 
   // Vote arrows on dark background
   .vote-button {
-    svg { color: rgba(255, 255, 255, 0.5); }
+    svg { color: rgba(255, 255, 255, 0.8); } // Made default color brighter for dark mode
 
     &.like-button {
       &:hover svg { color: $success; }
