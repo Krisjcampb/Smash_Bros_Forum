@@ -467,15 +467,16 @@ footer {
 .vote-button {
   background: none;
   border: none;
-  padding: 0.25rem;
+  padding: 0.45rem; // Increased padding
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   svg {
     transition: all 0.2s ease;
-    color: rgba($primary, 0.5);
+    color: rgba($primary, 0.65); // Slightly brighter default color for light theme
+    font-size: 24px; // Increased icon size
   }
-  
+
   &.like-button {
     &:hover svg {
       color: $success;
@@ -486,7 +487,7 @@ footer {
       filter: drop-shadow(0 1px 2px rgba($success, 0.3));
     }
   }
-  
+
   &.dislike-button {
     &:hover svg {
       color: $danger;
@@ -508,8 +509,8 @@ footer {
   min-width: 58.33px;
   width: 58.33px;
   text-align: center;
-  font-weight: bold;
-  font-size: 16px;
+  font-weight: 900; // Increased font weight
+  font-size: 1.1rem; // Increased font size
   padding: 0;
   box-sizing: border-box;
 }
