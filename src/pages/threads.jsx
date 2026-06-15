@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import UserComments from '../components/User Comments/UserComments';
 import TextMentionArea from '../components/User Comments/TextMentionArea';
 import { API } from '../components/Utilities/apiUrl';
+import { toast } from 'react-toastify';
+import { PiArrowFatUpFill, PiArrowFatDownFill, PiArrowFatUp, PiArrowFatDown } from "react-icons/pi";
 
 function Threads() {
     const [comment, setComment] = useState("");
@@ -20,6 +22,9 @@ function Threads() {
     const [reportDescription, setReportDescription] = useState('');
     // Incrementing this key forces UserComments to re-fetch after a new comment is posted
     const [commentsKey, setCommentsKey] = useState(0);
+    const [threadLikedStatus, setThreadLikedStatus] = useState({});
+    const [threadDislikedStatus, setThreadDislikedStatus] = useState({});
+    const [threadLikesDislikes, setThreadNetLikesDislikes] = useState([]);
     const [submitting, setSubmitting] = useState(false);
     const thread_id = forumContent?.thread_id || threadId
     const token = localStorage.getItem('token');
@@ -134,6 +139,134 @@ function Threads() {
         }
     }, [forumContent, thread_id]);
 
+    // ── Likes / Dislikes ──────────────────────────────────────────────────────
+
+    const fetchThreadLikesData = async () => {
+        try {
+            const [likeRes, dislikeRes] = await Promise.all([
+                fetch(`${API}/forumlikes`),
+                fetch(`${API}/forumdislikes`),
+            ]);
+            const likedata = await likeRes.json();
+            const dislikedata = await dislikeRes.json();
+
+            const combined = likedata.map(l => ({ thread_id: l.thread_id, like_count: l.like_count, dislike_count: 0 }));
+            dislikedata.forEach(d => {
+                const idx = combined.findIndex(i => i.thread_id === d.thread_id);
+                if (idx !== -1) combined[idx].dislike_count = d.dislike_count;
+                else combined.push({ thread_id: d.thread_id, like_count: 0, dislike_count: d.dislike_count });
+            });
+            setThreadNetLikesDislikes(combined.map(i => ({ thread_id: i.thread_id, net_likes: i.like_count - i.dislike_count })));
+        } catch (err) { console.error(err.message); }
+    };
+
+    useEffect(() => {
+        fetchThreadLikesData();
+    }, []);
+
+    useEffect(() => {
+        if (!userid) return;
+        const fetchUserThreadLikes = async () => {
+            try {
+                const response = await fetch(`${API}/userlikesdislikes?userid=${userid}&thread_id=${thread_id}`, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const res = await response.json();
+                if (Array.isArray(res)) {
+                    const likes = {}, dislikes = {};
+                    res.forEach(item => {
+                        if (item.type === 'like') { likes[item.thread_id] = true; dislikes[item.thread_id] = false; }
+                        else if (item.type === 'dislike') { likes[item.thread_id] = false; dislikes[item.thread_id] = true; }
+                    });
+                    setThreadLikedStatus(likes);
+                    setThreadDislikedStatus(dislikes);
+                }
+            } catch (err) { console.error(err); }
+        };
+        fetchUserThreadLikes();
+    }, [userid, thread_id]);
+
+    const handleThreadLike = async () => {
+        const wasLiked = threadLikedStatus[thread_id] || false;
+        const wasDisliked = threadDislikedStatus[thread_id] || false;
+
+        setThreadLikedStatus(prev => ({ ...prev, [thread_id]: !wasLiked }));
+        setThreadDislikedStatus(prev => ({ ...prev, [thread_id]: false }));
+
+        setThreadNetLikesDislikes(prev => {
+            const existing = prev.find(item => item.thread_id === thread_id);
+            if (!existing) {
+                return [...prev, { thread_id: thread_id, net_likes: wasLiked ? 0 : (wasDisliked ? 2 : 1) }];
+            }
+            return prev.map(item => {
+                if (item.thread_id !== thread_id) return item;
+                let n = item.net_likes;
+                if (wasLiked) n -= 1;
+                else { n += 1; if (wasDisliked) n += 1; }
+                return { ...item, net_likes: n };
+            });
+        });
+
+        try {
+            await fetch(`${API}/forumlikes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ thread_id }),
+            });
+            if (!wasLiked) toast.success('👍 Thread liked!', { autoClose: 1500, hideProgressBar: true });
+        } catch (err) {
+            toast.error('Failed to like thread.');
+        }
+    };
+
+    const handleThreadDislike = async () => {
+        const wasDisliked = threadDislikedStatus[thread_id] || false;
+        const wasLiked = threadLikedStatus[thread_id] || false;
+
+        setThreadDislikedStatus(prev => ({ ...prev, [thread_id]: !wasDisliked }));
+        setThreadLikedStatus(prev => ({ ...prev, [thread_id]: false }));
+
+        setThreadNetLikesDislikes(prev => {
+            const existing = prev.find(item => item.thread_id === thread_id);
+            if (!existing) {
+                return [...prev, { thread_id: thread_id, net_likes: wasDisliked ? 0 : (wasLiked ? -2 : -1) }];
+            }
+            return prev.map(item => {
+                if (item.thread_id !== thread_id) return item;
+                let n = item.net_likes;
+                if (wasDisliked) n += 1;
+                else { n -= 1; if (wasLiked) n -= 1; }
+                return { ...item, net_likes: n };
+            });
+        });
+
+        try {
+            await fetch(`${API}/forumdislikes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ thread_id }),
+            });
+        } catch (err) {
+            toast.error('Failed to dislike thread.');
+        }
+    };
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    function formatCompactNumber(num) {
+        if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+        if (num >= 10000) return `${Math.round(num / 1000)}k`;
+        if (num >= 1000) return `${(num / 1000).toFixed(2)}k`.replace(/\.?0+k$/, 'k');
+        return num.toString();
+    }
+
+
     if (!forumContent) {
         return <div className="text-center mt-5">Loading...</div>;
     }
@@ -152,6 +285,34 @@ function Threads() {
                             {forumContent.title}
                         </h2>
                     </div>
+
+                    {user && (
+                        <div className="d-flex align-items-center gap-2 me-3">
+                            <button
+                                className={`vote-button like-button ${threadLikedStatus[thread_id] ? 'active-like' : ''}`}
+                                onClick={handleThreadLike}
+                            >
+                                {threadLikedStatus[thread_id]
+                                    ? <PiArrowFatUpFill size={20} />
+                                    : <PiArrowFatUp size={20} />
+                                }
+                            </button>
+                            <span className="vote-count">
+                                {formatCompactNumber(
+                                    threadLikesDislikes.find(item => item.thread_id === thread_id)?.net_likes || 0
+                                )}
+                            </span>
+                            <button
+                                className={`vote-button dislike-button ${threadDislikedStatus[thread_id] ? 'active-dislike' : ''}`}
+                                onClick={handleThreadDislike}
+                            >
+                                {threadDislikedStatus[thread_id]
+                                    ? <PiArrowFatDownFill size={20} />
+                                    : <PiArrowFatDown size={20} />
+                                }
+                            </button>
+                        </div>
+                    )}
 
                     {/* Report button  */}
                     {user && userid !== forumContent.users_id && (
