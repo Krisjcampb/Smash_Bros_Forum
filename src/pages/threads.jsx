@@ -276,18 +276,37 @@ function Threads() {
 
             {/* Thread content card */}
             <div className="thread-content-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                        <div className="thread-badge-label">
-                            Thread
-                        </div>
-                        <h2 className='thread-page-title'>
-                            {forumContent.title}
-                        </h2>
+                <div style={{ flex: 1 }}>
+                    <div className="thread-badge-label">
+                        Thread
                     </div>
+                    <h2 className='thread-page-title'>
+                        {forumContent.title}
+                    </h2>
+                </div>
+            </div>
 
+            <div className='thread-page-background'>
+                {/* Thread image */}
+                {forumContent?.filepath && (
+                    <img
+                        src={forumContent.filepath.slice(6)}
+                        alt='Thread'
+                        className="thread-image-display"
+                    />
+                )}
+
+                {/* Thread body */}
+                <p>
+                    {forumContent.content}
+                </p>
+            </div>
+
+            {/* NEW: Thread actions footer */}
+            {(user || (user && userid !== forumContent.users_id)) && (
+                <div className="d-flex justify-content-between align-items-center mt-3 mb-4">
                     {user && (
-                        <div className="d-flex align-items-center gap-2 me-3">
+                        <div className="vote-buttons-container">
                             <button
                                 className={`vote-button like-button ${threadLikedStatus[thread_id] ? 'active-like' : ''}`}
                                 onClick={handleThreadLike}
@@ -313,8 +332,6 @@ function Threads() {
                             </button>
                         </div>
                     )}
-
-                    {/* Report button  */}
                     {user && userid !== forumContent.users_id && (
                         <button
                             className="secondary-btn muted thread-report-button"
@@ -324,7 +341,8 @@ function Threads() {
                         </button>
                     )}
                 </div>
-            </div>
+            )}
+
 
             <div className='thread-page-background'>
                 {/* Thread image */}

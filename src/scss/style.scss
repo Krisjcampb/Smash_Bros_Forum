@@ -506,19 +506,20 @@ footer {
 }
 
 .vote-count {
-  min-width: 58.33px;
-  width: 58.33px;
+  min-width: auto; // Adjusted for vertical layout
+  width: auto; // Adjusted for vertical layout
   text-align: center;
   font-weight: 900; // Increased font weight
-  font-size: 1.1rem; // Increased font size
+  font-size: 1.0rem; // Increased font size
   padding: 0;
   box-sizing: border-box;
 }
 
 .vote-buttons-container {
   display: flex;
+  flex-direction: column; // Changed to column
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem; // Increased vertical gap
 }
 
 .fixed-size-button {
