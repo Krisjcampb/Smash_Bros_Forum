@@ -34,6 +34,7 @@ function Threads() {
         "Promotes terrorism", "Repulsive or violent content", "Minor abuse or sexualization",
         "Spam", "Misinformation", "Self-harm or suicide",
     ];
+
     const handleReportSubmit = async () => {
         if (!reportReason) {
             alert('Please select a reason for reporting');
@@ -56,10 +57,13 @@ function Threads() {
                 setShowReportModal(false);
                 setReportReason('');
                 setReportDescription('');
-                alert('Report submitted successfully');
+                toast.success('Report submitted successfully');
+            } else {
+                toast.error('Failed to submit report.');
             }
         } catch (err) {
             console.error('Error submitting report:', err);
+            toast.error('Something went wrong. Please try again.');
         } finally {
             setSubmitting(false);
         }
@@ -102,7 +106,7 @@ function Threads() {
             console.error('Error submitting comment:', err.message);
         }
     };
-    
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -266,7 +270,6 @@ function Threads() {
         return num.toString();
     }
 
-
     if (!forumContent) {
         return <div className="text-center mt-5">Loading...</div>;
     }
@@ -276,44 +279,25 @@ function Threads() {
 
             {/* Thread content card */}
             <div className="thread-content-card">
-                <div style={{ flex: 1 }}>
-                    <div className="thread-badge-label">
-                        Thread
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                        <div className="thread-badge-label">
+                            Thread
+                        </div>
+                        <h2 className='thread-page-title'>
+                            {forumContent.title}
+                        </h2>
                     </div>
-                    <h2 className='thread-page-title'>
-                        {forumContent.title}
-                    </h2>
-                </div>
-            </div>
 
-            <div className='thread-page-background'>
-                {/* Thread image */}
-                {forumContent?.filepath && (
-                    <img
-                        src={forumContent.filepath.slice(6)}
-                        alt='Thread'
-                        className="thread-image-display"
-                    />
-                )}
-
-                {/* Thread body */}
-                <p>
-                    {forumContent.content}
-                </p>
-            </div>
-
-            {/* NEW: Thread actions footer */}
-            {(user || (user && userid !== forumContent.users_id)) && (
-                <div className="d-flex justify-content-between align-items-center mt-3 mb-4">
                     {user && (
-                        <div className="vote-buttons-container">
+                        <div className="d-flex align-items-center gap-2 me-3">
                             <button
                                 className={`vote-button like-button ${threadLikedStatus[thread_id] ? 'active-like' : ''}`}
                                 onClick={handleThreadLike}
                             >
                                 {threadLikedStatus[thread_id]
-                                    ? <PiArrowFatUpFill size={20} />
-                                    : <PiArrowFatUp size={20} />
+                                    ? <PiArrowFatUpFill size={28} />
+                                    : <PiArrowFatUp size={28} />
                                 }
                             </button>
                             <span className="vote-count">
@@ -326,12 +310,14 @@ function Threads() {
                                 onClick={handleThreadDislike}
                             >
                                 {threadDislikedStatus[thread_id]
-                                    ? <PiArrowFatDownFill size={20} />
-                                    : <PiArrowFatDown size={20} />
+                                    ? <PiArrowFatDownFill size={28} />
+                                    : <PiArrowFatDown size={28} />
                                 }
                             </button>
                         </div>
                     )}
+
+                    {/* Report button */}
                     {user && userid !== forumContent.users_id && (
                         <button
                             className="secondary-btn muted thread-report-button"
@@ -341,8 +327,7 @@ function Threads() {
                         </button>
                     )}
                 </div>
-            )}
-
+            </div>
 
             <div className='thread-page-background'>
                 {/* Thread image */}
@@ -400,59 +385,60 @@ function Threads() {
                 userId={userid}
                 forumContent={forumContent}
             />
-        <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" centered>
-            <div className="settings-modal-header">
-                <div>
-                    <div className="settings-modal-badge">Report</div>
-                    <h5 className="edit-modal-title">Report Thread</h5>
+
+            <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" centered>
+                <div className="settings-modal-header">
+                    <div>
+                        <div className="settings-modal-badge">Report</div>
+                        <h5 className="edit-modal-title">Report Thread</h5>
+                    </div>
+                    <button className="edit-modal-close" onClick={() => setShowReportModal(false)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                    </button>
                 </div>
-                <button className="edit-modal-close" onClick={() => setShowReportModal(false)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                    </svg>
-                </button>
-            </div>
-            <Modal.Body>
-                <Form>
-                    <Form.Group>
-                        <Form.Label className="form-label-uppercase">
-                            Reason for reporting
-                        </Form.Label>
-                        {reportReasons.map(reason => (
-                            <Form.Check
-                                key={reason}
-                                label={reason}
-                                name="reportReason"
-                                type='radio'
-                                onChange={() => setReportReason(reason)}
+                <Modal.Body>
+                    <Form>
+                        <Form.Group>
+                            <Form.Label className="form-label-uppercase">
+                                Reason for reporting
+                            </Form.Label>
+                            {reportReasons.map(reason => (
+                                <Form.Check
+                                    key={reason}
+                                    label={reason}
+                                    name="reportReason"
+                                    type='radio'
+                                    onChange={() => setReportReason(reason)}
+                                />
+                            ))}
+                            <Form.Label className="form-label-optional form-label-uppercase">
+                                Additional details (optional)
+                            </Form.Label>
+                            <Form.Control
+                                as="textarea"
+                                rows={3}
+                                placeholder="Describe why you are reporting this thread..."
+                                value={reportDescription}
+                                onChange={(e) => setReportDescription(e.target.value)}
                             />
-                        ))}
-                        <Form.Label className="form-label-optional form-label-uppercase">
-                            Additional details (optional)
-                        </Form.Label>
-                        <Form.Control
-                            as="textarea"
-                            rows={3}
-                            placeholder="Describe why you are reporting this thread..."
-                            value={reportDescription}
-                            onChange={(e) => setReportDescription(e.target.value)}
-                        />
-                    </Form.Group>
-                </Form>
-            </Modal.Body>
-            <div className="edit-modal-footer">
-                <button className="secondary-btn themed light" onClick={() => setShowReportModal(false)}>
-                    Cancel
-                </button>
-                <button
-                    className="primary-btn"
-                    onClick={handleReportSubmit}
-                    disabled={!reportReason}
-                >
-                    {submitting ? 'Submitting...' : 'Submit Report'}
-                </button>
-            </div>
-        </Modal>
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <div className="edit-modal-footer">
+                    <button className="secondary-btn themed light" onClick={() => setShowReportModal(false)}>
+                        Cancel
+                    </button>
+                    <button
+                        className="primary-btn"
+                        onClick={handleReportSubmit}
+                        disabled={!reportReason || submitting}
+                    >
+                        {submitting ? 'Submitting...' : 'Submit Report'}
+                    </button>
+                </div>
+            </Modal>
         </Container>
     );
 }
