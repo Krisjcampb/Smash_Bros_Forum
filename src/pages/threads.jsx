@@ -279,25 +279,26 @@ function Threads() {
 
             {/* Thread content card */}
             <div className="thread-content-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                        <div className="thread-badge-label">
-                            Thread
-                        </div>
-                        <h2 className='thread-page-title'>
-                            {forumContent.title}
-                        </h2>
-                    </div>
+                <div className="thread-badge-label">
+                    Thread
+                </div>
+                <h2 className='thread-page-title'>
+                    {forumContent.title}
+                </h2>
+            </div>
 
+            <div className='thread-page-background'>
+                <div className="thread-body-with-votes">
+                    {/* Sidebar — votes */}
                     {user && (
-                        <div className="d-flex align-items-center gap-2 me-3">
+                        <div className="thread-vote-sidebar">
                             <button
                                 className={`vote-button like-button ${threadLikedStatus[thread_id] ? 'active-like' : ''}`}
                                 onClick={handleThreadLike}
                             >
                                 {threadLikedStatus[thread_id]
-                                    ? <PiArrowFatUpFill size={28} />
-                                    : <PiArrowFatUp size={28} />
+                                    ? <PiArrowFatUpFill size={24} />
+                                    : <PiArrowFatUp size={24} />
                                 }
                             </button>
                             <span className="vote-count">
@@ -310,39 +311,40 @@ function Threads() {
                                 onClick={handleThreadDislike}
                             >
                                 {threadDislikedStatus[thread_id]
-                                    ? <PiArrowFatDownFill size={28} />
-                                    : <PiArrowFatDown size={28} />
+                                    ? <PiArrowFatDownFill size={24} />
+                                    : <PiArrowFatDown size={24} />
                                 }
                             </button>
                         </div>
                     )}
 
-                    {/* Report button */}
-                    {user && userid !== forumContent.users_id && (
-                        <button
-                            className="secondary-btn muted thread-report-button"
-                            onClick={() => setShowReportModal(true)}
-                        >
-                            Report
-                        </button>
-                    )}
+                    {/* Main content */}
+                    <div className="thread-body-content">
+                        {forumContent?.filepath && (
+                            <img
+                                src={forumContent.filepath.slice(6)}
+                                alt='Thread'
+                                className="thread-image-display"
+                            />
+                        )}
+
+                        <p>
+                            {forumContent.content}
+                        </p>
+
+                        {/* Report button stays here, bottom right of content */}
+                        {user && userid !== forumContent.users_id && (
+                            <div className="d-flex justify-content-end">
+                                <button
+                                    className="secondary-btn muted thread-report-button"
+                                    onClick={() => setShowReportModal(true)}
+                                >
+                                    Report
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-
-            <div className='thread-page-background'>
-                {/* Thread image */}
-                {forumContent?.filepath && (
-                    <img
-                        src={forumContent.filepath.slice(6)}
-                        alt='Thread'
-                        className="thread-image-display"
-                    />
-                )}
-
-                {/* Thread body */}
-                <p>
-                    {forumContent.content}
-                </p>
             </div>
 
             {/* Comment form */}

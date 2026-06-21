@@ -3351,6 +3351,25 @@ body.dark-theme {
   border-radius: 16px;
 }
 
+.thread-body-with-votes {
+    display: flex;
+    gap: 1rem;
+}
+
+.thread-vote-sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 4px;
+    flex-shrink: 0;
+}
+
+.thread-body-content {
+    flex: 1;
+    min-width: 0;
+}
+
 body.dark-theme {
   .homepage-shell .homepage-intro.container,
   .feed-controls {
