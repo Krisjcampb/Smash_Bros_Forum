@@ -492,40 +492,38 @@ const ListContent = (props) => {
                                     <div className="d-flex justify-content-between align-items-end mt-auto">
 
                                         {/* Left: votes + comment count */}
-                                        <div className="d-flex align-items-center gap-2">
-                                            <div className="vote-buttons-container">
-                                                <Button
-                                                    variant={
-                                                        likedStatus[e.thread_id] !== undefined
-                                                            ? likedStatus[e.thread_id] ? 'success' : 'outline-success'
-                                                            : initialposts.find(i => i.thread_id === e.thread_id && i.type === 'like')
-                                                                ? 'success' : 'outline-success'
-                                                    }
-                                                    onClick={() => handleLike(e.thread_id)}
-                                                    className="fixed-size-button"
-                                                >
-                                                    <BsArrowUp />
-                                                </Button>
+                                        <div className="d-flex align-items-center thread-vote-controls">
+                                            <Button
+                                                variant={
+                                                    likedStatus[e.thread_id] !== undefined
+                                                        ? likedStatus[e.thread_id] ? 'success' : 'outline-success'
+                                                        : initialposts.find(i => i.thread_id === e.thread_id && i.type === 'like')
+                                                            ? 'success' : 'outline-success'
+                                                }
+                                                onClick={() => handleLike(e.thread_id)}
+                                                className="fixed-size-button"
+                                            >
+                                                <BsArrowUp />
+                                            </Button>
 
-                                                <span className="vote-count">
-                                                    {formatCompactNumber(
-                                                        likesdislikes.find(item => item.post_id === e.thread_id)?.net_likes || 0
-                                                    )}
-                                                </span>
+                                            <span className="vote-count">
+                                                {formatCompactNumber(
+                                                    likesdislikes.find(item => item.post_id === e.thread_id)?.net_likes || 0
+                                                )}
+                                            </span>
 
-                                                <Button
-                                                    variant={
-                                                        dislikedStatus[e.thread_id] !== undefined
-                                                            ? dislikedStatus[e.thread_id] ? 'danger' : 'outline-danger'
-                                                            : initialposts.find(i => i.post_id === e.thread_id && i.type === 'dislike')
-                                                                ? 'danger' : 'outline-danger'
-                                                    }
-                                                    onClick={() => handleDislike(e.thread_id)}
-                                                    className="fixed-size-button"
-                                                >
-                                                    <BsArrowDown />
-                                                </Button>
-                                            </div>
+                                            <Button
+                                                variant={
+                                                    dislikedStatus[e.thread_id] !== undefined
+                                                        ? dislikedStatus[e.thread_id] ? 'danger' : 'outline-danger'
+                                                        : initialposts.find(i => i.post_id === e.thread_id && i.type === 'dislike')
+                                                            ? 'danger' : 'outline-danger'
+                                                }
+                                                onClick={() => handleDislike(e.thread_id)}
+                                                className="fixed-size-button"
+                                            >
+                                                <BsArrowDown />
+                                            </Button>
 
                                             {/* Comment count badge */}
                                             <div className="comment-count-badge">

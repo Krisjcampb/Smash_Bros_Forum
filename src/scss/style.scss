@@ -506,20 +506,18 @@ footer {
 }
 
 .vote-count {
-  min-width: auto; // Adjusted for vertical layout
-  width: auto; // Adjusted for vertical layout
+  min-width: 5ch;
   text-align: center;
-  font-weight: 900; // Increased font weight
-  font-size: 1.0rem; // Increased font size
-  padding: 0;
+  font-weight: 900;
+  font-size: 1.0rem;
+  padding: 0 0.5rem; // Added horizontal padding
   box-sizing: border-box;
 }
 
-.vote-buttons-container {
+.thread-vote-controls {
   display: flex;
-  flex-direction: column; // Changed to column
   align-items: center;
-  gap: 0.5rem; // Increased vertical gap
+  gap: 0.5rem;
 }
 
 .fixed-size-button {
