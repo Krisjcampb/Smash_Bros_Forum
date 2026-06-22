@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Nav, Navbar, NavDropdown, Image } from 'react-bootstrap';
 import { NavLink, useNavigate, Link, useLocation } from 'react-router-dom';
+import socket from '../../websocket/socket';
 import { FaBell, FaEnvelope, FaCalendarAlt } from 'react-icons/fa';
 import Logo from '../Images/smash-point-high-resolution-logo.png';
 import RotatingBanner from './RotatingBanner';
@@ -91,6 +92,24 @@ function Header() {
         }
     }, []);
 
+    // SOCKET.IO REAL-TIME NOTIFICATIONS
+    useEffect(() => {
+        if (!userid) return;
+
+        const handleNewNotification = (notification) => {
+            console.log('Received new real-time notification:', notification);
+            // Prepend new notification to the list
+            setNotifications(prevNotifications => [notification, ...prevNotifications]);
+            setHasUnread(true); // Always set to true when a new notification arrives
+        };
+
+        socket.on('newNotification', handleNewNotification);
+
+        return () => {
+            socket.off('newNotification', handleNewNotification);
+        };
+    }, [userid]); // Re-run effect if userid changes (e.g., after login/logout)
+
     // Thread notifications need forum content passed via router state so the thread page loads instantly
     const navigateToThread = async (threadID) => {
         try {
@@ -107,11 +126,18 @@ function Header() {
         navigate(`/messaging/${user}/${userid}`, { state: { entityID } });
     };
 
-    // Route to the right page based on notification type rather than checking for a thread id
+    const navigateToUserProfile = (entityID) => {
+        navigate(`/userprofile/${user}/${entityID}`);
+    };
+
+    // Route to the right page based on notification type
     const handleNotifications = (notification) => {
         if (notification.type === 'directmessage') {
             navigateToDirectMessage(notification.entity_id);
+        } else if (notification.type === 'friendRequest') {
+            navigateToUserProfile(notification.entity_id); // Navigate to sender's profile
         } else {
+            // Default for thread-related notifications
             navigateToThread(notification.entity_id);
         }
     };

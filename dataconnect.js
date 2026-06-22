@@ -50,6 +50,8 @@ const io = new Server(server, {
   }
 });
 
+const userSocketMap = new Map();
+
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 },
@@ -1907,11 +1909,9 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: "You cannot add yourself." });
     }
 
-    // Reject the request if a block exists in either direction
-
     try {
         const blockCheck = await pool.query(
-            `SELECT block_id FROM blocks 
+            `SELECT block_id FROM blocks
             WHERE (blocker_id = $1 AND blocked_id = $2)
                 OR (blocker_id = $2 AND blocked_id = $1)`,
             [users_id, friends_id]
@@ -1928,10 +1928,31 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
         `, [users_id, friends_id]);
 
         if (existing.rows.length === 0) {
+            // --- NEW FRIEND REQUEST ---
             await pool.query(`
                 INSERT INTO friendships (user_id1, user_id2, status)
                 VALUES ($1, $2, 'pending')
             `, [users_id, friends_id]);
+
+            // --- NOTIFICATION: TO RECIPIENT ABOUT NEW REQUEST ---
+            const senderUsernameResult = await pool.query('SELECT username FROM forumusers WHERE users_id = $1', [users_id]);
+            const senderUsername = senderUsernameResult.rows[0]?.username || 'A user';
+
+            const notificationMessage = `${senderUsername} sent you a friend request!`;
+            const notificationType = 'friendRequest';
+
+            const newNotificationResult = await pool.query(
+                `INSERT INTO notifications (users_id, type, message, entity_id, is_read) VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
+                [friends_id, notificationType, notificationMessage, users_id] // recipient_id, type, message, sender_id
+            );
+            const notificationData = newNotificationResult.rows[0];
+
+            const recipientSocketId = userSocketMap.get(friends_id);
+            if (recipientSocketId) {
+                io.to(recipientSocketId).emit('newNotification', notificationData);
+            } else {
+                console.log(`User ${friends_id} is offline or socket not mapped for friend request notification.`);
+            }
 
             return res.json({ newStatus: 'pending' });
         }
@@ -1939,12 +1960,53 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
         const currentStatus = existing.rows[0].status;
 
         if (currentStatus === 'pending') {
+            // --- FRIEND REQUEST ACCEPTED ---
+            // Ensure the user accepting is the recipient (user_id2 in the pending request)
+            if (existing.rows[0].user_id2 !== users_id) {
+                return res.status(403).json({ error: 'You can only accept requests sent to you.' });
+            }
+
             await pool.query(`
                 UPDATE friendships
                 SET status = 'accepted'
                 WHERE (user_id1 = $1 AND user_id2 = $2)
                    OR (user_id1 = $2 AND user_id2 = $1)
             `, [users_id, friends_id]);
+
+            // --- NOTIFICATION: TO SENDER THAT REQUEST WAS ACCEPTED ---
+            const recipientUsernameResult = await pool.query('SELECT username FROM forumusers WHERE users_id = $1', [users_id]);
+            const recipientUsername = recipientUsernameResult.rows[0]?.username || 'A user';
+
+            // The sender is the other user in the friendship, not the one accepting
+            const senderOfRequest = existing.rows[0].user_id1 === users_id ? existing.rows[0].user_id2 : existing.rows[0].user_id1;
+
+            const notificationMessageToSender = `${recipientUsername} accepted your friend request!`;
+            const notificationTypeAccepted = 'friendRequestAccepted';
+
+            const newNotificationToSenderResult = await pool.query(
+                `INSERT INTO notifications (users_id, type, message, entity_id, is_read) VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
+                [senderOfRequest, notificationTypeAccepted, notificationMessageToSender, users_id] // recipient_id (sender of original request), type, message, entity_id (user who accepted)
+            );
+            const notificationDataToSender = newNotificationToSenderResult.rows[0];
+
+            const senderSocketId = userSocketMap.get(senderOfRequest);
+            if (senderSocketId) {
+                io.to(senderSocketId).emit('newNotification', notificationDataToSender);
+            } else {
+                console.log(`User ${senderOfRequest} is offline for friend request accepted notification.`);
+            }
+
+            // --- NOTIFICATION: TO RECIPIENT THAT THEY ACCEPTED (Optional, for consistency) ---
+            const notificationMessageToRecipient = `You accepted ${recipientUsername}'s friend request.`; // Re-using recipientUsername for message context
+            const newNotificationToRecipientResult = await pool.query(
+                `INSERT INTO notifications (users_id, type, message, entity_id, is_read) VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
+                [users_id, notificationTypeAccepted, notificationMessageToRecipient, senderOfRequest] // recipient_id (accepter), type, message, entity_id (sender of original request)
+            );
+            const notificationDataToRecipient = newNotificationToRecipientResult.rows[0];
+            const recipientSocketIdForAccepted = userSocketMap.get(users_id);
+            if (recipientSocketIdForAccepted) {
+                io.to(recipientSocketIdForAccepted).emit('newNotification', notificationDataToRecipient);
+            }
 
             return res.json({ newStatus: 'accepted' });
         }
@@ -2467,6 +2529,26 @@ app.post('/uploadEncryptedImage', uploadLimiter, (req, res) => {
 io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
+    const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.split(' ')[1];
+
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const userId = decoded.users_id; // Assuming `users_id` from your JWT payload
+
+            userSocketMap.set(userId, socket.id);
+            socket.userId = userId; // Attach userId to socket for easier lookup on disconnect
+            console.log(`User ${userId} connected with socket ${socket.id}`);
+
+        } catch (error) {
+            console.error('Socket authentication failed:', error.message);
+            socket.disconnect(true);
+        }
+    } else {
+        console.log('Unauthenticated socket connection');
+        socket.disconnect(true);
+    }
+
     socket.on("joinRoom", ({ userId, friendId }) => {
         if (!userId || !friendId) {
             console.error("Invalid joinRoom payload:", { userId, friendId });
@@ -2556,6 +2638,10 @@ io.on("connection", (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
+        if (socket.userId && userSocketMap.get(socket.userId) === socket.id) {
+            userSocketMap.delete(socket.userId);
+            console.log(`User ${socket.userId} removed from map`);
+        }
     });
 
     // Helper
