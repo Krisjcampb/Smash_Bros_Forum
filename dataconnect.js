@@ -2581,7 +2581,7 @@ io.on("connection", (socket) => {
                 encrypted_key_sender: data.encrypted_key_sender || null,
                 encrypted_key_recipient: data.encrypted_key_recipient || null,
                 image_iv: data.image_iv || null,
-                mime_type: data.mime_type || null
+                mime_type: data.mime_type || null,
                 tempKey: data.tempKey || null
             });
 
