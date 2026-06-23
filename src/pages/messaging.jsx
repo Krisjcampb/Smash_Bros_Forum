@@ -32,8 +32,8 @@ const Messaging = () => {
     const getSenderPublicKey = () => {
         const privateKeyPem = sessionStorage.getItem('privateKey');
         if (!privateKeyPem) throw new Error('Private key not found in localStorage');
-        const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
-        return forge.pki.setRsaPublicKey(privateKey.n, privateKey.e);
+            const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+            return forge.pki.setRsaPublicKey(privateKey.n, privateKey.e);
     };
 
     const fetchRecipientPublicKey = useCallback(async (recipientId) => {
@@ -41,8 +41,8 @@ const Messaging = () => {
             headers: { Authorization: `Bearer ${token}` }
         });
         if (!response.ok) throw new Error('Failed to fetch recipient public key');
-        const { publicKey } = await response.json();
-        return forge.pki.publicKeyFromPem(publicKey);
+            const { publicKey } = await response.json();
+            return forge.pki.publicKeyFromPem(publicKey);
     }, [token]);
 
     const encrypt = useCallback(async (plaintext, recipientId) => {
@@ -545,7 +545,7 @@ const Messaging = () => {
             const decryptedMessage = {
                 ...message,
                 encrypted_text: message.message_text,
-                decrypted_text: plaintext ?? '[Message sent — reload to view]', 
+                decrypted_text: plaintext ?? '[Message sent — reload to view]',
                 is_deleted: false,
             };
 
@@ -555,17 +555,23 @@ const Messaging = () => {
                 );
 
                 if (chatIndex !== -1) {
-                    const filtered = prevMessages[chatIndex].messages.filter(
-                        msg => !(msg.message_id > Date.now() - 10000 && msg.sender_id === userid)
+                    // Check for exact duplicate by message_id before appending
+                    const already = prevMessages[chatIndex].messages.some(
+                        msg => msg.message_id === message.message_id
                     );
+                    if (already) return prevMessages;
+
                     return prevMessages.map((chat, i) =>
                         i === chatIndex
-                            ? { ...chat, messages: [...filtered, decryptedMessage] }
+                            ? { ...chat, messages: [...chat.messages, decryptedMessage] }
                             : chat
                     );
                 }
 
-                const friendId = message.receiver_id === userid ? message.sender_id : message.receiver_id;
+                const friendId = message.receiver_id === userid
+                    ? message.sender_id
+                    : message.receiver_id;
+
                 return [...prevMessages, { friendId, messages: [decryptedMessage] }];
             });
         };

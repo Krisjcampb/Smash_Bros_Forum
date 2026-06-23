@@ -2582,6 +2582,7 @@ io.on("connection", (socket) => {
                 encrypted_key_recipient: data.encrypted_key_recipient || null,
                 image_iv: data.image_iv || null,
                 mime_type: data.mime_type || null
+                tempKey: data.tempKey || null
             });
 
         } catch (err) {
@@ -2600,7 +2601,7 @@ io.on("connection", (socket) => {
         }));
         socket.emit('messageHistory', { friendId, messages: formatted });
         } catch (error) {
-        console.error('Error retrieving message history:', error);
+            console.error('Error retrieving message history:', error);
         }
     });
 
