@@ -20,6 +20,13 @@ const Messaging = () => {
     const [decryptedImages, setDecryptedImages] = useState({});
     const [selectedImage, setSelectedImage] = useState(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredFriends = useMemo(() => {
+        return listfriends.filter(friend =>
+            friend.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [listfriends, searchQuery]);
     
     const token = localStorage.getItem('token')
     const location = useLocation();
@@ -720,16 +727,28 @@ const Messaging = () => {
             <Row className='h-100'>
                 <Col sm={4} className='p-3 friends-list'>
                     <h4 className='mb-3'>Friends</h4>
-                    <ListGroup variant='flush'>
-                        {listfriends.map((u) => (
+                    <Form.Control
+                        type='text'
+                        placeholder='Search friends...'
+                        className='mb-3 friend-search-input'
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <ListGroup variant='flush' className='friend-list-items-container'>
+                        {filteredFriends.map((u) => (
                             <ListGroup.Item
                                 key={u.id}
                                 action
                                 active={selectedUser?.id === u.id}
-                                className='friend-item'
+                                className='friend-item d-flex align-items-center'
                                 onClick={() => handleUserSelection(u)}
                             >
-                                {u.name}
+                                <img
+                                    src={'/pfp_images/default.jpg'} // Placeholder for user avatar
+                                    alt="User Avatar"
+                                    className="friend-avatar me-3"
+                                />
+                                <span className="friend-name">{u.name}</span>
                             </ListGroup.Item>
                         ))}
                     </ListGroup>
@@ -880,7 +899,7 @@ const Messaging = () => {
                                                 handleSendMessage();
                                             }
                                         }}
-                                        className='me-2'
+                                        className='ms-8 me-8'
                                         disabled={isUploadingImage}
                                     />
                                     

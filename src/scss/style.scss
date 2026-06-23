@@ -811,26 +811,81 @@ footer {
   min-height: 100vh;
 }
 
-.friends-list {
-  background-color: #ffffff;
-  border-right: 1px solid #ddd;
-}
+    .friends-list {
+      background-color: #ffffff;
+      border-right: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+    }
 
-.friend-item {
-  cursor: pointer;
-  padding: 10px 15px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+    .friend-search-input {
+      border-radius: 8px;
+      border: 1px solid rgba($primary, 0.15);
+      padding: 0.6rem 1rem;
+      font-size: 0.95rem;
+      margin-bottom: 1.25rem;
 
-  &:hover {
-    background-color: #007bff;
-    color: white;
-  }
+      &:focus {
+        border-color: rgba($primary, 0.4);
+        box-shadow: 0 0 0 0.2rem rgba($secondary, 0.2);
+      }
+    }
 
-  &.active {
-    background-color: #007bff;
-    color: white;
-  }
-}
+    .friend-list-items-container {
+      flex-grow: 1;
+      overflow-y: auto;
+      border-top: 1px solid #eee;
+      padding-top: 0.5rem;
+    }
+
+    .friend-item {
+      cursor: pointer;
+      padding: 12px 15px;
+      transition: all 0.2s ease;
+      border-bottom: 1px solid #eee;
+      border-radius: 8px;
+      margin: 0 0.5rem;
+
+      &:last-child { border-bottom: none; }
+
+      .friend-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid $secondary;
+        flex-shrink: 0;
+      }
+
+      .friend-name {
+        font-weight: 600;
+        color: $primary;
+        font-size: 1rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex-grow: 1;
+      }
+
+      &:hover {
+        background-color: rgba($secondary, 0.1);
+        color: $primary;
+        transform: translateX(3px);
+      }
+
+      &.active {
+        background-color: $primary;
+        color: $secondary;
+
+        .friend-name {
+          color: $secondary;
+        }
+
+        .friend-avatar {
+          border-color: $secondary;
+        }
+      }
+    }
 
 .chat-area {
   display: flex;
@@ -1516,12 +1571,56 @@ footer {
     border-right-color: #444;
   }
 
+  .friend-search-input {
+    background-color: #363633;
+    border-color: #4a4a43;
+    color: $light;
+
+    &::placeholder {
+      color: rgba($light, 0.42);
+    }
+
+    &:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 0 0.2rem rgba($secondary, 0.2);
+    }
+  }
+
+  .friend-list-items-container {
+    border-top-color: #444;
+  }
+
   .friend-item {
     background-color: #2b2b2b;
     color: #ffffff;
     border-bottom: 1px solid #444;
-    &:hover { background-color: #007bff; color: #ffffff; }
-    &.active { background-color: #007bff; color: #ffffff; }
+    margin: 0 0.5rem;
+
+    .friend-avatar {
+      border-color: rgba($secondary, 0.8);
+    }
+
+    .friend-name {
+      color: $light;
+    }
+
+    &:hover {
+      background-color: rgba($secondary, 0.12);
+      color: $light;
+    }
+
+    &.active {
+      background-color: $primary;
+      color: $secondary;
+
+      .friend-name {
+        color: $secondary;
+      }
+
+      .friend-avatar {
+        border-color: $secondary;
+      }
+    }
   }
 
   .chat-card { background-color: #2b2b2b; color: #ffffff; }
