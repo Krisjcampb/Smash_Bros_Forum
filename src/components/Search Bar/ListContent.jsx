@@ -482,7 +482,11 @@ const ListContent = (props) => {
                                                 loading="lazy"
                                             />
                                         ) : (
-                                            <div className="thread-card-image--empty mb-2" />
+                                            <img
+                                                src="/default-thumbnail.svg"
+                                                className="mb-2 thread-card-image"
+                                                alt="SmashPoint"
+                                            />
                                         )}
 
                                         <Card.Title className="thread-title">{e.title}</Card.Title>
