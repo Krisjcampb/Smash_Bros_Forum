@@ -11,7 +11,12 @@ import { getImageUrl } from '../Utilities/adjusturl'
 import { API } from '../Utilities/apiUrl';
 
 const DefaultThumbnail = () => (
-    <svg className="mb-2 thread-card-image" viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg">
+    <svg 
+        className="mb-2 thread-card-image" 
+        viewBox="0 0 680 280" 
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ width: '362px', height: '250px', display: 'block' }}
+    >
         <rect width="680" height="280" fill="#393933"/>
         <rect x="0" y="0" width="8" height="280" fill="#FFD443"/>
         <rect x="672" y="0" width="8" height="280" fill="#FFD443"/>
