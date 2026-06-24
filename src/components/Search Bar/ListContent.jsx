@@ -278,6 +278,7 @@ const ListContent = (props) => {
             const scrollPos = window.scrollY || document.documentElement.scrollTop;
             const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
             const sortParam = `&sort=${sort}`;
+            const userParam = userid ? `&userid=${userid}` : '';
             const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}`);
             const newPosts = await response.json();
             if (newPosts.length === 0 || newPosts.length < limit) setHasMore(false);
@@ -297,7 +298,7 @@ const ListContent = (props) => {
             setLoading(false);
             setInitialLoad(false);
         }
-    }, []);
+    }, [userid]);
 
     const searchTimeout = useRef(null);
 

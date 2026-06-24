@@ -775,6 +775,7 @@ app.get('/forumcontent', async (req, res) => {
         const offset = (page - 1) * limit;
         const search = req.query.search?.trim() || '';
         const sort = req.query.sort || 'newest';
+        const requestingUserId = parseInt(req.query.userid) || null;
 
         const orderBy = {
             newest: 'fc.postdate DESC',
@@ -785,24 +786,27 @@ app.get('/forumcontent', async (req, res) => {
                 '(COALESCE(lc.like_count, 0) - COALESCE(dc.dislike_count, 0)) DESC'
         }[sort] || 'fc.postdate DESC';
 
+        const blockFilter = requestingUserId
+            ? `AND fc.users_id NOT IN (
+                SELECT blocked_id FROM blocks WHERE blocker_id = ${requestingUserId}
+               )`
+            : '';
+
         const baseFrom = `
             FROM forumcontent fc
             LEFT JOIN forumimages fi ON fc.thread_id = fi.thread_id
             JOIN forumusers fu ON fc.users_id = fu.users_id
-
             LEFT JOIN (
                 SELECT thread_id, COUNT(*) AS comment_count
                 FROM forumcomments
                 WHERE is_deleted = FALSE
                 GROUP BY thread_id
             ) cc ON fc.thread_id = cc.thread_id
-
             LEFT JOIN (
                 SELECT post_id, COUNT(*) AS like_count
                 FROM likes
                 GROUP BY post_id
             ) lc ON fc.thread_id = lc.post_id
-
             LEFT JOIN (
                 SELECT post_id, COUNT(*) AS dislike_count
                 FROM dislikes
@@ -825,6 +829,7 @@ app.get('/forumcontent', async (req, res) => {
                 WHERE fu.is_banned = FALSE
                 AND fc.is_deleted = FALSE
                 AND (fc.title ILIKE $3 OR fc.content ILIKE $3)
+                ${blockFilter}
                 ORDER BY ${orderBy}
                 LIMIT $1 OFFSET $2
             `;
@@ -840,6 +845,7 @@ app.get('/forumcontent', async (req, res) => {
                 ${baseFrom}
                 WHERE fu.is_banned = FALSE
                 AND fc.is_deleted = FALSE
+                ${blockFilter}
                 ORDER BY ${orderBy}
                 LIMIT $1 OFFSET $2
             `;
@@ -1322,32 +1328,38 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
 app.get('/forumcomments/:thread_id', async (req, res) => {
     try {
         const { thread_id } = req.params;
+        const requestingUserId = parseInt(req.query.userid) || null;
+
+        const blockFilter = requestingUserId
+            ? `AND fc.users_id NOT IN (
+                SELECT blocked_id FROM blocks WHERE blocker_id = ${requestingUserId}
+               )`
+            : '';
+
         const result = await pool.query(
-        `SELECT 
-            fc.*,
-            fu.character_name,
-            fu.selected_skin,
-            fu.role,
-            CASE 
-            WHEN fc.mentions IS NULL THEN '[]'::jsonb 
-            ELSE fc.mentions 
-            END AS mentions
-        FROM forumcomments fc
-        JOIN forumusers fu ON fc.users_id = fu.users_id
-        WHERE fc.thread_id = $1
-            AND fc.is_deleted = FALSE
-            AND (fu.is_banned IS NULL OR fu.is_banned = FALSE)
-        ORDER BY fc.timeposted DESC`,
-        [thread_id]
+            `SELECT 
+                fc.*,
+                fu.character_name,
+                fu.selected_skin,
+                fu.role,
+                CASE 
+                    WHEN fc.mentions IS NULL THEN '[]'::jsonb 
+                    ELSE fc.mentions 
+                END AS mentions
+            FROM forumcomments fc
+            JOIN forumusers fu ON fc.users_id = fu.users_id
+            WHERE fc.thread_id = $1
+                AND fc.is_deleted = FALSE
+                AND (fu.is_banned IS NULL OR fu.is_banned = FALSE)
+                ${blockFilter}
+            ORDER BY fc.timeposted DESC`,
+            [thread_id]
         );
-        
+
         res.json(result.rows);
     } catch (err) {
         console.error('Database error:', err.message);
-        res.status(500).json({ 
-        error: 'Failed to fetch comments',
-        details: err.message 
-        });
+        res.status(500).json({ error: 'Failed to fetch comments', details: err.message });
     }
 });
 

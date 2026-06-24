@@ -159,13 +159,14 @@ function UserComments({ userRole, userId, forumContent }) {
 
     const getComments = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/forumcomments/${forumContent.thread_id}`);
+            const userParam = userId ? `?userid=${userId}` : '';
+            const response = await fetch(`${API}/forumcomments/${forumContent.thread_id}${userParam}`);
             const jsonData = await response.json();
             setComments(jsonData);
         } catch (err) {
             console.error(err.message);
         }
-    }, [forumContent.thread_id]);
+    }, [forumContent.thread_id, userId]);
 
     const getEditHistory = async (commentId) => {
         try {
