@@ -1,0 +1,25 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
+</style>
+<svg width="100%" viewBox="0 0 680 280" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>SmashPoint default thread thumbnail</title>
+  <desc>Default thumbnail for threads without an image, styled in SmashPoint branding</desc>
+
+  <rect width="680" height="280" fill="#393933"/>
+
+  <rect x="0" y="0" width="8" height="280" fill="#FFD443"/>
+  <rect x="672" y="0" width="8" height="280" fill="#FFD443"/>
+  <rect x="0" y="0" width="680" height="8" fill="#FFD443"/>
+  <rect x="0" y="272" width="680" height="8" fill="#FFD443"/>
+
+  <rect x="60" y="58" width="560" height="164" rx="4" fill="none" stroke="#FFD443" stroke-width="1" opacity="0.12"/>
+
+  <text x="340" y="168" text-anchor="middle" font-family="'Nunito', 'Varela Round', Arial Rounded MT Bold, sans-serif" font-weight="900" font-size="96" fill="#FFD443" opacity="0.08" letter-spacing="4">SMASHPOINT</text>
+
+  <text x="340" y="130" text-anchor="middle" font-family="'Nunito', 'Varela Round', Arial Rounded MT Bold, sans-serif" font-weight="900" font-size="54" fill="#FFD443" letter-spacing="4">SMASH</text>
+  <text x="340" y="178" text-anchor="middle" font-family="'Nunito', 'Varela Round', Arial Rounded MT Bold, sans-serif" font-weight="900" font-size="54" fill="#FFD443" letter-spacing="4">POINT</text>
+
+  <rect x="200" y="187" width="280" height="3" fill="#FFD443" opacity="0.4"/>
+
+  <text x="340" y="215" text-anchor="middle" font-family="'Nunito', 'Varela Round', Arial Rounded MT Bold, sans-serif" font-size="12" font-weight="700" fill="#FFD443" opacity="0.5" letter-spacing="5">COMPETE · CONNECT · UNITE</text>
+</svg>
