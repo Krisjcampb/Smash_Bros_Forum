@@ -2052,12 +2052,14 @@ app.get('/all-friends', authenticateToken, async (req, res) => {
 
     try {
         const allFriendsQuery = `
-        SELECT 
+        SELECT
             f.friend_id,
-            u.username
+            u.username,
+            u.character_name,
+            u.selected_skin
         FROM (
-            SELECT 
-                CASE 
+            SELECT
+                CASE
                     WHEN user_id1 = $1 THEN user_id2
                     ELSE user_id1
                 END AS friend_id

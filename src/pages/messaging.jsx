@@ -22,6 +22,11 @@ const Messaging = () => {
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
+    const getProfileImageUrl = useCallback((characterName, selectedSkin) => {
+        if (!characterName || selectedSkin === null) return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`;
+        return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/${characterName}/chara_0_${characterName.toLowerCase()}_0${selectedSkin}.png`;
+    }, []);
+
     const filteredFriends = useMemo(() => {
         return listfriends.filter(friend =>
             friend.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -384,7 +389,9 @@ const Messaging = () => {
             } else {
                 setListFriends(data.map(friend => ({
                     id: friend.friend_id,
-                    name: friend.username
+                    name: friend.username,
+                    character_name: friend.character_name,
+                    selected_skin: friend.selected_skin
                 })));
             }
         } catch (error) {
@@ -744,8 +751,8 @@ const Messaging = () => {
                                 onClick={() => handleUserSelection(u)}
                             >
                                 <img
-                                    src={'/pfp_images/default.jpg'} // Placeholder for user avatar
-                                    alt="User Avatar"
+                                    src={getProfileImageUrl(u.character_name, u.selected_skin)}
+                                    alt={u.name}
                                     className="friend-avatar me-3"
                                 />
                                 <span className="friend-name">{u.name}</span>
