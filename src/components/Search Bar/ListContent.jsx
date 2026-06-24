@@ -279,7 +279,7 @@ const ListContent = (props) => {
             const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
             const sortParam = `&sort=${sort}`;
             const userParam = userid ? `&userid=${userid}` : '';
-            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}`);
+            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}${userParam}`);
             const newPosts = await response.json();
             if (newPosts.length === 0 || newPosts.length < limit) setHasMore(false);
             setOriginalList(prev => {
