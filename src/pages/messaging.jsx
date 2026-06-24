@@ -753,7 +753,7 @@ const Messaging = () => {
                                 <img
                                     src={getProfileImageUrl(u.character_name, u.selected_skin)}
                                     alt={u.name}
-                                    className="friend-avatar me-3"
+                                    className="friend-avatar me-4"
                                 />
                                 <span className="friend-name">{u.name}</span>
                             </ListGroup.Item>
