@@ -10,6 +10,22 @@ import { SkeletonGrid } from '../Utilities/skeletoncard'
 import { getImageUrl } from '../Utilities/adjusturl'
 import { API } from '../Utilities/apiUrl';
 
+const DefaultThumbnail = () => (
+    <svg className="mb-2 thread-card-image" viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg">
+        <rect width="680" height="280" fill="#393933"/>
+        <rect x="0" y="0" width="8" height="280" fill="#FFD443"/>
+        <rect x="672" y="0" width="8" height="280" fill="#FFD443"/>
+        <rect x="0" y="0" width="680" height="8" fill="#FFD443"/>
+        <rect x="0" y="272" width="680" height="8" fill="#FFD443"/>
+        <rect x="60" y="58" width="560" height="164" rx="4" fill="none" stroke="#FFD443" strokeWidth="1" opacity="0.12"/>
+        <text x="340" y="168" textAnchor="middle" fontFamily="'Nunito', Arial Rounded MT Bold, sans-serif" fontWeight="900" fontSize="96" fill="#FFD443" opacity="0.08" letterSpacing="4">SMASHPOINT</text>
+        <text x="340" y="130" textAnchor="middle" fontFamily="'Nunito', Arial Rounded MT Bold, sans-serif" fontWeight="900" fontSize="54" fill="#FFD443" letterSpacing="4">SMASH</text>
+        <text x="340" y="178" textAnchor="middle" fontFamily="'Nunito', Arial Rounded MT Bold, sans-serif" fontWeight="900" fontSize="54" fill="#FFD443" letterSpacing="4">POINT</text>
+        <rect x="200" y="187" width="280" height="3" fill="#FFD443" opacity="0.4"/>
+        <text x="340" y="215" textAnchor="middle" fontFamily="'Nunito', Arial Rounded MT Bold, sans-serif" fontSize="12" fontWeight="700" fill="#FFD443" opacity="0.5" letterSpacing="5">COMPETE · CONNECT · UNITE</text>
+    </svg>
+);
+
 const ListContent = (props) => {
     const [originalList, setOriginalList] = useState([])
     const [loading, setLoading] = useState(true)
@@ -482,11 +498,7 @@ const ListContent = (props) => {
                                                 loading="lazy"
                                             />
                                         ) : (
-                                            <img
-                                                src="/default-thumbnail.svg"
-                                                className="mb-2 thread-card-image"
-                                                alt="SmashPoint"
-                                            />
+                                            <DefaultThumbnail />
                                         )}
 
                                         <Card.Title className="thread-title">{e.title}</Card.Title>
