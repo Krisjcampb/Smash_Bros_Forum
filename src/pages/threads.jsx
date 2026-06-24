@@ -154,14 +154,34 @@ function Threads() {
             const likedata = await likeRes.json();
             const dislikedata = await dislikeRes.json();
 
-            const combined = likedata.map(l => ({ thread_id: l.thread_id, like_count: l.like_count, dislike_count: 0 }));
+            const combined = likedata.map(l => ({
+                thread_id: l.post_id,
+                like_count: parseInt(l.like_count, 10),
+                dislike_count: 0
+            }));
+
             dislikedata.forEach(d => {
-                const idx = combined.findIndex(i => i.thread_id === d.thread_id);
-                if (idx !== -1) combined[idx].dislike_count = d.dislike_count;
-                else combined.push({ thread_id: d.thread_id, like_count: 0, dislike_count: d.dislike_count });
+                const idx = combined.findIndex(i => i.thread_id === d.post_id);
+                if (idx !== -1) {
+                    combined[idx].dislike_count = parseInt(d.dislike_count, 10);
+                } else {
+                    combined.push({
+                        thread_id: d.post_id,
+                        like_count: 0,
+                        dislike_count: parseInt(d.dislike_count, 10)
+                    });
+                }
             });
-            setThreadNetLikesDislikes(combined.map(i => ({ thread_id: i.thread_id, net_likes: i.like_count - i.dislike_count })));
-        } catch (err) { console.error(err.message); }
+
+            setThreadNetLikesDislikes(
+                combined.map(i => ({
+                    thread_id: i.thread_id,
+                    net_likes: i.like_count - i.dislike_count
+                }))
+            );
+        } catch (err) {
+            console.error(err.message);
+        }
     };
 
     useEffect(() => {
