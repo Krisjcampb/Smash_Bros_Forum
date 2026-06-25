@@ -252,9 +252,21 @@ function Header() {
                                 align="end"
                                 className="no-padding-dropdown site-header__profile"
                             >
-                                <NavDropdown.Item className="no-highlight">{user}</NavDropdown.Item>
-                                <hr className="dropdown-divider" />
-                                <NavDropdown.Item as={NavLink} to={userprofile}>Profile</NavDropdown.Item>
+                                <NavDropdown.Item className="no-highlight">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.25rem 0' }}>
+                                        <Image
+                                            src={imgError ? FALLBACK_IMAGE : headerImageUrl}
+                                            roundedCircle
+                                            onError={() => setImgError(true)}
+                                            style={{ width: '32px', height: '32px', border: '1.5px solid #FFD443', objectFit: 'cover' }}
+                                        />
+                                        <span style={{ fontWeight: '700', color: '#393933' }}>{user}</span>
+                                    </div>
+                                </NavDropdown.Item>
+                                <NavDropdown.Divider />
+                                <NavDropdown.Item as={NavLink} to={userprofile}>
+                                    Profile
+                                </NavDropdown.Item>
                                 <NavDropdown.Item
                                     onClick={() => navigate('/usersettings')}
                                     active={location.pathname === '/usersettings'}
@@ -267,7 +279,10 @@ function Header() {
                                 >
                                     Give Feedback
                                 </NavDropdown.Item>
-                                <NavDropdown.Item onClick={handleLogout}>Log Out</NavDropdown.Item>
+                                <NavDropdown.Divider />
+                                <NavDropdown.Item onClick={handleLogout} style={{ color: '#d00000', fontWeight: '700' }}>
+                                    Log Out
+                                </NavDropdown.Item>
                             </NavDropdown>
                         </>
                     )}

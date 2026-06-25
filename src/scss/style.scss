@@ -3716,3 +3716,55 @@ body.dark-theme {
     height: 250px;
   }
 }
+
+.site-header__profile {
+  .dropdown-menu {
+    min-width: 200px;
+    padding: 0.5rem;
+    border: 1px solid rgba($secondary, 0.28) !important;
+    border-radius: 14px !important;
+    background:
+      linear-gradient(135deg, rgba(31, 31, 27, 0.99), rgba(57, 57, 51, 0.98)),
+      $primary !important;
+    box-shadow: 0 18px 48px rgba($dark, 0.28) !important;
+
+    .dropdown-divider {
+      border-color: rgba($secondary, 0.18);
+      margin: 0.35rem 0;
+    }
+
+    .dropdown-item {
+      color: rgba($light, 0.82) !important;
+      font-weight: 650;
+      border-radius: 8px;
+      padding: 0.52rem 0.85rem;
+      transition: background 0.14s ease, color 0.14s ease;
+
+      &:hover,
+      &:focus {
+        background: rgba($secondary, 0.14) !important;
+        color: $secondary !important;
+      }
+
+      &.active {
+        background: rgba($secondary, 0.2) !important;
+        color: $secondary !important;
+      }
+    }
+
+    .no-highlight {
+      color: rgba($light, 0.92) !important;
+      cursor: default !important;
+
+      &:hover,
+      &:focus {
+        background: transparent !important;
+        color: rgba($light, 0.92) !important;
+      }
+
+      span {
+        color: rgba($light, 0.92) !important;
+      }
+    }
+  }
+}
