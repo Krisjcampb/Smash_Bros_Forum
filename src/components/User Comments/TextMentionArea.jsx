@@ -9,6 +9,7 @@ const TextMentionArea = ({
   placeholder = "Write something...",
   rows = 4,
   maxLength = null,
+  blockedUserIds = [],  // Array of blocked user IDs to filter out
 }) => {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -27,7 +28,12 @@ const TextMentionArea = ({
       if (!res.ok) throw new Error("Failed to fetch users");
 
       const data = await res.json();
-      setAvailableUsers(data);
+
+      const filteredUsers = data.filter(
+        user => !blockedUserIds.includes(user.users_id)
+      );
+
+      setAvailableUsers(filteredUsers);
     } catch (err) {
       console.error("Mention fetch error:", err);
       setAvailableUsers([]);

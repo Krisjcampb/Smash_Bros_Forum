@@ -1119,37 +1119,31 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
     const validThreadId = validateId(thread_id, 'thread_id');
     const validUserId = validateId(userid, 'userid');
 
-    /* -------------------- Extract Mentions From Comment -------------------- */
     const extractMentions = (text) => {
-    const regex = /@([a-zA-Z0-9_]+)/g;
-    const matches = [...text.matchAll(regex)];
-
-    return matches.map(match => ({
-        username: match[1],
-        position: match.index,
-        length: match[0].length
-    }));
+        const regex = /@([a-zA-Z0-9_]+)/g;
+        const matches = [...text.matchAll(regex)];
+        return matches.map(match => ({
+            username: match[1],
+            position: match.index,
+            length: match[0].length
+        }));
     };
 
     const mentionMatches = extractMentions(comment);
     const mentionObjects = [];
     const mentionedUsers = new Set();
 
-    /* -------------------- Insert Comment (temporarily empty mentions) -------------------- */
     const newComment = await client.query(
-    `
-    INSERT INTO forumcomments 
-        (thread_id, comment, username, timeposted, users_id, mentions)
-    VALUES ($1, $2, $3, NOW(), $4, $5)
-    RETURNING comment_id
-    `,
-    [validThreadId, comment, user, validUserId, JSON.stringify([])]
+        `INSERT INTO forumcomments 
+            (thread_id, comment, username, timeposted, users_id, mentions)
+        VALUES ($1, $2, $3, NOW(), $4, $5)
+        RETURNING comment_id`,
+        [validThreadId, comment, user, validUserId, JSON.stringify([])]
     );
 
-    /* -------------------- Thread Info -------------------- */
     const threadResult = await client.query(
-      `SELECT title, users_id FROM forumcontent WHERE thread_id = $1`,
-      [validThreadId]
+        `SELECT title, users_id FROM forumcontent WHERE thread_id = $1`,
+        [validThreadId]
     );
 
     const threadTitle = threadResult.rows[0]?.title ?? 'a thread';
@@ -1157,167 +1151,146 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
 
     /* -------------------- Mention Notifications -------------------- */
     for (const mention of mentionMatches) {
-      const { username, position, length } = mention;
-      const userResult = await client.query(
-        `SELECT users_id FROM forumusers WHERE username = $1`,
-        [username]
-      );
+        const { username, position, length } = mention;
+        const userResult = await client.query(
+            `SELECT users_id FROM forumusers WHERE username = $1`,
+            [username]
+        );
 
-      const mentionedUserId = userResult.rows[0]?.users_id;
-      if (!mentionedUserId) continue;
-      if (mentionedUserId === validUserId) continue;
-      if (mentionedUsers.has(mentionedUserId)) continue;
-      mentionedUsers.add(mentionedUserId);
+        const mentionedUserId = userResult.rows[0]?.users_id;
+        if (!mentionedUserId) continue;
+        if (mentionedUserId === validUserId) continue;
+        if (mentionedUsers.has(mentionedUserId)) continue;
 
-      mentionObjects.push({ username, position, length });
+        // Skip if the mentioned user has blocked the commenter
+        const blockCheck = await client.query(
+            `SELECT block_id FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+            [mentionedUserId, validUserId]
+        );
+        if (blockCheck.rows.length > 0) continue;
 
-      const existingMention = await client.query(
-        `
-        SELECT notification_id, unique_commenters
-        FROM notifications
-        WHERE users_id = $1
-          AND type = 'mention'
-          AND entity_id = $2
-        `,
-        [mentionedUserId, validThreadId]
-      );
+        mentionedUsers.add(mentionedUserId);
+        mentionObjects.push({ username, position, length });
 
-      if (existingMention.rows.length > 0) {
-        const existing = existingMention.rows[0];
-        const commenters = existing.unique_commenters
-          ? JSON.parse(existing.unique_commenters)
-          : [];
+        const existingMention = await client.query(
+            `SELECT notification_id, unique_commenters
+             FROM notifications
+             WHERE users_id = $1 AND type = 'mention' AND entity_id = $2`,
+            [mentionedUserId, validThreadId]
+        );
 
-        if (!commenters.includes(validUserId)) {
-          commenters.push(validUserId);
+        if (existingMention.rows.length > 0) {
+            const existing = existingMention.rows[0];
+            const commenters = existing.unique_commenters ? JSON.parse(existing.unique_commenters) : [];
+            if (!commenters.includes(validUserId)) commenters.push(validUserId);
+
+            await client.query(
+                `UPDATE notifications SET
+                    message = $1, unique_commenters = $2, message_count = $3,
+                    latest_commenter = $4, is_read = FALSE, created_at = NOW()
+                WHERE notification_id = $5`,
+                [
+                    commenters.length > 1
+                        ? `${user} and ${commenters.length - 1} others mentioned you in "${threadTitle}"`
+                        : `${user} mentioned you in "${threadTitle}"`,
+                    JSON.stringify(commenters),
+                    commenters.length,
+                    user,
+                    existing.notification_id
+                ]
+            );
+        } else {
+            await client.query(
+                `INSERT INTO notifications
+                    (users_id, type, entity_id, message, unique_commenters, message_count, latest_commenter)
+                VALUES ($1, 'mention', $2, $3, $4, 1, $5)`,
+                [
+                    mentionedUserId,
+                    validThreadId,
+                    `${user} mentioned you in "${threadTitle}"`,
+                    JSON.stringify([validUserId]),
+                    user
+                ]
+            );
         }
-
-        await client.query(
-          `
-          UPDATE notifications SET
-            message = $1,
-            unique_commenters = $2,
-            message_count = $3,
-            latest_commenter = $4,
-            is_read = FALSE,
-            created_at = NOW()
-          WHERE notification_id = $5
-          `,
-          [
-            commenters.length > 1
-              ? `${user} and ${commenters.length - 1} others mentioned you in "${threadTitle}"`
-              : `${user} mentioned you in "${threadTitle}"`,
-            JSON.stringify(commenters),
-            commenters.length,
-            user,
-            existing.notification_id
-          ]
-        );
-      } else {
-        await client.query(
-          `
-          INSERT INTO notifications
-            (users_id, type, entity_id, message, unique_commenters, message_count, latest_commenter)
-          VALUES ($1, 'mention', $2, $3, $4, 1, $5)
-          `,
-          [
-            mentionedUserId,
-            validThreadId,
-            `${user} mentioned you in "${threadTitle}"`,
-            JSON.stringify([validUserId]),
-            user
-          ]
-        );
-      }
     }
 
     /* -------------------- Thread Owner Comment Notification -------------------- */
     if (
-      threadCreatorId &&
-      threadCreatorId !== validUserId &&
-      !mentionedUsers.has(threadCreatorId)
+        threadCreatorId &&
+        threadCreatorId !== validUserId &&
+        !mentionedUsers.has(threadCreatorId)
     ) {
-      const existingNotification = await client.query(
-        `
-        SELECT notification_id, unique_commenters
-        FROM notifications
-        WHERE users_id = $1
-          AND type = 'comment'
-          AND entity_id = $2
-        `,
-        [threadCreatorId, validThreadId]
-      );
+        // Skip if the thread owner has blocked the commenter
+        const ownerBlockCheck = await client.query(
+            `SELECT block_id FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
+            [threadCreatorId, validUserId]
+        );
 
-      if (existingNotification.rows.length > 0) {
-        const existing = existingNotification.rows[0];
-        const commenters = existing.unique_commenters
-          ? JSON.parse(existing.unique_commenters)
-          : [];
+        if (ownerBlockCheck.rows.length === 0) {
+            const existingNotification = await client.query(
+                `SELECT notification_id, unique_commenters
+                 FROM notifications
+                 WHERE users_id = $1 AND type = 'comment' AND entity_id = $2`,
+                [threadCreatorId, validThreadId]
+            );
 
-        if (!commenters.includes(validUserId)) {
-          commenters.push(validUserId);
+            if (existingNotification.rows.length > 0) {
+                const existing = existingNotification.rows[0];
+                const commenters = existing.unique_commenters ? JSON.parse(existing.unique_commenters) : [];
+                if (!commenters.includes(validUserId)) commenters.push(validUserId);
+
+                await client.query(
+                    `UPDATE notifications SET
+                        message = $1, latest_commenter = $2, unique_commenters = $3,
+                        message_count = $4, is_read = FALSE, created_at = NOW()
+                    WHERE notification_id = $5`,
+                    [
+                        commenters.length > 1
+                            ? `${user} and ${commenters.length - 1} others commented on your thread`
+                            : `${user} commented on your thread`,
+                        user,
+                        JSON.stringify(commenters),
+                        commenters.length,
+                        existing.notification_id
+                    ]
+                );
+            } else {
+                await client.query(
+                    `INSERT INTO notifications
+                        (users_id, type, entity_id, message, latest_commenter, unique_commenters, message_count)
+                    VALUES ($1, 'comment', $2, $3, $4, $5, 1)`,
+                    [
+                        threadCreatorId,
+                        validThreadId,
+                        `${user} commented on your thread`,
+                        user,
+                        JSON.stringify([validUserId])
+                    ]
+                );
+            }
         }
-
-        await client.query(
-          `
-          UPDATE notifications SET
-            message = $1,
-            latest_commenter = $2,
-            unique_commenters = $3,
-            message_count = $4,
-            is_read = FALSE,
-            created_at = NOW()
-          WHERE notification_id = $5
-          `,
-          [
-            commenters.length > 1
-              ? `${user} and ${commenters.length - 1} others commented on your thread`
-              : `${user} commented on your thread`,
-            user,
-            JSON.stringify(commenters),
-            commenters.length,
-            existing.notification_id
-          ]
-        );
-      } else {
-        await client.query(
-          `
-          INSERT INTO notifications
-            (users_id, type, entity_id, message, latest_commenter, unique_commenters, message_count)
-          VALUES ($1, 'comment', $2, $3, $4, $5, 1)
-          `,
-          [
-            threadCreatorId,
-            validThreadId,
-            `${user} commented on your thread`,
-            user,
-            JSON.stringify([validUserId])
-          ]
-        );
-      }
     }
+
     await client.query(
-    `
-    UPDATE forumcomments
-    SET mentions = $1
-    WHERE comment_id = $2
-    `,
-    [JSON.stringify(mentionObjects), newComment.rows[0].comment_id]
+        `UPDATE forumcomments SET mentions = $1 WHERE comment_id = $2`,
+        [JSON.stringify(mentionObjects), newComment.rows[0].comment_id]
     );
+
     await client.query('COMMIT');
 
     res.json({
-      success: true,
-      comment_id: newComment.rows[0].comment_id,
-      mentions_processed: mentionedUsers.size
+        success: true,
+        comment_id: newComment.rows[0].comment_id,
+        mentions_processed: mentionedUsers.size
     });
 
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[Forum Comment Error]', err.message);
     res.status(500).json({
-      error: 'Failed to post comment',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+        error: 'Failed to post comment',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   } finally {
     client.release();
@@ -2196,6 +2169,21 @@ app.get('/block-status/:userId/:targetId', async (req, res) => {
     } catch (err) {
         console.error('Error checking block status:', err);
         res.status(500).json({ error: 'Failed to check block status' });
+    }
+});
+
+// Get list of users blocked by a given user
+app.get('/blocked-users/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const result = await pool.query(
+            `SELECT blocked_id FROM blocks WHERE blocker_id = $1`,
+            [userId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching blocked users:', err);
+        res.status(500).json({ error: 'Failed to fetch blocked users' });
     }
 });
 

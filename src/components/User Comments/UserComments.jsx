@@ -33,6 +33,7 @@ function UserComments({ userRole, userId, forumContent }) {
     const [reportReason, setReportReason] = useState('');
     const [reportDescription, setReportDescription] = useState('');
     const [editMentions, setEditMentions] = useState([]);
+    const [blockedUserIds, setBlockedUserIds] = useState([]);
     const contentInputRef = useRef(null);
     const token = localStorage.getItem('token');
 
@@ -48,6 +49,24 @@ function UserComments({ userRole, userId, forumContent }) {
         "Promotes terrorism", "Repulsive or violent content", "Minor abuse or sexualization",
         "Spam", "Misinformation", "Self-harm or suicide",
     ];
+
+    // ── Fetch blocked users ───────────────────────────────────────────────────
+
+    useEffect(() => {
+        if (!userId) return;
+        const fetchBlockedUsers = async () => {
+            try {
+                const response = await fetch(`${API}/blocked-users/${userId}`);
+                const data = await response.json();
+                if (Array.isArray(data)) {
+                    setBlockedUserIds(data.map(u => u.blocked_id));
+                }
+            } catch (err) {
+                console.error('Failed to fetch blocked users:', err);
+            }
+        };
+        fetchBlockedUsers();
+    }, [userId]);
 
     // ── Report ────────────────────────────────────────────────────────────────
 
@@ -189,7 +208,6 @@ function UserComments({ userRole, userId, forumContent }) {
                     'Authorization': 'Bearer ' + token
                 },
                 body: JSON.stringify({ content, mentions: editMentions, userId }),
-
             });
             if (response.ok) {
                 setShowEditModal(false);
@@ -309,7 +327,6 @@ function UserComments({ userRole, userId, forumContent }) {
         setDislikedStatus(prev => ({ ...prev, [comment_id]: false }));
         setInitialComments(prev => {
             const exists = prev.some(c => c.comment_id === comment_id);
-
             if (exists) {
                 return prev.map(c =>
                     c.comment_id === comment_id
@@ -317,14 +334,7 @@ function UserComments({ userRole, userId, forumContent }) {
                         : c
                 );
             }
-
-            return [
-                ...prev,
-                {
-                    comment_id,
-                    type: isCurrentlyLiked ? null : 'like'
-                }
-            ];
+            return [...prev, { comment_id, type: isCurrentlyLiked ? null : 'like' }];
         });
 
         try {
@@ -355,7 +365,6 @@ function UserComments({ userRole, userId, forumContent }) {
         setLikedStatus(prev => ({ ...prev, [comment_id]: false }));
         setInitialComments(prev => {
             const exists = prev.some(c => c.comment_id === comment_id);
-
             if (exists) {
                 return prev.map(c =>
                     c.comment_id === comment_id
@@ -363,14 +372,7 @@ function UserComments({ userRole, userId, forumContent }) {
                         : c
                 );
             }
-
-            return [
-                ...prev,
-                {
-                    comment_id,
-                    type: isCurrentlyDisliked ? null : 'dislike'
-                }
-            ];
+            return [...prev, { comment_id, type: isCurrentlyDisliked ? null : 'dislike' }];
         });
 
         try {
@@ -560,34 +562,21 @@ function UserComments({ userRole, userId, forumContent }) {
 
             {/* ── Edit Modal ────────────────────────────────────────────────── */}
             <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered>
-                {/* Header */}
                 <div className="edit-modal-header">
                     <div>
                         <div className="edit-modal-badge">Edit Comment</div>
                         <h5 className="edit-modal-title">Update Your Comment</h5>
                     </div>
-                    <button className="edit-modal-close" onClick={() => setShowEditModal(false)}>
-                        ×
-                    </button>
+                    <button className="edit-modal-close" onClick={() => setShowEditModal(false)}>×</button>
                 </div>
-
                 <Form onSubmit={(e) => { e.preventDefault(); EditComment(); }}>
                     <Modal.Body className="edit-modal-body">
-                        {/* Original comment section */}
                         <div className="original-comment-box">
-                            <Form.Label className="original-comment-label">
-                                Original Comment
-                            </Form.Label>
-                            <div className="original-comment-text">
-                                {currComment}
-                            </div>
+                            <Form.Label className="original-comment-label">Original Comment</Form.Label>
+                            <div className="original-comment-text">{currComment}</div>
                         </div>
-
-                        {/* Edit section */}
                         <Form.Group>
-                            <Form.Label className="new-comment-label">
-                                New Comment
-                            </Form.Label>
+                            <Form.Label className="new-comment-label">New Comment</Form.Label>
                             <TextMentionArea
                                 value={content}
                                 onChange={setContent}
@@ -596,21 +585,13 @@ function UserComments({ userRole, userId, forumContent }) {
                                 rows={4}
                                 placeholder="Update your comment..."
                                 maxLength={500}
+                                blockedUserIds={blockedUserIds}
                             />
                         </Form.Group>
                     </Modal.Body>
-
                     <Modal.Footer className="edit-modal-footer">
-                        <button type="submit" className="primary-btn">
-                            Save Changes
-                        </button>
-                        <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={() => setShowEditModal(false)}
-                        >
-                            Cancel
-                        </button>
+                        <button type="submit" className="primary-btn">Save Changes</button>
+                        <button type="button" className="secondary-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
                     </Modal.Footer>
                 </Form>
             </Modal>
@@ -684,9 +665,7 @@ function UserComments({ userRole, userId, forumContent }) {
                         <Form.Label className="ban-user-form-label">
                             Are you sure you want to ban the following user?
                         </Form.Label>
-                        <Form.Control
-                            type='button' value={content} readOnly className="text-center"
-                        />
+                        <Form.Control type='button' value={content} readOnly className="text-center" />
                         <Form.Control
                             as='textarea' rows={3} value={banReason}
                             placeholder='Reason for banning'
