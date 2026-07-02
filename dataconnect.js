@@ -781,7 +781,7 @@ app.get('/forumcontent', async (req, res) => {
             newest: 'fc.postdate DESC',
             oldest: 'fc.postdate ASC',
             mostPopular:
-                '(COALESCE(lc.like_count, 0) - COALESCE(dc.dislike_count, 0) + 1) / POWER(EXTRACT(EPOCH FROM (NOW() - fc.postdate)) / 3600 + 2, 1.5) DESC',
+                '(COALESCE(lc.like_count, 0) - COALESCE(dc.dislike_count, 0) + 1) / POWER(EXTRACT(EPOCH FROM (NOW() - fc.postdate)) / 3600 + 2, 1.4) DESC',
             Top:
                 '(COALESCE(lc.like_count, 0) - COALESCE(dc.dislike_count, 0)) DESC'
         }[sort] || 'fc.postdate DESC';

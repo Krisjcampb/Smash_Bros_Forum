@@ -628,7 +628,7 @@ const ListContent = (props) => {
                 </div>
 
                 {/* ── Pagination ────────────────────────────────────────────── */}
-                <div className="forum-footer w-100 text-center mt-4 mb-4">
+                <div className="forum-footer w-100 text-center mt-32 mb-4">
                     {hasMore && (
                         <Button
                             variant="primary"
