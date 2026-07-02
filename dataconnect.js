@@ -6,6 +6,7 @@ const cors = require("cors");
 const pool = require("./db");
 const path = require('path');
 const multer = require('multer');
+const webpush = require('web-push');
 const { Resend } = require('resend');
 const jwt = require('jsonwebtoken');
 const crypto = require("crypto")
@@ -109,8 +110,58 @@ const uploadLimiter = rateLimit({
     }
 });
 
+webpush.setVapidDetails(
+    process.env.VAPID_EMAIL,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+);
+
 app.use(generalLimiter);
 //ROUTES//
+
+//push notifications
+app.post('/push-subscribe', authenticateToken, async (req, res) => {
+    const { subscription } = req.body;
+    const userId = req.user.users_id;
+    try {
+        await pool.query(
+            `INSERT INTO push_subscriptions (users_id, subscription)
+             VALUES ($1, $2)
+             ON CONFLICT (users_id) DO UPDATE SET subscription = $2`,
+            [userId, JSON.stringify(subscription)]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to save subscription' });
+    }
+});
+
+// Helper notification function
+const sendPushNotification = async (userId, title, body, url = '/') => {
+    try {
+        const result = await pool.query(
+            'SELECT subscription FROM push_subscriptions WHERE users_id = $1',
+            [userId]
+        );
+        if (!result.rows[0]) return;
+
+        const subscription = JSON.parse(result.rows[0].subscription);
+        await webpush.sendNotification(
+            subscription,
+            JSON.stringify({ title, body, url })
+        );
+    } catch (err) {
+        // If subscription is expired or invalid cleans it up
+        if (err.statusCode === 410) {
+            await pool.query(
+                'DELETE FROM push_subscriptions WHERE users_id = $1',
+                [userId]
+            );
+        }
+        console.error('Push notification failed:', err.message);
+    }
+};
 
 //USERS ACCOUNT
 
@@ -1213,6 +1264,17 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
                 ]
             );
         }
+
+        try {
+            await sendPushNotification(
+                mentionedUserId,
+                'You were mentioned',
+                `${user} mentioned you in "${threadTitle}"`,
+                `/threads/${validThreadId}`
+            );
+        } catch (pushErr) {
+            console.error('Push notification failed for mention:', pushErr.message);
+        }
     }
 
     /* -------------------- Thread Owner Comment Notification -------------------- */
@@ -1255,6 +1317,20 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
                         existing.notification_id
                     ]
                 );
+
+                try {
+                    await sendPushNotification(
+                        threadCreatorId,
+                        'New Comment',
+                        commenters.length > 1
+                            ? `${user} and ${commenters.length - 1} others commented on your thread "${threadTitle}"`
+                            : `${user} commented on your thread "${threadTitle}"`,
+                        `/threads/${validThreadId}`
+                    );
+                } catch (pushErr) {
+                    console.error('Push notification failed for comment:', pushErr.message);
+                }
+
             } else {
                 await client.query(
                     `INSERT INTO notifications
@@ -1268,8 +1344,19 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
                         JSON.stringify([validUserId])
                     ]
                 );
+
+                try {
+                    await sendPushNotification(
+                        threadCreatorId,
+                        'New Comment',
+                        `${user} commented on your thread "${threadTitle}"`,
+                        `/threads/${validThreadId}`
+                    );
+                } catch (pushErr) {
+                    console.error('Push notification failed for comment:', pushErr.message);
+                }
             }
-        }
+        } // <--- Properly closes the ownerBlockCheck block
     }
 
     await client.query(
@@ -1284,7 +1371,6 @@ app.post('/forumcomments', authenticateToken, async (req, res) => {
         comment_id: newComment.rows[0].comment_id,
         mentions_processed: mentionedUsers.size
     });
-
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[Forum Comment Error]', err.message);
@@ -1913,13 +1999,11 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
         `, [users_id, friends_id]);
 
         if (existing.rows.length === 0) {
-            // --- NEW FRIEND REQUEST ---
             await pool.query(`
                 INSERT INTO friendships (user_id1, user_id2, status)
                 VALUES ($1, $2, 'pending')
             `, [users_id, friends_id]);
 
-            // --- NOTIFICATION: TO RECIPIENT ABOUT NEW REQUEST ---
             const senderUsernameResult = await pool.query('SELECT username FROM forumusers WHERE users_id = $1', [users_id]);
             const senderUsername = senderUsernameResult.rows[0]?.username || 'A user';
 
@@ -1928,15 +2012,24 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
 
             const newNotificationResult = await pool.query(
                 `INSERT INTO notifications (users_id, type, message, entity_id, is_read) VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
-                [friends_id, notificationType, notificationMessage, users_id] // recipient_id, type, message, sender_id
+                [friends_id, notificationType, notificationMessage, users_id]
             );
             const notificationData = newNotificationResult.rows[0];
 
             const recipientSocketId = userSocketMap.get(friends_id);
             if (recipientSocketId) {
                 io.to(recipientSocketId).emit('newNotification', notificationData);
-            } else {
-                console.log(`User ${friends_id} is offline or socket not mapped for friend request notification.`);
+            }
+
+            try {
+                await sendPushNotification(
+                    friends_id,
+                    'New Friend Request',
+                    `${senderUsername} sent you a friend request!`,
+                    `/userprofile/${senderUsername}/${users_id}`
+                );
+            } catch (pushErr) {
+                console.error('Push notification failed for friend request:', pushErr.message);
             }
 
             return res.json({ newStatus: 'pending' });
@@ -1945,8 +2038,6 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
         const currentStatus = existing.rows[0].status;
 
         if (currentStatus === 'pending') {
-            // --- FRIEND REQUEST ACCEPTED ---
-            // Ensure the user accepting is the recipient (user_id2 in the pending request)
             if (existing.rows[0].user_id2 !== users_id) {
                 return res.status(403).json({ error: 'You can only accept requests sent to you.' });
             }
@@ -1958,11 +2049,9 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
                    OR (user_id1 = $2 AND user_id2 = $1)
             `, [users_id, friends_id]);
 
-            // --- NOTIFICATION: TO SENDER THAT REQUEST WAS ACCEPTED ---
             const recipientUsernameResult = await pool.query('SELECT username FROM forumusers WHERE users_id = $1', [users_id]);
             const recipientUsername = recipientUsernameResult.rows[0]?.username || 'A user';
 
-            // The sender is the other user in the friendship, not the one accepting
             const senderOfRequest = existing.rows[0].user_id1 === users_id ? existing.rows[0].user_id2 : existing.rows[0].user_id1;
 
             const notificationMessageToSender = `${recipientUsername} accepted your friend request!`;
@@ -1970,24 +2059,39 @@ app.post('/add-friend/:friendsid', authenticateToken, async (req, res) => {
 
             const newNotificationToSenderResult = await pool.query(
                 `INSERT INTO notifications (users_id, type, message, entity_id, is_read) VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
-                [senderOfRequest, notificationTypeAccepted, notificationMessageToSender, users_id] // recipient_id (sender of original request), type, message, entity_id (user who accepted)
+                [senderOfRequest, notificationTypeAccepted, notificationMessageToSender, users_id]
             );
             const notificationDataToSender = newNotificationToSenderResult.rows[0];
 
             const senderSocketId = userSocketMap.get(senderOfRequest);
             if (senderSocketId) {
                 io.to(senderSocketId).emit('newNotification', notificationDataToSender);
-            } else {
-                console.log(`User ${senderOfRequest} is offline for friend request accepted notification.`);
             }
 
-            // --- NOTIFICATION: TO RECIPIENT THAT THEY ACCEPTED (Optional, for consistency) ---
-            const notificationMessageToRecipient = `You accepted ${recipientUsername}'s friend request.`; // Re-using recipientUsername for message context
+            try {
+                await sendPushNotification(
+                    senderOfRequest,
+                    'Friend Request Accepted',
+                    `${recipientUsername} accepted your friend request!`,
+                    `/userprofile/${recipientUsername}/${users_id}`
+                );
+            } catch (pushErr) {
+                console.error('Push notification failed for friend request accepted:', pushErr.message);
+            }
+
+            const senderUsernameResult = await pool.query(
+                'SELECT username FROM forumusers WHERE users_id = $1',
+                [senderOfRequest]
+            );
+            const senderUsername = senderUsernameResult.rows[0]?.username || 'A user';
+
+            const notificationMessageToRecipient = `You accepted ${senderUsername}'s friend request.`;
             const newNotificationToRecipientResult = await pool.query(
                 `INSERT INTO notifications (users_id, type, message, entity_id, is_read) VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
-                [users_id, notificationTypeAccepted, notificationMessageToRecipient, senderOfRequest] // recipient_id (accepter), type, message, entity_id (sender of original request)
+                [users_id, notificationTypeAccepted, notificationMessageToRecipient, senderOfRequest]
             );
             const notificationDataToRecipient = newNotificationToRecipientResult.rows[0];
+
             const recipientSocketIdForAccepted = userSocketMap.get(users_id);
             if (recipientSocketIdForAccepted) {
                 io.to(recipientSocketIdForAccepted).emit('newNotification', notificationDataToRecipient);
@@ -2347,10 +2451,9 @@ app.get('/user-stats/:userid', async (req, res) => {
 //Saves encrypted messages to database
 const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username }) => {
     try {
-
         const parts = message_text.split("|");
         if (parts.length !== 4) {
-            console.error("❌ Invalid encrypted message format:", message_text);
+            console.error("Invalid encrypted message format:", message_text);
             return null;
         }
 
@@ -2384,6 +2487,14 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
                 [receiver_id, "directmessage", sender_id, notificationMessage, 1]
             );
         }
+
+        // Send push notification to receiver
+        await sendPushNotification(
+            receiver_id,
+            'New Message',
+            `${username} sent you a message`,
+            `/messaging/${username}/${sender_id}`
+        );
 
         return newMessage.rows[0];
     } catch (err) {

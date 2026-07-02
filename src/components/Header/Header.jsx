@@ -46,6 +46,32 @@ function Header() {
         "New messages? Check your inbox!",
     ];
 
+    const registerPushNotifications = async (userId) => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: process.env.REACT_APP_VAPID_PUBLIC_KEY
+            });
+
+            await fetch(`${API}/push-subscribe`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({ subscription })
+            });
+        } catch (err) {
+            console.error('Push registration failed:', err);
+        }
+    };
+
     // Auth and notification fetch chained so we have the user id before requesting notifications
     // Empty dependency array so this only runs once on mount
     useEffect(() => {
@@ -63,7 +89,8 @@ function Header() {
                     const { id, name } = data;
                     setUser(name);
                     setUserId(id);
-
+                    registerPushNotifications(data.id);
+                    
                     fetch(`${API}/notifications/${id}`, {
                         method: 'GET',
                         headers: { 'Authorization': 'Bearer ' + token },
