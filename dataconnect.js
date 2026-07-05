@@ -170,7 +170,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 app.post('/forumusers', authLimiter, async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        const { username, password } = req.body;
+        const email = req.body.email.toLowerCase();
 
         // Check for duplicate email before attempting insert
         const existing = await pool.query(
@@ -255,7 +256,7 @@ app.post("/forumusers/savePublicKey", authenticateToken, async (req, res) => {
 app.post('/userlogin', authLimiter, async (req, res) => {
     const {email, password} = req.body;
     try{
-        const user = await pool.query('SELECT * FROM forumusers WHERE email = $1', [email])
+        const user = await pool.query('SELECT * FROM forumusers WHERE LOWER(email) = LOWER($1)', [email]);
         if(!user || user.rows[0] === undefined) 
         {
             return res.json({ success: false })
