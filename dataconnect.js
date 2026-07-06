@@ -2490,12 +2490,17 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
         }
 
         // Send push notification to receiver
-        await sendPushNotification(
-            receiver_id,
-            'New Message',
-            `${username} sent you a message`,
-            `/messaging/${username}/${sender_id}`
-        );
+        try {
+            await sendPushNotification(
+                receiver_id,
+                'New Message',
+                `${username} sent you a message`,
+                `/messaging/${username}/${sender_id}`
+            );
+            console.log('Push notification sent to:', receiver_id);
+        } catch (pushErr) {
+            console.error('Push notification failed for message:', pushErr.message);
+        }
 
         return newMessage.rows[0];
     } catch (err) {
