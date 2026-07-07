@@ -1,5 +1,6 @@
 const express = require("express");
 const app = express();
+app.set('trust proxy', 1);
 const dotenv = require("dotenv")
 dotenv.config();
 const cors = require("cors");
@@ -130,6 +131,7 @@ app.post('/push-subscribe', authenticateToken, async (req, res) => {
              ON CONFLICT (users_id) DO UPDATE SET subscription = $2`,
             [userId, JSON.stringify(subscription)]
         );
+        console.log('Push subscription saved for user:', userId);
         res.json({ success: true });
     } catch (err) {
         console.error(err);
