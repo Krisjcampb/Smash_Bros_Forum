@@ -61,10 +61,18 @@ function Header() {
         try {
             const registration = await navigator.serviceWorker.ready;
             console.log('Service worker ready:', registration);
+
+            // Convert base64 VAPID key to Uint8Array — required by the PushManager API
+            const urlBase64ToUint8Array = (base64String) => {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+            };
             
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: process.env.REACT_APP_VAPID_PUBLIC_KEY
+                applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY)
             });
             console.log('Subscription created:', subscription);
 
