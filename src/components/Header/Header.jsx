@@ -90,54 +90,68 @@ function Header() {
         }
     };
 
-    // Auth and notification fetch chained so we have the user id before requesting notifications
     // Empty dependency array so this only runs once on mount
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            fetch(`${API}/userauthenticate`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token,
-                },
-            })
-                .then(response => response.json())
-                .then(data => {
-                    const { id, name } = data;
-                    setUser(name);
-                    setUserId(id);
-                    registerPushNotifications(data.id);
-                    
-                    fetch(`${API}/notifications/${id}`, {
-                        method: 'GET',
-                        headers: { 'Authorization': 'Bearer ' + token },
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data) {
-                                setNotifications(data);
-                                setHasUnread(data.some(notification => !notification.is_read));
-                            } else {
-                                console.error('No notifications data received');
-                            }
-                        })
-                        .catch(err => console.error('Error fetching notifications', err));
-                })
-                .then(() => {
-                    setLoginState(true);
-                    setLoading(false);
-                })
-                .catch(err => {
-                    console.error('Error authenticating user', err);
-                    setLoading(false);
-                });
-        } else {
-            setLoading(false);
+        if (userid) {
+            console.log("User ID available, triggering push registration flow...");
+            registerPushNotifications(userid);
         }
-    }, []);
+    }, [userid]);
 
-    // SOCKET.IO REAL-TIME NOTIFICATIONS
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
+        // Authenticate user
+        fetch(`${API}/userauthenticate`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token,
+            },
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Authentication failed');
+            return response.json();
+        })
+        .then(userData => {
+            const { id, name } = userData;
+            setUser(name);
+            setUserId(id);
+
+            return fetch(`${API}/notifications/${id}`, {
+                method: 'GET',
+                headers: { 'Authorization': 'Bearer ' + token },
+            });
+        })
+        .then(response => {
+            if (!response) return null; // If auth failed early
+            if (!response.ok) throw new Error('Failed to fetch notifications');
+            return response.json();
+        })
+        .then(notificationData => {
+            if (notificationData) {
+                setNotifications(notificationData);
+                setHasUnread(notificationData.some(notification => !notification.is_read));
+            } else {
+                console.error('No notifications data received');
+            }
+        })
+        .catch(err => {
+            console.error('Error in auth or notification initialization:', err);
+        })
+        .finally(() => {
+            // This ensures loading ends and login state updates only AFTER everything finishes trying to load
+            if (localStorage.getItem('token')) {
+                setLoginState(true);
+            }
+            setLoading(false);
+        });
+    }, []); // Empty dependency array means this runs strictly once on mount
+
     useEffect(() => {
         if (!userid) return;
 
@@ -153,7 +167,7 @@ function Header() {
         return () => {
             socket.off('newNotification', handleNewNotification);
         };
-    }, [userid]); // Re-run effect if userid changes (e.g., after login/logout)
+    }, [userid]); // Re-run effect if userid changes
 
     // Thread notifications need forum content passed via router state so the thread page loads instantly
     const navigateToThread = async (threadID) => {
