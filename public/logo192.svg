@@ -1,0 +1,16 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
+</style>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="96" cy="96" r="96" fill="#393933"/>
+  <circle cx="96" cy="96" r="90" fill="none" stroke="#FFD443" stroke-width="6"/>
+  <text 
+    x="96" 
+    y="118" 
+    text-anchor="middle" 
+    font-family="'Nunito', 'Arial Rounded MT Bold', Arial, sans-serif" 
+    font-weight="900" 
+    font-size="90" 
+    fill="#FFD443"
+  >SP</text>
+</svg>

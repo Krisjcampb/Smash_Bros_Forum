@@ -1,0 +1,16 @@
+{
+    "name": "SmashPoint",
+    "short_name": "SmashPoint",
+    "description": "The Super Smash Bros community forum",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#393933",
+    "theme_color": "#FFD443",
+    "icons": [
+        {
+            "src": "/logo192.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}

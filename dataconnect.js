@@ -140,7 +140,7 @@ app.post('/push-subscribe', authenticateToken, async (req, res) => {
 });
 
 // Helper notification function
-const sendPushNotification = async (userId, title, body, url = '/') => {
+const sendPushNotification = async (userId, title, body, url = '/', tag = 'default') => {
     try {
         const result = await pool.query(
             'SELECT subscription FROM push_subscriptions WHERE users_id = $1',
@@ -151,10 +151,9 @@ const sendPushNotification = async (userId, title, body, url = '/') => {
         const subscription = JSON.parse(result.rows[0].subscription);
         await webpush.sendNotification(
             subscription,
-            JSON.stringify({ title, body, url })
+            JSON.stringify({ title, body, url, tag })
         );
     } catch (err) {
-        // If subscription is expired or invalid cleans it up
         if (err.statusCode === 410) {
             await pool.query(
                 'DELETE FROM push_subscriptions WHERE users_id = $1',
@@ -2497,7 +2496,8 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
                 receiver_id,
                 'New Message',
                 `${username} sent you a message`,
-                `/messaging/${username}/${sender_id}`
+                `/messaging/${username}/${sender_id}`,
+                `dm-${sender_id}` // tag unique per sender so messages from different people don't replace each other
             );
             console.log('Push notification sent to:', receiver_id);
         } catch (pushErr) {
