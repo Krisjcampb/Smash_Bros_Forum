@@ -139,6 +139,17 @@ app.post('/push-subscribe', authenticateToken, async (req, res) => {
     }
 });
 
+app.post('/push-unsubscribe', authenticateToken, async (req, res) => {
+    const userId = req.user.users_id;
+    try {
+        await pool.query('DELETE FROM push_subscriptions WHERE users_id = $1', [userId]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to unsubscribe' });
+    }
+});
+
 // Helper notification function
 const sendPushNotification = async (userId, title, body, url = '/', tag = 'default') => {
     try {

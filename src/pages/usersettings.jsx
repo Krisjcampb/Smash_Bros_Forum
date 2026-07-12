@@ -17,10 +17,110 @@ function UserSettings({ toggleTheme }) {
     const [isSaving, setIsSaving] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState('');
     const [uploadError, setUploadError] = useState('');
+    const [pushEnabled, setPushEnabled] = useState(false);
+    const [pushLoading, setPushLoading] = useState(false);
+    const [pushError, setPushError] = useState('');
+    const [pushSupported, setPushSupported] = useState(true);
     const token = localStorage.getItem('token');
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light-theme');
     const isDark = theme === 'dark-theme';
     const keyInSession = !!sessionStorage.getItem('privateKey');
+
+    // Check current subscription/permission state on mount
+    useEffect(() => {
+        const checkPushStatus = async () => {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                setPushSupported(false);
+                return;
+            }
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                setPushEnabled(!!subscription && Notification.permission === 'granted');
+            } catch (err) {
+                console.error('Error checking push status:', err);
+            }
+        };
+        checkPushStatus();
+    }, []);
+
+    const urlBase64ToUint8Array = (base64String) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+    };
+
+    const handleEnablePush = async () => {
+        setPushError('');
+        setPushLoading(true);
+        try {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                setPushSupported(false);
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                setPushError(permission === 'denied'
+                    ? 'Notifications are blocked. Enable them in your browser/site settings to turn this on.'
+                    : 'Permission was not granted.');
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY)
+                });
+            }
+
+            const response = await fetch(`${API}/push-subscribe`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ subscription })
+            });
+
+            if (!response.ok) throw new Error('Failed to save subscription');
+            setPushEnabled(true);
+        } catch (err) {
+            console.error('Push registration failed:', err);
+            setPushError('Something went wrong enabling notifications. Please try again.');
+        } finally {
+            setPushLoading(false);
+        }
+    };
+
+    const handleDisablePush = async () => {
+        setPushError('');
+        setPushLoading(true);
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            if (subscription) {
+                await subscription.unsubscribe();
+                // Optional: tell the backend so it stops trying to send to a dead subscription
+                await fetch(`${API}/push-unsubscribe`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+            }
+            setPushEnabled(false);
+        } catch (err) {
+            console.error('Push unsubscribe failed:', err);
+            setPushError('Something went wrong disabling notifications.');
+        } finally {
+            setPushLoading(false);
+        }
+    };
 
     useEffect(() => {
         document.body.className = theme;
@@ -180,6 +280,40 @@ function UserSettings({ toggleTheme }) {
                 <PrimaryBtn onClick={handleToggleTheme}>
                     {isDark ? <><BsSun size={14} /> Switch to Light Mode</> : <><BsMoon size={14} /> Switch to Dark Mode</>}
                 </PrimaryBtn>
+            </div>
+
+            {/* Notifications */}
+            <div className={`settings-section ${isDark ? 'dark' : 'light'}`}>
+                <div className={`settings-title ${isDark ? 'dark' : 'light'}`}>
+                    {pushEnabled ? <BsBell size={16} /> : <BsBellSlash size={16} />}
+                    Notifications
+                </div>
+                <p className={`settings-desc ${isDark ? 'dark' : 'light'}`}>
+                    Get notified on this device when you receive a new message.
+                </p>
+
+                {!pushSupported ? (
+                    <p className={`settings-desc ${isDark ? 'dark' : 'light'}`}>
+                        Push notifications aren't supported on this browser/device.
+                    </p>
+                ) : (
+                    <PrimaryBtn
+                        onClick={pushEnabled ? handleDisablePush : handleEnablePush}
+                        disabled={pushLoading}
+                    >
+                        {pushLoading
+                            ? 'Working...'
+                            : pushEnabled
+                                ? 'Disable Message Notifications'
+                                : 'Enable Message Notifications'}
+                    </PrimaryBtn>
+                )}
+
+                {pushError && (
+                    <div className={`status-box error ${isDark ? 'dark' : 'light'}`}>
+                        {pushError}
+                    </div>
+                )}
             </div>
 
             {/* Messaging security */}
