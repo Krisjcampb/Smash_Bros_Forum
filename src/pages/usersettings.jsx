@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Form, Alert, Modal, InputGroup } from 'react-bootstrap';
 import { saveAs } from 'file-saver';
-import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload, BsMoon, BsSun } from 'react-icons/bs';
+import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload, BsMoon, BsSun, BsBell, BsBellSlash } from 'react-icons/bs';
 import { encryptPrivateKey, decryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
 
