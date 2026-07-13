@@ -46,58 +46,6 @@ function Header() {
         "New messages? Check your inbox!",
     ];
 
-    const registerPushNotifications = async (userId) => {
-        console.log('Attempting push registration for user:', userId);
-        
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            console.log('Push not supported on this browser/device');
-            return;
-        }
-
-        const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
-        if (permission !== 'granted') return;
-
-        try {
-            const registration = await navigator.serviceWorker.ready;
-            console.log('Service worker ready:', registration);
-
-            // Convert base64 VAPID key to Uint8Array — required by the PushManager API
-            const urlBase64ToUint8Array = (base64String) => {
-                const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-                const rawData = window.atob(base64);
-                return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
-            };
-            
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY)
-            });
-            console.log('Subscription created:', subscription);
-
-            const response = await fetch(`${API}/push-subscribe`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
-                },
-                body: JSON.stringify({ subscription })
-            });
-            console.log('Subscription saved:', response.ok);
-        } catch (err) {
-            console.error('Push registration failed:', err);
-        }
-    };
-
-    // Empty dependency array so this only runs once on mount
-    useEffect(() => {
-        if (userid) {
-            console.log("User ID available, triggering push registration flow...");
-            registerPushNotifications(userid);
-        }
-    }, [userid]);
-
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) {
