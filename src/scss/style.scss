@@ -3710,59 +3710,78 @@ body.dark-theme {
     min-height: 0;
   }
 
-  // card-body becomes a column again — image+title form one row inside it,
-  // then votes and author each get their own row below, full width
+  // Row layout: image spans full card height on the left,
+  // content column (title/preview/footer) on the right
   .thread-card .card-body {
-    flex-direction: column !important;
+    flex-direction: row !important;
+    align-items: stretch;
     padding: 0.75rem 0.9rem 0.75rem 1.1rem !important;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
 
-  // Top row: thumbnail + title side by side
+  // NavLink wraps image+title+preview — make it a row too,
+  // so the image can stretch to match the text column's height
   .thread-card .card-body > .nav-link.flex-grow-1 {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 0.75rem;
     min-width: 0;
-    flex: none; // stop it from stretching to fill remaining vertical space
+    flex: 1;
   }
 
+  // Image fills the height of its row instead of a fixed small square
   .thread-card .thread-card-image,
   .thread-card .thread-card-image--empty {
-    width: 64px !important;
-    height: 64px !important;
-    min-width: 64px;
+    width: 92px !important;
+    height: auto !important;
+    min-width: 92px;
+    align-self: stretch;
+    object-fit: cover;
     border-radius: 8px !important;
     margin-bottom: 0 !important;
   }
 
   .thread-card svg.thread-card-image {
-    width: 64px !important;
-    height: 64px !important;
+    width: 92px !important;
+    height: 100% !important;
+  }
+
+  // Text column next to the image
+  .thread-card .card-body > .nav-link.flex-grow-1 > div,
+  .thread-card .thread-title {
+    min-width: 0;
   }
 
   .thread-card .thread-title {
     font-size: 0.95rem !important;
-    margin: 0 !important;
+    margin: 0 0 0.2rem !important;
     -webkit-line-clamp: 2;
-    flex: 1;
-    min-width: 0;
   }
 
+  // Bring the preview back — 1 line, small and muted
   .thread-card .thread-preview {
-    display: none;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.78rem;
+    line-height: 1.3;
+    margin: 0;
   }
 
-  // Footer wrapper: now stacks as two full-width rows instead of one crowded row
+  // Footer (votes/comments + author) sits below the text column,
+  // NOT below the image — so it needs to move outside the image row.
+  // Wrap title+preview+footer together so footer is under text only.
   .thread-card .card-body .d-flex.justify-content-between.align-items-end.mt-auto {
-    flex-direction: column;
-    align-items: stretch;
-    margin-top: 0 !important;
-    gap: 0.3rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between !important;
+    margin-top: 0.4rem !important;
+    gap: 0.4rem;
   }
 
-  // Row 1: votes + comment count, left aligned, full width on its own line
   .thread-card .thread-vote-controls {
     gap: 0.15rem;
   }
@@ -3784,17 +3803,9 @@ body.dark-theme {
     font-size: 0.75rem;
   }
 
-  // Row 2: author + date, now has full width so name isn't cramped
   .thread-card .thread-author {
-    max-width: none;
-    text-align: left !important;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start !important;
-  }
-
-  .thread-card .thread-author > .d-flex {
-    justify-content: flex-start !important;
+    max-width: 45%;
+    text-align: right;
   }
 
   .thread-card .thread-author-avatar {
@@ -3803,13 +3814,12 @@ body.dark-theme {
   }
 
   .thread-card .thread-author-name {
-    font-size: 0.75rem;
-    max-width: 140px; // more room now that it's not squeezed against votes
+    font-size: 0.72rem;
+    max-width: 90px;
   }
 
   .thread-card .thread-author-date {
-    font-size: 0.68rem;
-    margin-right: 0.4rem;
+    font-size: 0.65rem;
   }
 
   .thread-card-wrap .three-dot-button.btn {
