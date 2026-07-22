@@ -532,9 +532,9 @@ function UserComments({ userRole, userId, forumContent }) {
                                     {UserPermissions(userRole) && (
                                         <div className="moderation-tools">
                                             <Dropdown>
-                                                <button type="button" className="action-button mod-tools-button">
+                                                <Dropdown.Toggle as="button" type="button" className="action-button mod-tools-button">
                                                     <FaCog size={14} /> Mod Tools
-                                                </button>
+                                                </Dropdown.Toggle>
                                                 <Dropdown.Menu>
                                                     <Dropdown.Item onClick={() => handleModerationOption('Option 1', comment.comment_id, comment.comment)}>
                                                         View Edit History
