@@ -3710,57 +3710,59 @@ body.dark-theme {
     min-height: 0;
   }
 
-  // Row layout: image spans full card height on the left,
-  // content column (title/preview/footer) on the right
   .thread-card .card-body {
-    flex-direction: row !important;
-    align-items: stretch;
+    flex-direction: column !important;
     padding: 0.75rem 0.9rem 0.75rem 1.1rem !important;
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
 
-  // NavLink wraps image+title+preview — make it a row too,
-  // so the image can stretch to match the text column's height
+  // Turn the NavLink into a grid with two rows:
+  // row 1 = image + title, row 2 = description spanning full width
   .thread-card .card-body > .nav-link.flex-grow-1 {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    grid-template-areas:
+      "img   title"
+      "desc  desc";
+    column-gap: 0.75rem;
+    row-gap: 0.35rem;
     min-width: 0;
-    flex: 1;
   }
 
-  // Image fills the height of its row instead of a fixed small square
+  // Fixed 92x64 image, never stretches
   .thread-card .thread-card-image,
   .thread-card .thread-card-image--empty {
+    grid-area: img;
     width: 92px !important;
-    height: auto !important;
+    height: 64px !important;
     min-width: 92px;
-    align-self: stretch;
+    max-width: 92px;
     object-fit: cover;
     border-radius: 8px !important;
     margin-bottom: 0 !important;
   }
 
   .thread-card svg.thread-card-image {
+    grid-area: img;
     width: 92px !important;
-    height: 100% !important;
+    height: 64px !important;
   }
 
-  // Text column next to the image
-  .thread-card .card-body > .nav-link.flex-grow-1 > div,
+  // Title: full remaining width next to image, NOT truncated — wraps freely
   .thread-card .thread-title {
-    min-width: 0;
-  }
-
-  .thread-card .thread-title {
+    grid-area: title;
     font-size: 0.95rem !important;
-    margin: 0 0 0.2rem !important;
-    -webkit-line-clamp: 2;
+    margin: 0 !important;
+    display: block !important;       // remove line-clamp box behavior
+    -webkit-line-clamp: unset !important;
+    overflow: visible !important;
+    white-space: normal;
+    align-self: center;
   }
 
-  // Bring the preview back — 1 line, small and muted
+  // Description: full width under both image and title, truncated
   .thread-card .thread-preview {
+    grid-area: desc;
     display: -webkit-box !important;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -3770,15 +3772,13 @@ body.dark-theme {
     margin: 0;
   }
 
-  // Footer (votes/comments + author) sits below the text column,
-  // NOT below the image — so it needs to move outside the image row.
-  // Wrap title+preview+footer together so footer is under text only.
+  // Footer (votes/comments + author) row stays below, full width
   .thread-card .card-body .d-flex.justify-content-between.align-items-end.mt-auto {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between !important;
-    margin-top: 0.4rem !important;
+    margin-top: 0 !important;
     gap: 0.4rem;
   }
 
