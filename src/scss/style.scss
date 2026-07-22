@@ -3768,7 +3768,7 @@ body.dark-theme {
   .thread-card .thread-preview {
     grid-area: desc;
     display: -webkit-box !important;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     font-size: 0.78rem;
