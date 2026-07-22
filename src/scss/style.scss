@@ -3716,20 +3716,20 @@ body.dark-theme {
     gap: 0.5rem;
   }
 
-  // Turn the NavLink into a grid with two rows:
-  // row 1 = image + title, row 2 = description spanning full width
+  // Image now spans both rows (title row + description row)
   .thread-card .card-body > .nav-link.flex-grow-1 {
     display: grid;
     grid-template-columns: 92px 1fr;
+    grid-template-rows: auto 1fr;
     grid-template-areas:
-      "img   title"
-      "desc  desc";
+      "img title"
+      "img desc";
     column-gap: 0.75rem;
-    row-gap: 0.35rem;
+    row-gap: 0.15rem;
     min-width: 0;
   }
 
-  // Fixed 92x64 image, never stretches
+  // Image fills its full spanned height now, not a fixed 64px
   .thread-card .thread-card-image,
   .thread-card .thread-card-image--empty {
     grid-area: img;
@@ -3737,42 +3737,47 @@ body.dark-theme {
     height: 64px !important;
     min-width: 92px;
     max-width: 92px;
+    max-height: 64px;
     object-fit: cover;
     border-radius: 8px !important;
     margin-bottom: 0 !important;
+    align-self: start;
   }
 
   .thread-card svg.thread-card-image {
     grid-area: img;
     width: 92px !important;
     height: 64px !important;
+    align-self: start;
   }
 
-  // Title: full remaining width next to image, NOT truncated — wraps freely
+  // Title aligns with the top of the image
   .thread-card .thread-title {
     grid-area: title;
     font-size: 0.95rem !important;
     margin: 0 !important;
-    display: block !important;       // remove line-clamp box behavior
+    display: block !important;
     -webkit-line-clamp: unset !important;
     overflow: visible !important;
     white-space: normal;
-    align-self: center;
+    align-self: start;
   }
 
-  // Description: full width under both image and title, truncated
+  // Description sits below the title, to the right of the image,
+  // clamped to however many lines fit in the remaining space
   .thread-card .thread-preview {
     grid-area: desc;
     display: -webkit-box !important;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
     font-size: 0.78rem;
     line-height: 1.3;
     margin: 0;
+    align-self: start;
   }
 
-  // Footer (votes/comments + author) row stays below, full width
+  // Footer stays below the whole image+text block, full width
   .thread-card .card-body .d-flex.justify-content-between.align-items-end.mt-auto {
     flex-direction: row;
     flex-wrap: wrap;
