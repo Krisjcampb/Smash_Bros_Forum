@@ -3927,70 +3927,82 @@ body.dark-theme {
   }
 
   .comment-card {
-    margin-bottom: 1rem;
-    border-radius: 10px;
+    margin-bottom: 0.6rem;
+    border-radius: 8px;
   }
 
   .comment-card .comment-header {
-    padding: 0.55rem 0.85rem;
+    padding: 0.35rem 0.65rem;
+
+    strong {
+      font-size: 0.85rem;
+    }
 
     .comment-meta {
-      font-size: 0.72rem;
+      font-size: 0.65rem;
     }
   }
 
   // Shrink the 3-column row (votes / avatar / content) to fit phone width
   .comment-card .comment-body {
-    padding: 0.85rem;
+    padding: 0.5rem 0.65rem;
+    align-items: center;
   }
 
   .comment-card .vote-section {
-    min-width: 26px;
-    margin-right: 0.6rem;
+    flex-direction: row;
+    align-items: center;
+    min-width: 0;
+    margin-right: 0.5rem;
 
-    .vote-button svg {
-      font-size: 16px;
+    .vote-button {
+      padding: 0.15rem;
+
+      svg {
+        font-size: 14px;
+      }
     }
 
     .vote-count {
-      font-size: 0.82rem;
-      margin: 0.3rem 0;
+      font-size: 0.75rem;
+      margin: 0 0.15rem;
     }
   }
 
   .comment-card .user-section {
-    margin-right: 0.75rem;
+    margin-right: 0.6rem;
 
     .user-avatar {
-      width: 42px;
-      height: 42px;
+      width: 30px;
+      height: 30px;
+      border-width: 2px;
+      margin-bottom: 0;
     }
 
     .username {
-      display: none; // role badge + avatar is enough at this width; name is already a link in the header above
+      display: none;
     }
 
     .role-badge {
-      font-size: 0.65rem;
-      padding: 0.15rem 0.4rem;
+      display: none; // drop entirely on mobile to save the row it forces below the avatar
     }
   }
 
   .comment-card .comment-content {
-    font-size: 0.87rem;
-    line-height: 1.5;
+    font-size: 0.83rem;
+    line-height: 1.35;
   }
 
   .comment-card .comment-footer {
-    padding: 0.4rem 0.85rem;
+    padding: 0.25rem 0.65rem;
     min-height: auto;
   }
 
   .action-button,
   .report-button,
   .mod-tools-button {
-    font-size: 0.76rem;
-    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    padding: 0.12rem 0.4rem;
   }
 
   .comment-footer-button-group,
