@@ -4029,39 +4029,46 @@ body.dark-theme {
   .comment-card .comment-body {
     padding: 0.5rem 0.65rem;
     align-items: center;
+    gap: 0;
   }
 
   .comment-card .comment-body .vote-section {
-  flex-direction: row;
-  align-items: center;
-  min-width: 0;
-  margin-right: 0.5rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 0;
+    margin-right: 0.25rem;
+    gap: 0;
 
     .vote-button {
-      padding: 0.15rem;
-      min-width: 32px;
-      min-height: 32px;
+      padding: 0;
+      min-width: 24px;
+      min-height: 20px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       position: relative;
+      line-height: 1;
 
-      // Invisible padding extends the tap zone without growing the visual size
       &::after {
         content: '';
         position: absolute;
-        inset: -8px;
+        inset: -6px;
       }
 
       svg {
-        font-size: 14px;
+        font-size: 13px;
       }
     }
 
     .vote-count {
-      font-size: 0.75rem;
-      margin: 0 0.15rem;
+      font-size: 0.68rem;
+      margin: 0;
+      line-height: 1;
+      padding: 1px 0;
     }
+
 
   .action-button,
   .report-button,
@@ -4077,12 +4084,13 @@ body.dark-theme {
   }
 }
   .comment-card .user-section {
-    margin-right: 0.6rem;
+    flex: 0 0 auto;
+    margin-right: 0.3rem;
 
     .user-avatar {
-      width: 30px;
-      height: 30px;
-      border-width: 2px;
+      width: 26px;
+      height: 26px;
+      border-width: 1.5px;
       margin-bottom: 0;
     }
 
@@ -4091,11 +4099,13 @@ body.dark-theme {
     }
 
     .role-badge {
-      display: none; // drop entirely on mobile to save the row it forces below the avatar
+      display: none;
     }
   }
 
   .comment-card .comment-content {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 0.83rem;
     line-height: 1.35;
   }
