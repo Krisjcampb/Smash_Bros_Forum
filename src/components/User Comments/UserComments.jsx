@@ -34,6 +34,7 @@ function UserComments({ userRole, userId, forumContent }) {
     const [reportDescription, setReportDescription] = useState('');
     const [editMentions, setEditMentions] = useState([]);
     const [blockedUserIds, setBlockedUserIds] = useState([]);
+    const [expandedComments, setExpandedComments] = useState([]);
     const contentInputRef = useRef(null);
     const token = localStorage.getItem('token');
 
@@ -49,6 +50,12 @@ function UserComments({ userRole, userId, forumContent }) {
         "Promotes terrorism", "Repulsive or violent content", "Minor abuse or sexualization",
         "Spam", "Misinformation", "Self-harm or suicide",
     ];
+
+    const toggleCommentExpand = (id) => {
+        setExpandedComments(prev =>
+            prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+        );
+    };
 
     // ── Fetch blocked users ───────────────────────────────────────────────────
 
@@ -501,7 +508,10 @@ function UserComments({ userRole, userId, forumContent }) {
                                     </span>
                                 </div>
 
-                                <div className="comment-content">
+                                <div
+                                    className={`comment-content ${expandedComments.includes(comment.comment_id) ? 'expanded' : 'clamped'}`}
+                                    onClick={() => toggleCommentExpand(comment.comment_id)}
+                                >
                                     {typeof comment.comment === 'string'
                                         ? renderMentions(comment.comment, comment.mentions || [])
                                         : comment.comment

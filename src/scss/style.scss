@@ -3841,6 +3841,47 @@ body.dark-theme {
     right: 0.55rem;
   }
 
+  .modal-dialog {
+    margin: 0.5rem;
+    max-width: calc(100vw - 1rem);
+  }
+
+  .modal-body,
+  .edit-modal-body {
+    padding: 1rem !important;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  // Edit history table needs horizontal scroll instead of squeezing columns
+  .modal-body .table-responsive,
+  .modal-body table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .truncate-text,
+  .expanded-text {
+    max-width: 140px;
+  }
+
+  .edited-by,
+  .edit-timestamp {
+    width: auto;
+    min-width: 90px;
+  }
+
+  .edit-modal-footer,
+  .modal-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+
+    button {
+      width: 100%;
+    }
+  }
+  
   // ── Thread page container/cards ──────────────────────────────────────
   .thread-page-container {
     padding: 0 0.6rem;
@@ -3904,6 +3945,47 @@ body.dark-theme {
     margin-top: 0.5rem;
   }
 
+  .moderation-tools .dropdown-menu {
+    right: 0;
+    left: auto !important;
+    min-width: 160px;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .comment-footer .footer-content {
+    position: relative; // anchors the dropdown correctly within the card
+  }
+
+  .thread-comment-form-wrap textarea {
+    min-height: 100px !important; // overrides rows={6} sizing
+  }
+
+  .mention-dropdown {
+    max-width: calc(100vw - 2rem);
+    left: 0;
+    right: 0;
+  }
+
+  .comment-post-button-wrap {
+    margin-top: 0.5rem;
+  }
+
+  .comment-post-button {
+    width: 100%; // full-width, easy thumb target
+  }
+
+  .comment-content.clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .comment-content.expanded {
+    cursor: pointer;
+  }
+
   // ── Comment form ──────────────────────────────────────────────────────
   .thread-comment-form-wrap {
     margin-bottom: 1.25rem;
@@ -3950,13 +4032,26 @@ body.dark-theme {
   }
 
   .comment-card .comment-body .vote-section {
-    flex-direction: row;
-    align-items: center;
-    min-width: 0;
-    margin-right: 0.5rem;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+  margin-right: 0.5rem;
 
     .vote-button {
       padding: 0.15rem;
+      min-width: 32px;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+
+      // Invisible padding extends the tap zone without growing the visual size
+      &::after {
+        content: '';
+        position: absolute;
+        inset: -8px;
+      }
 
       svg {
         font-size: 14px;
@@ -3967,8 +4062,20 @@ body.dark-theme {
       font-size: 0.75rem;
       margin: 0 0.15rem;
     }
+
+  .action-button,
+  .report-button,
+  .mod-tools-button {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
   }
 
+  .thread-vote-sidebar .vote-button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
   .comment-card .user-section {
     margin-right: 0.6rem;
 
