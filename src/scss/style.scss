@@ -4069,6 +4069,7 @@ body.dark-theme {
       padding: 1px 0;
     }
 
+  }
 
   .action-button,
   .report-button,
@@ -4076,13 +4077,15 @@ body.dark-theme {
     min-height: 36px;
     display: inline-flex;
     align-items: center;
+    font-size: 0.72rem;
+    padding: 0.12rem 0.4rem;
   }
 
   .thread-vote-sidebar .vote-button {
     min-width: 40px;
     min-height: 40px;
   }
-}
+
   .comment-card .user-section {
     flex: 0 0 auto;
     margin-right: 0.3rem;
@@ -4113,13 +4116,6 @@ body.dark-theme {
   .comment-card .comment-footer {
     padding: 0.25rem 0.65rem;
     min-height: auto;
-  }
-
-  .action-button,
-  .report-button,
-  .mod-tools-button {
-    font-size: 0.72rem;
-    padding: 0.12rem 0.4rem;
   }
 
   .comment-footer-button-group,
