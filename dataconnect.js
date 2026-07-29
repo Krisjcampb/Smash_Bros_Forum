@@ -185,15 +185,51 @@ app.post('/forumusers', authLimiter, async (req, res) => {
         const { username, password } = req.body;
         const email = req.body.email.toLowerCase();
 
-        // Check for duplicate email before attempting insert
         const existing = await pool.query(
-            'SELECT users_id FROM forumusers WHERE email = $1',
+            'SELECT users_id, verified FROM forumusers WHERE email = $1',
             [email]
         );
+
         if (existing.rows.length > 0) {
-            return res.status(409).json({ error: 'Email already taken' });
+            if (existing.rows[0].verified) {
+                // verified account already owns this email
+                return res.status(409).json({ error: 'Email already taken' });
+            }
+
+            // Unverified account exists
+            const userId = existing.rows[0].users_id;
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            await pool.query(
+                'UPDATE forumusers SET username = $1, password = $2 WHERE users_id = $3',
+                [username, hashedPassword, userId]
+            );
+
+            const randomcode = crypto.randomInt(100000, 999999).toString();
+            const expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+            await pool.query(
+                `INSERT INTO emailverify (user_id, verification_code, expires_at, verified)
+                 VALUES ($1, $2, $3, $4)`,
+                [userId, randomcode, expires_at, false]
+            );
+
+            res.status(201).json({
+                user: { id: userId, username: username },
+                message: 'A previous unverified signup was found. Your details have been updated and a new code has been sent to your email.'
+            });
+
+            resend.emails.send({
+                from: 'SmashPoint <no-reply@smashpoint.gg>',
+                to: email,
+                subject: 'Verify your email address',
+                text: `Your verification code is: ${randomcode}. This code is valid for 24 hours.`,
+            }).catch(err => console.error('Email error:', err.message));
+
+            return;
         }
 
+        // No existing row
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const newForumusers = await pool.query(
@@ -245,12 +281,21 @@ app.put("/forumusers/updateVerified", async (req, res) => {
         res.status(500).send("Internal server error");
     }
 })
-app.post("/forumusers/savePublicKey", authenticateToken, async (req, res) => {
+app.post("/forumusers/savePublicKey", async (req, res) => {
     try {
-        const { publicKey } = req.body;
-        const userId = req.user.users_id;
+        const { email, publicKey } = req.body;
 
-        // Upsert in case they're regenerating
+        const userResult = await pool.query(
+            'SELECT users_id FROM forumusers WHERE email = $1',
+            [email]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).send("User not found");
+        }
+
+        const userId = userResult.rows[0].users_id;
+
         await pool.query(
             `INSERT INTO forumuser_public_keys (users_id, public_key)
              VALUES ($1, $2)
@@ -277,8 +322,12 @@ app.post('/userlogin', authLimiter, async (req, res) => {
             bcrypt.compare(password, user.rows[0].password, function(err, response) {
             if(err){
                 console.log(err)
+                return res.status(500).json({ success: false, message: 'Server error' });
             }
             else if(response){
+                if (!user.rows[0].verified) {
+                    return res.json({ success: false, message: 'Please verify your email before logging in.' });
+                }
                 const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username, role: user.rows[0].role}, process.env.JWT_SECRET, { expiresIn: '7d' })
                 res.json({ success: true, token: token });
             }

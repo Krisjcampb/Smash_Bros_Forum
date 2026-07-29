@@ -24,10 +24,9 @@ function SignIn() {
             const data = await response.json();
             if (data.success) {
                 localStorage.setItem('token', data.token)
-                // Token is stored so now prompt for passphrase to unlock the private key
                 setShowPassphraseModal(true);
             } else {
-                setErrorMessage('Invalid username or password')
+                setErrorMessage(data.message || 'Invalid username or password')
             }
         } catch (err) {
             console.log(err.message)
