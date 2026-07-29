@@ -588,6 +588,45 @@ app.put('/update-encrypted-key', authenticateToken, async (req, res) => {
     }
 });
 
+app.post('/reset-messaging', authenticateToken, async (req, res) => {
+    const userId = req.user.users_id;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Delete all DMs where the user is either sender or receiver
+        await client.query(
+            'DELETE FROM messages WHERE sender_id = $1 OR receiver_id = $1',
+            [userId]
+        );
+
+        // Delete any images tied to those messages (adjust table/column names to match your schema)
+        await client.query(
+            'DELETE FROM encrypted_message_images WHERE sender_id = $1 OR receiver_id = $1',
+            [userId]
+        );
+
+        // Remove old encrypted key and public key so the new ones can be inserted cleanly
+        await client.query(
+            'DELETE FROM forumuser_encrypted_keys WHERE users_id = $1',
+            [userId]
+        );
+        await client.query(
+            'DELETE FROM forumuser_public_keys WHERE users_id = $1',
+            [userId]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error resetting messaging:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    } finally {
+        client.release();
+    }
+});
+
 //updating email code
 app.put("/resendcode", async (req, res) => {
     const { email } = req.body;

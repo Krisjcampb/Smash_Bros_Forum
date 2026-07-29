@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Form, Alert, Modal, InputGroup } from 'react-bootstrap';
 import { saveAs } from 'file-saver';
-import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload, BsMoon, BsSun, BsBell, BsBellSlash } from 'react-icons/bs';
+import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload, BsMoon, BsSun, BsBell, BsBellSlash, BsExclamationTriangle } from 'react-icons/bs';
 import { encryptPrivateKey, decryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
 
@@ -21,6 +21,14 @@ function UserSettings({ toggleTheme }) {
     const [pushLoading, setPushLoading] = useState(false);
     const [pushError, setPushError] = useState('');
     const [pushSupported, setPushSupported] = useState(true);
+    const [showResetModal, setShowResetModal] = useState(false);
+    const [resetConfirmText, setResetConfirmText] = useState('');
+    const [resetNewPassphrase, setResetNewPassphrase] = useState('');
+    const [resetConfirmPassphrase, setResetConfirmPassphrase] = useState('');
+    const [showResetPass, setShowResetPass] = useState(false);
+    const [resetError, setResetError] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
+    const [resetStep, setResetStep] = useState('warning'); // warning → passphrase → done
     const token = localStorage.getItem('token');
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light-theme');
     const isDark = theme === 'dark-theme';
@@ -43,6 +51,15 @@ function UserSettings({ toggleTheme }) {
         };
         checkPushStatus();
     }, []);
+
+    const openResetModal = () => {
+        setResetStep('warning');
+        setResetConfirmText('');
+        setResetNewPassphrase('');
+        setResetConfirmPassphrase('');
+        setResetError('');
+        setShowResetModal(true);
+    };
 
     const urlBase64ToUint8Array = (base64String) => {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -93,6 +110,84 @@ function UserSettings({ toggleTheme }) {
             setPushError('Something went wrong enabling notifications. Please try again.');
         } finally {
             setPushLoading(false);
+        }
+    };
+
+    const handleResetMessaging = async () => {
+        setResetError('');
+
+        if (resetNewPassphrase.length < 10) {
+            setResetError('New passphrase must be at least 10 characters');
+            return;
+        }
+        if (resetNewPassphrase !== resetConfirmPassphrase) {
+            setResetError('Passphrases do not match');
+            return;
+        }
+
+        setIsResetting(true);
+        try {
+            // Delete all DMs + old keys on the server
+            const resetResponse = await fetch(`${API}/reset-messaging`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!resetResponse.ok) throw new Error('Failed to reset messaging');
+
+            // Generate a new keypair
+            const result = await new Promise((resolve, reject) => {
+                const worker = new Worker(
+                    new URL('../workers/keygenWorker.js', import.meta.url),
+                    { type: 'module' }
+                );
+                worker.onmessage = (event) => {
+                    worker.terminate();
+                    if (event.data.success) resolve(event.data);
+                    else reject(new Error(event.data.error));
+                };
+                worker.onerror = (err) => { worker.terminate(); reject(err); };
+                worker.postMessage('generate');
+            });
+
+            // Save new key
+            const pubKeyResponse = await fetch(`${API}/forumusers/savePublicKey`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ publicKey: result.publicKeyPem }),
+            });
+            if (!pubKeyResponse.ok) throw new Error('Failed to save new public key');
+
+            // Encrypt key with new passphrase
+            const { encryptedKey, salt, iv } = await encryptPrivateKey(result.privateKeyPem, resetNewPassphrase);
+            const saveKeyResponse = await fetch(`${API}/save-encrypted-key`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ encryptedKey, salt, iv }),
+            });
+            if (!saveKeyResponse.ok) throw new Error('Failed to save new encrypted key');
+
+            // Load the new key into session
+            sessionStorage.setItem('privateKey', result.privateKeyPem);
+
+            setResetStep('done');
+        } catch (err) {
+            console.error('Reset messaging failed:', err);
+            setResetError('Something went wrong during reset. Please try again or contact support.');
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
+    const closeResetModal = () => {
+        setShowResetModal(false);
+        if (resetStep === 'done') {
+            window.location.reload();
         }
     };
 
@@ -384,6 +479,21 @@ function UserSettings({ toggleTheme }) {
                         </div>
                     )}
                 </div>
+
+                {/* Reset messaging entirely — last resort for forgotten passphrase */}
+                <div className="settings-block">
+                    <p className={`settings-desc ${isDark ? 'dark' : 'light'}`}>
+                        Forgot your passphrase and don't have a backup key? You can reset your
+                        messaging entirely — this permanently deletes all your direct messages
+                        and lets you set a new passphrase.
+                    </p>
+                    <SecondaryBtn
+                        onClick={openResetModal}
+                        className={`secondary-btn-danger-themed ${isDark ? 'dark' : 'light'}`}
+                    >
+                        <BsExclamationTriangle size={14} /> Reset Messaging &amp; Set New Passphrase
+                    </SecondaryBtn>
+                </div>
             </div>
 
             {/* Change passphrase modal */}
@@ -466,6 +576,118 @@ function UserSettings({ toggleTheme }) {
                         {isSaving ? 'Saving...' : 'Update Passphrase'}
                     </PrimaryBtn>
                 </Modal.Footer>
+            </Modal>
+
+            {/* Reset messaging modal */}
+            <Modal show={showResetModal} onHide={() => (resetStep === 'warning' ? setShowResetModal(false) : null)} centered backdrop={resetStep === 'warning' ? true : 'static'} keyboard={resetStep === 'warning'}>
+                <div className="settings-modal-header">
+                    <div>
+                        <div className="settings-modal-badge">Danger Zone</div>
+                        <h5 className="edit-modal-title">Reset Messaging</h5>
+                    </div>
+                    {resetStep === 'warning' && (
+                        <button onClick={() => setShowResetModal(false)} className="edit-modal-close">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                            </svg>
+                        </button>
+                    )}
+                </div>
+
+                {resetStep === 'warning' && (
+                    <>
+                        <Modal.Body className="modal-body-padding">
+                            <Alert variant="danger">
+                                <strong>This cannot be undone.</strong> Resetting will permanently
+                                delete all your sent and received direct messages, for both you and
+                                the people you messaged. Their copies will be deleted too, since
+                                these messages can no longer be decrypted once your key changes.
+                            </Alert>
+                            <Form.Group className="mb-3">
+                                <Form.Label className="modal-label">
+                                    Type <strong>DELETE</strong> to confirm
+                                </Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    value={resetConfirmText}
+                                    onChange={(e) => setResetConfirmText(e.target.value)}
+                                    placeholder="DELETE"
+                                />
+                            </Form.Group>
+                        </Modal.Body>
+                        <Modal.Footer className="modal-footer-settings">
+                            <button onClick={() => setShowResetModal(false)} className="secondary-btn muted">
+                                Cancel
+                            </button>
+                            <button
+                                className="primary-btn"
+                                disabled={resetConfirmText !== 'DELETE'}
+                                onClick={() => setResetStep('passphrase')}
+                            >
+                                Continue
+                            </button>
+                        </Modal.Footer>
+                    </>
+                )}
+
+                {resetStep === 'passphrase' && (
+                    <>
+                        <Modal.Body className="modal-body-padding">
+                            <Alert variant="info">
+                                Set a new passphrase. You'll use this going forward to unlock your messages.
+                            </Alert>
+                            <Form.Group className="mb-3">
+                                <Form.Label className="modal-label">New Passphrase</Form.Label>
+                                <InputGroup>
+                                    <Form.Control
+                                        type={showResetPass ? 'text' : 'password'}
+                                        value={resetNewPassphrase}
+                                        onChange={(e) => setResetNewPassphrase(e.target.value)}
+                                        placeholder="At least 10 characters"
+                                    />
+                                    <InputGroup.Text className="modal-input-group-text-cursor" onClick={() => setShowResetPass(!showResetPass)}>
+                                        {showResetPass ? <BsEyeSlash size={16} /> : <BsEye size={16} />}
+                                    </InputGroup.Text>
+                                </InputGroup>
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label className="modal-label">Confirm New Passphrase</Form.Label>
+                                <Form.Control
+                                    type={showResetPass ? 'text' : 'password'}
+                                    value={resetConfirmPassphrase}
+                                    onChange={(e) => setResetConfirmPassphrase(e.target.value)}
+                                    placeholder="Repeat new passphrase"
+                                />
+                            </Form.Group>
+                            {resetError && <Alert variant="danger" className="py-2">{resetError}</Alert>}
+                        </Modal.Body>
+                        <Modal.Footer className="modal-footer-settings">
+                            <button
+                                className="primary-btn"
+                                disabled={isResetting || !resetNewPassphrase || !resetConfirmPassphrase}
+                                onClick={handleResetMessaging}
+                            >
+                                {isResetting ? 'Resetting...' : 'Reset Messaging'}
+                            </button>
+                        </Modal.Footer>
+                    </>
+                )}
+
+                {resetStep === 'done' && (
+                    <>
+                        <Modal.Body className="modal-body-padding">
+                            <Alert variant="success">
+                                <strong>Done!</strong> Your messaging has been reset with a new passphrase.
+                                All previous direct messages have been permanently deleted.
+                            </Alert>
+                        </Modal.Body>
+                        <Modal.Footer className="modal-footer-settings">
+                            <button className="primary-btn" onClick={closeResetModal}>
+                                Done
+                            </button>
+                        </Modal.Footer>
+                    </>
+                )}
             </Modal>
         </Container>
     );
