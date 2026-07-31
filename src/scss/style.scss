@@ -1494,6 +1494,7 @@ footer {
 
   .thread-content-card {
     background: #414141 !important;
+    border-radius: 16px 16px 16px 16px;
     color: #e0e0e0;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
   }
@@ -2437,7 +2438,7 @@ footer {
 }
 
 .thread-content-card {
-    border-radius: 0 0 16px 16px;
+    border-radius: 16px 16px 16px 16px;
     padding: 2rem 2.5rem;
     box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     margin-bottom: 2rem;
