@@ -1491,6 +1491,21 @@ footer {
 
     }
   }
+  
+  .thread-content-card {
+    background: #2b2b2b !important;
+    color: #e0e0e0;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .thread-page-title {
+    color: #ffffff !important;
+  }
+
+  .thread-badge-label {
+    background: $secondary; // keep the yellow badge as-is, just confirming it stays visible
+    color: $primary;
+  }
 
   // ── Profile ───────────────────────────────────────────────────────────────
 
