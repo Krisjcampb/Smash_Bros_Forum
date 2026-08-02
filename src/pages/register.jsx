@@ -154,8 +154,12 @@ function Registration() {
     const onVerifyEmail = async (e) => {
         e.preventDefault();
         if (isVerifying) return;
-        setIsVerifying(true);
         if (!re.test(email)) return;
+        if (!emailCode.trim()) {
+        setValidCode(false);
+            return;
+        }
+        setIsVerifying(true);
         try {
             const response = await fetch(`${API}/emailverify`, {
                 method: "POST",
@@ -207,6 +211,7 @@ function Registration() {
                 if (!saveKeyResponse.ok) {
                     console.error('Failed to save public key');
                     setIsGeneratingKey(false);
+                    setValidCode(false);
                     return;
                 }
 
@@ -282,6 +287,14 @@ function Registration() {
 
         setValidated(true);
         setNameError('');
+        setEmailError('');
+        setShowError(false);
+
+        if (!email.trim() || !re.test(email)) {
+            setEmailError('Please enter a valid email address');
+            setShowError(true);
+            return;
+        }
 
         const isPasswordValid = validatePassword(password);
         const doPasswordsMatch = password === confirmpass;
@@ -298,7 +311,6 @@ function Registration() {
 
         if (!isPasswordValid || !doPasswordsMatch) return;
 
-        // Only lock the button once validation passed
         setIsSubmitting(true);
 
         try {

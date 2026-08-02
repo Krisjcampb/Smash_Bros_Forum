@@ -183,6 +183,11 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 app.post('/forumusers', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
+
+        if (!req.body.email || typeof req.body.email !== 'string' || !req.body.email.trim()) {
+            return res.status(400).json({ error: 'A valid email is required' });
+        }
+        
         const email = req.body.email.toLowerCase();
 
         const existing = await pool.query(
