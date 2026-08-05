@@ -12,7 +12,6 @@ function Calendar() {
     const [userRole, setUserRole] = useState('');
     const [token] = useState(localStorage.getItem('token'));
 
-    // Add event modal state
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [title, setTitle] = useState('');
@@ -23,13 +22,11 @@ function Calendar() {
     const [addError, setAddError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
-    // View event modal state
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
     const isPrivileged = userRole === 'admin' || userRole === 'moderator';
 
-    // Fetch events and auth on mount
     const fetchEvents = useCallback(async () => {
         try {
             const response = await fetch(`${API}/calendar-events`);
@@ -65,7 +62,6 @@ function Calendar() {
         }
     }, [token, fetchEvents]);
 
-    // Clicking a date opens the add modal for privileged users
     const handleDateClick = (info) => {
         if (!isPrivileged) return;
         setSelectedDate(info.dateStr);
@@ -78,7 +74,6 @@ function Calendar() {
         setShowAddModal(true);
     };
 
-    // Clicking an existing event opens the view modal
     const handleEventClick = (info) => {
         setSelectedEvent({
             id: info.event.id,
@@ -155,21 +150,9 @@ function Calendar() {
     };
 
     return (
-        <div style={{
-            width: '100%',
-            maxWidth: '1400px',
-            margin: '2rem auto',
-            padding: '0 1rem',
-            boxSizing: 'border-box',
-        }}>
-            {/* Hint for privileged users so they know they can click dates */}
+        <div className="calendar-page">
             {isPrivileged && (
-                <div style={{
-                    textAlign: 'center',
-                    marginBottom: '0.75rem',
-                    fontSize: '0.82rem',
-                    color: '#888',
-                }}>
+                <div className="calendar-hint">
                     Click any date to add an event
                 </div>
             )}
@@ -183,7 +166,6 @@ function Calendar() {
                 events={events}
                 dateClick={handleDateClick}
                 eventClick={handleEventClick}
-                // Only show the pointer cursor on dates when privileged
                 dayCellClassNames={isPrivileged ? 'fc-day-clickable' : ''}
                 eventColor="#393933"
                 eventTextColor="#FFD443"
@@ -191,149 +173,90 @@ function Calendar() {
 
             {/* Add event modal */}
             <Modal show={showAddModal} onHide={() => setShowAddModal(false)} centered>
-                <div style={{
-                    background: '#393933',
-                    borderRadius: '8px 8px 0 0',
-                    padding: '1.5rem 2rem 1.25rem',
-                    borderBottom: '4px solid #FFD443',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                }}>
+                <div className="calendar-modal-header">
                     <div>
-                        <div style={{
-                            display: 'inline-block',
-                            background: '#FFD443',
-                            borderRadius: '6px',
-                            padding: '2px 8px',
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
-                            color: '#393933',
-                            marginBottom: '0.4rem',
-                        }}>
-                            {selectedDate}
-                        </div>
-                        <h5 style={{ color: '#ffffff', fontWeight: '800', margin: 0 }}>
-                            Add Event
-                        </h5>
+                        <div className="calendar-modal-badge">{selectedDate}</div>
+                        <h5>Add Event</h5>
                     </div>
-                    <button
-                        onClick={() => setShowAddModal(false)}
-                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}
-                    >
-                        ×
-                    </button>
+                    <button onClick={() => setShowAddModal(false)} className="calendar-modal-close">×</button>
                 </div>
 
-                <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                <Modal.Body className="calendar-modal-body">
                     {addError && (
-                        <Alert variant="danger" style={{ fontSize: '0.85rem', padding: '0.6rem 1rem' }}>
+                        <Alert variant="danger" className="calendar-modal-alert">
                             {addError}
                         </Alert>
                     )}
 
                     <Form.Group className="mb-3">
-                        <Form.Label >Title</Form.Label>
+                        <Form.Label>Title</Form.Label>
                         <InputGroup>
-                            <InputGroup.Text ><BsCalendarEventFill size={14} /></InputGroup.Text>
+                            <InputGroup.Text><BsCalendarEventFill size={14} /></InputGroup.Text>
                             <Form.Control
                                 type="text"
                                 placeholder="Event title"
                                 value={title}
                                 onChange={e => setTitle(e.target.value)}
                                 maxLength={100}
-                                
                             />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label >Start Time</Form.Label>
+                        <Form.Label>Start Time</Form.Label>
                         <InputGroup>
-                            <InputGroup.Text ><BsClock size={14} /></InputGroup.Text>
-                            <Form.Control
-                                type="time"
-                                value={startTime}
-                                onChange={e => setStartTime(e.target.value)}
-                                
-                            />
+                            <InputGroup.Text><BsClock size={14} /></InputGroup.Text>
+                            <Form.Control type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label >
-                            End Time{' '}
-                            <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
+                        <Form.Label>
+                            End Time <span className="calendar-optional-label">(optional)</span>
                         </Form.Label>
                         <InputGroup>
-                            <InputGroup.Text ><BsClock size={14} /></InputGroup.Text>
-                            <Form.Control
-                                type="time"
-                                value={endTime}
-                                onChange={e => setEndTime(e.target.value)}
-                                
-                            />
+                            <InputGroup.Text><BsClock size={14} /></InputGroup.Text>
+                            <Form.Control type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                        <Form.Label >
-                            Location{' '}
-                            <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
+                        <Form.Label>
+                            Location <span className="calendar-optional-label">(optional)</span>
                         </Form.Label>
                         <InputGroup>
-                            <InputGroup.Text ><BsGeoAltFill size={14} /></InputGroup.Text>
+                            <InputGroup.Text><BsGeoAltFill size={14} /></InputGroup.Text>
                             <Form.Control
                                 type="text"
                                 placeholder="Where is it?"
                                 value={location}
                                 onChange={e => setLocation(e.target.value)}
                                 maxLength={200}
-                                
                             />
                         </InputGroup>
                     </Form.Group>
 
                     <Form.Group>
-                        <Form.Label >
-                            URL{' '}
-                            <span style={{ fontWeight: '400', color: '#aaa', fontSize: '0.8rem' }}>(optional)</span>
+                        <Form.Label>
+                            URL <span className="calendar-optional-label">(optional)</span>
                         </Form.Label>
                         <InputGroup>
-                            <InputGroup.Text ><BsLink45Deg size={14} style={{ flexShrink: 0, color: '#393933' }} /></InputGroup.Text>
+                            <InputGroup.Text><BsLink45Deg size={14} /></InputGroup.Text>
                             <Form.Control
                                 type="url"
                                 placeholder="https://..."
                                 value={url}
                                 onChange={e => setUrl(e.target.value)}
-                                
                             />
                         </InputGroup>
                     </Form.Group>
                 </Modal.Body>
 
-                <Modal.Footer style={{ borderTop: '1px solid #e0e0dc', padding: '1rem 2rem' }}>
-                    <Button
-                        variant="outline-secondary"
-                        onClick={() => setShowAddModal(false)}
-                        style={{ borderRadius: '8px', fontWeight: '600' }}
-                    >
+                <Modal.Footer className="calendar-modal-footer">
+                    <Button variant="outline-secondary" onClick={() => setShowAddModal(false)} className="calendar-cancel-btn">
                         Cancel
                     </Button>
-                    <Button
-                        onClick={handleAddEvent}
-                        disabled={isSaving}
-                        style={{
-                            background: '#393933',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: '700',
-                            color: '#FFD443',
-                            padding: '0.5rem 1.5rem',
-                        }}
-                    >
+                    <Button onClick={handleAddEvent} disabled={isSaving} className="calendar-save-btn">
                         {isSaving ? 'Saving...' : 'Add Event'}
                     </Button>
                 </Modal.Footer>
@@ -341,47 +264,19 @@ function Calendar() {
 
             {/* View event modal */}
             <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered>
-                <div style={{
-                    background: '#393933',
-                    borderRadius: '8px 8px 0 0',
-                    padding: '1.5rem 2rem 1.25rem',
-                    borderBottom: '4px solid #FFD443',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                }}>
+                <div className="calendar-modal-header">
                     <div>
-                        <div style={{
-                            display: 'inline-block',
-                            background: '#FFD443',
-                            borderRadius: '6px',
-                            padding: '2px 8px',
-                            fontSize: '0.65rem',
-                            fontWeight: '700',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
-                            color: '#393933',
-                            marginBottom: '0.4rem',
-                        }}>
-                            Event
-                        </div>
-                        <h5 style={{ color: '#ffffff', fontWeight: '800', margin: 0 }}>
-                            {selectedEvent?.title}
-                        </h5>
+                        <div className="calendar-modal-badge">Event</div>
+                        <h5>{selectedEvent?.title}</h5>
                     </div>
-                    <button
-                        onClick={() => setShowViewModal(false)}
-                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}
-                    >
-                        ×
-                    </button>
+                    <button onClick={() => setShowViewModal(false)} className="calendar-modal-close">×</button>
                 </div>
 
-                <Modal.Body style={{ padding: '1.5rem 2rem' }}>
+                <Modal.Body className="calendar-modal-body">
                     {selectedEvent && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: '#555' }}>
-                                <BsClock size={14} style={{ flexShrink: 0, color: '#393933' }} />
+                        <div className="d-flex flex-column gap-2">
+                            <div className="calendar-detail-row">
+                                <BsClock size={14} />
                                 <span>
                                     {new Date(selectedEvent.start).toLocaleString('en-US', {
                                         month: 'long', day: 'numeric', year: 'numeric',
@@ -396,21 +291,16 @@ function Calendar() {
                             </div>
 
                             {selectedEvent.location && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', color: '#555' }}>
-                                    <BsGeoAltFill size={14} style={{ flexShrink: 0, color: '#393933' }} />
+                                <div className="calendar-detail-row">
+                                    <BsGeoAltFill size={14} />
                                     <span>{selectedEvent.location}</span>
                                 </div>
                             )}
 
                             {selectedEvent.url && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem' }}>
-                                    <BsLink45Deg size={14} style={{ flexShrink: 0, color: '#393933' }} />
-                                    <a
-                                        href={selectedEvent.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{ color: '#393933', fontWeight: '600', wordBreak: 'break-all' }}
-                                    >
+                                <div className="calendar-detail-row">
+                                    <BsLink45Deg size={14} />
+                                    <a href={selectedEvent.url} target="_blank" rel="noopener noreferrer" className="calendar-detail-link">
                                         {selectedEvent.url}
                                     </a>
                                 </div>
@@ -419,118 +309,17 @@ function Calendar() {
                     )}
                 </Modal.Body>
 
-                <Modal.Footer style={{ borderTop: '1px solid #e0e0dc', padding: '1rem 2rem' }}>
-                    <Button
-                        variant="outline-secondary"
-                        onClick={() => setShowViewModal(false)}
-                        style={{ borderRadius: '8px', fontWeight: '600' }}
-                    >
+                <Modal.Footer className="calendar-modal-footer">
+                    <Button variant="outline-secondary" onClick={() => setShowViewModal(false)} className="calendar-cancel-btn">
                         Close
                     </Button>
-                    {/* Only show delete button to admins and moderators */}
                     {isPrivileged && (
-                        <Button
-                            variant="outline-danger"
-                            onClick={handleDeleteEvent}
-                            style={{ borderRadius: '8px', fontWeight: '600' }}
-                        >
+                        <Button variant="outline-danger" onClick={handleDeleteEvent} className="calendar-delete-btn">
                             Delete Event
                         </Button>
                     )}
                 </Modal.Footer>
             </Modal>
-
-            <style>{`
-                .fc-day-clickable .fc-daygrid-day:hover {
-                    background-color: rgba(255, 212, 67, 0.15);
-                    cursor: pointer;
-                }
-                .fc-event {
-                    cursor: pointer;
-                }
-
-                /* Dark mode calendar text */
-                .dark-theme .fc {
-                    color: #e0e0e0;
-                }
-
-                .dark-theme .fc-day-other .fc-daygrid-day-number {
-                    color: #666;
-                }
-
-                .dark-theme .fc-col-header-cell-cushion,
-                .dark-theme .fc-daygrid-day-number {
-                    color: #e0e0e0;
-                }
-
-                .dark-theme .fc-toolbar-title {
-                    color: #ffffff;
-                }
-
-                .light-theme .fc-button {
-                    background-color: #383838 !important;
-                    border-color: #555 !important;
-                    color: #e9e9e9 !important;
-                }
-                .light-theme .fc-daygrid-day {
-                    background-color: #ffffff;
-                }
-                .light-theme .fc {
-                    background-color: #ffffff;
-                }
-                .dark-theme .fc {
-                    background-color: #2b2b2b;
-                }
-                .light-theme .fc-scrollgrid,
-                .light-theme .fc-scrollgrid td,
-                .light-theme .fc-scrollgrid th {
-                    border-color: #dcdcdc !important;
-                }
-
-                .light-theme .fc-day-today {
-                    background-color: #fff6d6 !important;
-                }
-                .dark-theme .fc-button {
-                    background-color: #393933 !important;
-                    border-color: #555 !important;
-                    color: #FFD443 !important;
-                }
-
-                .dark-theme .fc-button:hover {
-                    background-color: #FFD443 !important;
-                    color: #393933 !important;
-                }
-
-                .dark-theme .fc-button-active {
-                    background-color: #FFD443 !important;
-                    color: #393933 !important;
-                }
-
-                .dark-theme .fc-daygrid-day {
-                    background-color: #2b2b2b;
-                }
-
-                .dark-theme .fc-scrollgrid,
-                .dark-theme .fc-scrollgrid td,
-                .dark-theme .fc-scrollgrid th {
-                    border-color: #444 !important;
-                }
-
-                .dark-theme .fc-day-today {
-                    background-color: rgb(80, 70, 35) !important;
-                }
-                .dark-theme .fc-event-title,
-                .dark-theme .fc-event-time {
-                    color: #FFD443 !important;
-                }
-                .dark-theme .fc-daygrid-event-dot {
-                    border-color: #FFD443 !important;
-                }
-
-                .dark-theme .fc-list-event-dot {
-                    border-color: #FFD443 !important;
-                }
-            `}</style>
         </div>
     );
 }
