@@ -14,6 +14,8 @@ const crypto = require("crypto")
 const bcrypt = require("bcrypt")
 const http = require('http');
 const rateLimit = require('express-rate-limit');
+const cron = require('node-cron');
+const { syncStartGGEvents } = require('./startgg-sync');
 const { Server } = require('socket.io');
 const { verifyRole } = require('./auth');
 const { S3Client } = require('@aws-sdk/client-s3');
@@ -2943,8 +2945,9 @@ app.post('/notifications/mark-read', authenticateToken, async (req, res) => {
 app.get('/calendar-events', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT event_id, title, start_date, end_date, location, url
+            `SELECT event_id, title, start_date, end_date, location, url, source
              FROM calendar_events
+             WHERE is_visible = true
              ORDER BY start_date ASC`
         );
         res.json(result.rows);
@@ -3017,6 +3020,9 @@ if (process.env.NODE_ENV === 'production') {
         res.sendFile(path.join(__dirname, 'build', 'index.html'));
     });
 }
+
+syncStartGGEvents(pool);
+cron.schedule('0 */6 * * *', () => syncStartGGEvents(pool));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

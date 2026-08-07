@@ -256,10 +256,28 @@ CREATE TABLE encrypted_message_images (
 
     FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
 );
+
+CREATE TABLE push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    users_id INTEGER UNIQUE REFERENCES forumusers(users_id) ON DELETE CASCADE,
+    subscription TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE calendar_events
+  ALTER COLUMN title TYPE VARCHAR(200),
+  ADD COLUMN startgg_id TEXT UNIQUE,
+  ADD COLUMN source VARCHAR(20) DEFAULT 'manual';
+
+ALTER TABLE calendar_events
+  ADD COLUMN is_visible BOOLEAN DEFAULT true;
+  
 -- ─────────────────────────────────────────────────────────────────────────────
 -- INDEXES
 -- ─────────────────────────────────────────────────────────────────────────────
- 
+
+CREATE INDEX IF NOT EXISTS idx_calendar_events_source ON calendar_events(source);
+
 CREATE INDEX IF NOT EXISTS idx_calendar_events_start_date ON calendar_events(start_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_created_by ON calendar_events(created_by);
  
