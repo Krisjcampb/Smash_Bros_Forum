@@ -4,12 +4,15 @@ const STARTGG_API = 'https://api.start.gg/gql/alpha';
 const SMASH_ULTIMATE_ID = 1386;
 const MIN_ENTRANTS = 100;
 const MONTHS_AHEAD = 2;
+const MAX_PAGES = 5;
 
 async function fetchStartGGTournaments() {
     const query = `
-        query TournamentsByGame($videogameId: ID!, $afterDate: Timestamp!, $beforeDate: Timestamp!) {
+        query TournamentsByGame($videogameId: ID!, $afterDate: Timestamp!, $beforeDate: Timestamp!, $page: Int!) {
             tournaments(query: {
                 perPage: 50,
+                page: $page,
+                sortBy: "startAt asc",
                 filter: {
                     videogameIds: [$videogameId],
                     afterDate: $afterDate,
@@ -36,31 +39,44 @@ async function fetchStartGGTournaments() {
 
     const now = new Date();
     const afterDate = Math.floor(now.getTime() / 1000);
-    const threeMonthsOut = new Date(now);
-    threeMonthsOut.setMonth(threeMonthsOut.getMonth() + MONTHS_AHEAD);
-    const beforeDate = Math.floor(threeMonthsOut.getTime() / 1000);
+    const monthsOut = new Date(now);
+    monthsOut.setMonth(monthsOut.getMonth() + MONTHS_AHEAD);
+    const beforeDate = Math.floor(monthsOut.getTime() / 1000);
 
-    try {
-        const response = await axios.post(STARTGG_API, {
-            query,
-            variables: { videogameId: SMASH_ULTIMATE_ID, afterDate, beforeDate },
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.STARTGG_API_KEY}`,
-            },
-        });
+    let allTournaments = [];
+    let page = 1;
 
-        const { data, errors } = response.data;
-        if (errors) {
-            console.error('start.gg API errors:', errors);
-            return [];
+    while (page <= MAX_PAGES) {
+        try {
+            const response = await axios.post(STARTGG_API, {
+                query,
+                variables: { videogameId: SMASH_ULTIMATE_ID, afterDate, beforeDate, page },
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.STARTGG_API_KEY}`,
+                },
+            });
+
+            const { data, errors } = response.data;
+            if (errors) {
+                console.error('start.gg API errors:', errors);
+                break;
+            }
+
+            const nodes = data?.tournaments?.nodes || [];
+            allTournaments = allTournaments.concat(nodes);
+
+            if (nodes.length < 50) break;
+
+            page++;
+        } catch (err) {
+            console.error(`start.gg request failed on page ${page}:`, err.message);
+            break;
         }
-        return data?.tournaments?.nodes || [];
-    } catch (err) {
-        console.error('start.gg request failed:', err.message);
-        return [];
     }
+
+    return allTournaments;
 }
 
 function maxEntrants(tournament) {
@@ -97,7 +113,7 @@ async function syncStartGGEvents(pool) {
         }
     }
 
-    console.log(`start.gg sync complete: ${successCount}/${tournaments.length} tournaments tracked, ${visibleCount} currently visible (200+ entrants)`);
+    console.log(`start.gg sync complete: ${successCount}/${tournaments.length} tournaments tracked, ${visibleCount} currently visible (${MIN_ENTRANTS}+ entrants, next ${MONTHS_AHEAD} months)`);
 }
 
 module.exports = { syncStartGGEvents };
