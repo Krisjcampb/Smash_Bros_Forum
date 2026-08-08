@@ -2,7 +2,7 @@ const axios = require('axios');
 
 const STARTGG_API = 'https://api.start.gg/gql/alpha';
 const SMASH_ULTIMATE_ID = 1386;
-const MIN_ENTRANTS = 100;
+const MIN_ENTRANTS = 64;
 const MONTHS_AHEAD = 2;
 const MAX_PAGES = 5;
 
