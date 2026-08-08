@@ -2,8 +2,8 @@ const axios = require('axios');
 
 const STARTGG_API = 'https://api.start.gg/gql/alpha';
 const SMASH_ULTIMATE_ID = 1386;
-const MIN_ENTRANTS = 200;
-const MONTHS_AHEAD = 3;
+const MIN_ENTRANTS = 128;
+const MONTHS_AHEAD = 2;
 
 async function fetchStartGGTournaments() {
     const query = `
