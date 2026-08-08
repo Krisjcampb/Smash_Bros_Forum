@@ -849,6 +849,16 @@ footer {
   cursor: pointer;
 }
 
+.fc {
+  .fc-daygrid-day-frame {
+    min-height: 125px;
+  }
+
+  .fc-daygrid-day {
+    min-width: 188px;
+  }
+}
+
 .light-theme {
   .fc-button {
     background-color: #383838 !important;
