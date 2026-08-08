@@ -4,7 +4,7 @@ const STARTGG_API = 'https://api.start.gg/gql/alpha';
 const SMASH_ULTIMATE_ID = 1386;
 const MIN_ENTRANTS = 64;
 const MONTHS_AHEAD = 2;
-const MAX_PAGES = 5;
+const MAX_PAGES = 40;
 
 async function fetchStartGGTournaments() {
     const query = `
@@ -70,6 +70,7 @@ async function fetchStartGGTournaments() {
             if (nodes.length < 50) break;
 
             page++;
+            await new Promise(resolve => setTimeout(resolve, 800)); // ← added
         } catch (err) {
             console.error(`start.gg request failed on page ${page}:`, err.message);
             break;
