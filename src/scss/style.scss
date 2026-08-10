@@ -932,9 +932,11 @@ footer {
     background-color: rgb(80, 70, 35) !important;
   }
   .fc-event-title,
-  .fc-event-time {
-    color: $secondary !important;
+  .fc-event-time, 
+  .fc-event-title.fc-sticky {
+    color: #393933 !important;
   }
+  
   .fc-daygrid-event-dot,
   .fc-list-event-dot {
     border-color: $secondary !important;
