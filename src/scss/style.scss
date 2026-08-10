@@ -888,6 +888,15 @@ footer {
     border-color: #d8d8d4 !important;
     color: #393933 !important;
   }
+  .fc-event-title,
+  .fc-event-title.fc-sticky {
+    color: #393933 !important;
+  }
+
+  .fc-daygrid-event {
+    margin-bottom: 1px !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  }
 }
 
 .dark-theme {
@@ -932,11 +941,13 @@ footer {
     background-color: rgb(80, 70, 35) !important;
   }
   .fc-event-title,
-  .fc-event-time, 
-  .fc-event-title.fc-sticky {
-    color: #393933 !important;
+  .fc-event-time {
+    color: $secondary !important;
   }
-  
+  .dark-theme .fc-daygrid-event {
+    margin-bottom: 1px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  }
   .fc-daygrid-event-dot,
   .fc-list-event-dot {
     border-color: $secondary !important;
