@@ -167,8 +167,6 @@ function Calendar() {
                 dateClick={handleDateClick}
                 eventClick={handleEventClick}
                 dayCellClassNames={isPrivileged ? 'fc-day-clickable' : ''}
-                eventColor="#393933"
-                eventTextColor="#FFD443"
             />
 
             {/* Add event modal */}

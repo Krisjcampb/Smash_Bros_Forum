@@ -850,8 +850,11 @@ footer {
 }
 
 .fc {
+  padding: 1.25rem;
+  border-radius: 12px;
+
   .fc-daygrid-day-frame {
-    min-height: 125px;
+    min-height: 120px;
   }
 
   .fc-daygrid-day {
@@ -870,6 +873,7 @@ footer {
   }
   .fc {
     background-color: #ffffff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
   }
   .fc-scrollgrid,
   .fc-scrollgrid td,
@@ -879,12 +883,18 @@ footer {
   .fc-day-today {
     background-color: #fff6d6 !important;
   }
+  .fc-event {
+    background-color: #d8d8d4 !important;
+    border-color: #d8d8d4 !important;
+    color: #393933 !important;
+  }
 }
 
 .dark-theme {
   .fc {
     color: #e0e0e0;
     background-color: #2b2b2b;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
   }
   .fc-day-other .fc-daygrid-day-number {
     color: #666;
