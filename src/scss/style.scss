@@ -893,6 +893,15 @@ footer {
     color: #393933 !important;
   }
 
+  .fc-event-time {
+    color: rgba(57, 57, 51) !important;
+  }
+
+  .fc-daygrid-event-dot,
+  .fc-list-event-dot {
+    border-color: rgba(57, 57, 51) !important;
+  }
+
   .fc-daygrid-event {
     margin-bottom: 1px !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.15);
@@ -950,7 +959,7 @@ footer {
   }
   .fc-daygrid-event-dot,
   .fc-list-event-dot {
-    border-color: $secondary !important;
+    border-color: rgba(57, 57, 51) !important;
   }
   .fc-event {
     background-color: $primary !important;
