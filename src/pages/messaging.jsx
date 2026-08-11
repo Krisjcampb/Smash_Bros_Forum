@@ -733,31 +733,42 @@ const Messaging = () => {
         <Container fluid className='mt-5 messaging-page'>
             <Row className='h-100'>
                 <Col sm={4} className='p-3 friends-list'>
-                    <h4 className='mb-3'>Friends</h4>
-                    <Form.Control
-                        type='text'
-                        placeholder='Search friends...'
-                        className='mb-3 friend-search-input'
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                    <div className="friends-list-header">
+                        <h4>Friends</h4>
+                        <div className="friend-search-wrap">
+                            <span className="friend-search-icon">🔍</span>
+                            <Form.Control
+                                type='text'
+                                placeholder='Search friends...'
+                                className='friend-search-input'
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                    </div>
                     <ListGroup variant='flush' className='friend-list-items-container'>
-                        {filteredFriends.map((u) => (
-                            <ListGroup.Item
-                                key={u.id}
-                                action
-                                active={selectedUser?.id === u.id}
-                                className='friend-item d-flex align-items-center'
-                                onClick={() => handleUserSelection(u)}
-                            >
-                                <img
-                                    src={getProfileImageUrl(u.character_name, u.selected_skin)}
-                                    alt={u.name}
-                                    className="friend-avatar me-4"
-                                />
-                                <span className="friend-name">{u.name}</span>
-                            </ListGroup.Item>
-                        ))}
+                        {filteredFriends.length === 0 ? (
+                            <div className="friend-list-empty">
+                                {searchQuery ? 'No friends match your search' : 'No friends yet'}
+                            </div>
+                        ) : (
+                            filteredFriends.map((u) => (
+                                <ListGroup.Item
+                                    key={u.id}
+                                    action
+                                    active={selectedUser?.id === u.id}
+                                    className='friend-item d-flex align-items-center'
+                                    onClick={() => handleUserSelection(u)}
+                                >
+                                    <img
+                                        src={getProfileImageUrl(u.character_name, u.selected_skin)}
+                                        alt={u.name}
+                                        className="friend-avatar me-3"
+                                    />
+                                    <span className="friend-name">{u.name}</span>
+                                </ListGroup.Item>
+                            ))
+                        )}
                     </ListGroup>
                 </Col>
                 <Col sm={8} className='p-3 chat-area'>
@@ -766,7 +777,7 @@ const Messaging = () => {
                             <Card.Header className='d-flex justify-content-between align-items-center chat-header'>
                                 <Link
                                     to={`/userprofile/${selectedUser.name}/${selectedUser.id}`}
-                                    className='text-decoration-none text-dark'
+                                    className='text-decoration-none friend-name'
                                 >
                                     {selectedUser.name}
                                 </Link>
