@@ -736,7 +736,6 @@ const Messaging = () => {
                     <div className="friends-list-header">
                         <h4>Friends</h4>
                         <div className="friend-search-wrap">
-                            <span className="friend-search-icon">🔍</span>
                             <Form.Control
                                 type='text'
                                 placeholder='Search friends...'
