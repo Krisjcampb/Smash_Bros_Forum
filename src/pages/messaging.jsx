@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Container, Row, Col, ListGroup, Card, Form, Button } from 'react-bootstrap'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import socket from "../websocket/socket";
 import forge from 'node-forge';
 import { API } from '../components/Utilities/apiUrl';
+import PassphraseUnlock from '../components/Utilities/passphraseUnlock';
 
 const Messaging = () => {
     const messageContainerRef = useRef(null);
@@ -20,7 +21,26 @@ const Messaging = () => {
     const [decryptedImages, setDecryptedImages] = useState({});
     const [selectedImage, setSelectedImage] = useState(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [showPassphraseModal, setShowPassphraseModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const navigate = useNavigate();
+    const token = localStorage.getItem('token')
+
+    useEffect(() => {
+        const keyInSession = !!sessionStorage.getItem('privateKey');
+        if (token && !keyInSession) {
+            setShowPassphraseModal(true);
+        }
+    }, [token]);
+
+    const handleSkipPassphrase = () => {
+        setShowPassphraseModal(false);
+        if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1);
+        } else {
+            navigate('/');
+        }
+    };
 
     const getProfileImageUrl = useCallback((characterName, selectedSkin) => {
         if (!characterName || selectedSkin === null) return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`;
@@ -33,7 +53,6 @@ const Messaging = () => {
         );
     }, [listfriends, searchQuery]);
     
-    const token = localStorage.getItem('token')
     const location = useLocation();
     const usernotif = useMemo(() => location.state?.entityID || null, [location.state]);
 
@@ -942,6 +961,11 @@ const Messaging = () => {
                     )}
                 </Col>
             </Row>
+            <PassphraseUnlock
+                show={showPassphraseModal}
+                onUnlocked={() => setShowPassphraseModal(false)}
+                onSkip={handleSkipPassphrase}
+            />
         </Container>
     );
 };

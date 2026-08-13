@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { Container, Alert, Form, InputGroup, Button } from 'react-bootstrap'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { BsEnvelopeFill, BsLockFill, BsEye, BsEyeSlash } from 'react-icons/bs'
-import PassphraseUnlock from '../components/Utilities/passphraseUnlock';
 import { API } from '../components/Utilities/apiUrl';
 
 function SignIn() {
@@ -10,7 +9,6 @@ function SignIn() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState('')
-    const [showPassphraseModal, setShowPassphraseModal] = useState(false);
     const navigate = useNavigate();
 
     const userLogin = async (e) => {
@@ -24,7 +22,17 @@ function SignIn() {
             const data = await response.json();
             if (data.success) {
                 localStorage.setItem('token', data.token)
-                setShowPassphraseModal(true);
+
+                const keyResponse = await fetch(`${API}/get-encrypted-key`, {
+                    headers: { 'Authorization': 'Bearer ' + data.token }
+                });
+
+                if (keyResponse.status === 404) {
+                    navigate('/setup-keys');
+                } else {
+                    navigate('/');
+                    navigate(0);
+                }
             } else {
                 setErrorMessage(data.message || 'Invalid username or password')
             }
@@ -195,39 +203,6 @@ function SignIn() {
                     </div>
                 </div>
             </div>
-
-            {/* Passphrase modal appears after a successful login to load the private key into session */}
-            <PassphraseUnlock
-                show={showPassphraseModal}
-                onUnlocked={async () => {
-                    setShowPassphraseModal(false);
-                    const token = localStorage.getItem('token');
-                    const keyResponse = await fetch(`${API}/get-encrypted-key`, {
-                        headers: { 'Authorization': 'Bearer ' + token }
-                    });
-
-                    if (keyResponse.status === 404) {
-                        navigate('/setup-keys');
-                    } else {
-                        navigate('/');
-                        navigate(0);
-                    }
-                }}
-                onSkip={async () => {
-                    setShowPassphraseModal(false);
-                    const token = localStorage.getItem('token');
-                    const keyResponse = await fetch(`${API}/get-encrypted-key`, {
-                        headers: { 'Authorization': 'Bearer ' + token }
-                    });
-
-                    if (keyResponse.status === 404) {
-                        navigate('/setup-keys');
-                    } else {
-                        navigate('/');
-                        navigate(0);
-                    }
-                }}
-            />
         </Container>
     )
 }
