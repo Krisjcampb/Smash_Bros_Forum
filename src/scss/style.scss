@@ -2621,6 +2621,14 @@ footer {
     overflow-y: auto;
 }
 
+.modal-backdrop {
+  z-index: 2100 !important;
+}
+
+.modal {
+  z-index: 2150 !important;
+}
+
 .form-label-uppercase {
     font-weight: 600;
     font-size: 0.85rem;

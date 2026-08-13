@@ -69,7 +69,7 @@ const PassphraseUnlock = ({ show, email, onUnlocked, onSkip }) => {
     };
 
     return (
-        <Modal show={show} onHide={handleSkip} backdrop="static">
+        <Modal show={show} onHide={handleSkip} backdrop="static" centered>
             <Modal.Header>
                 <Modal.Title>
                     <BsShieldLock className="me-2" />
