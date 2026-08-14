@@ -3004,6 +3004,8 @@ body.dark-theme {
     $primary;
   border-bottom: 1px solid rgba($secondary, 0.28);
   box-shadow: 0 14px 36px rgba($dark, 0.18);
+  display: flex;
+  align-items: center;
 }
 
 .site-header__brand {
@@ -3011,6 +3013,7 @@ body.dark-theme {
   align-items: center;
   min-width: 0;
   text-decoration: none;
+  grid-column: 1;
 }
 
 .site-header__logo {
@@ -3025,6 +3028,7 @@ body.dark-theme {
   position: relative;
   flex: 1;
   min-width: 0;
+  display: flex;
   align-items: center;
 }
 
