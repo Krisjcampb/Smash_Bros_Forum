@@ -3004,16 +3004,14 @@ body.dark-theme {
     $primary;
   border-bottom: 1px solid rgba($secondary, 0.28);
   box-shadow: 0 14px 36px rgba($dark, 0.18);
-  display: flex;
-  align-items: center;
 }
+
 
 .site-header__brand {
   display: flex;
   align-items: center;
   min-width: 0;
   text-decoration: none;
-  grid-column: 1;
 }
 
 .site-header__logo {
@@ -3028,18 +3026,18 @@ body.dark-theme {
   position: relative;
   flex: 1;
   min-width: 0;
-  display: flex;
   align-items: center;
 }
 
 .site-header__banner {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  top: 50%;
+  top: 38px; // roughly vertical center of a 76px header; adjust to taste
   transform: translate(-50%, -50%);
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  z-index: 1;
 }
 
 .rotating-banner {
@@ -3973,6 +3971,10 @@ body.dark-theme {
     gap: 0.35rem;
   }
 
+  .site-header__banner {
+    top: 34px; // half of 68px
+  }
+
   .site-header__icon-button,
   .site-header__avatar,
   .site-header__avatar-skeleton {
@@ -3999,6 +4001,10 @@ body.dark-theme {
 
   .site-header__logo {
     width: clamp(138px, 42vw, 178px);
+  }
+
+  .site-header__banner {
+    display: none; // it's already .d-none.d-xl-flex in the JSX, so this is likely moot
   }
 
   .site-header__actions {
