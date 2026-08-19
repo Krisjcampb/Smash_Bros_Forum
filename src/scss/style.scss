@@ -4549,21 +4549,6 @@ body.dark-theme {
     }
   }
 
-  // Toolbar (prev/next/today buttons + title) needs to stack/shrink
-  .fc-toolbar {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .fc-toolbar-title {
-    font-size: 1rem !important;
-  }
-
-  .fc-button {
-    padding: 0.3rem 0.6rem !important;
-    font-size: 0.8rem !important;
-  }
-
   // Day numbers and weekday headers
   .fc-col-header-cell-cushion,
   .fc-daygrid-day-number {
@@ -4584,11 +4569,37 @@ body.dark-theme {
   .fc-daygrid-event-dot {
     display: none; // saves space; the colored background already indicates an event
   }
+  .fc-toolbar {
+    flex-direction: row; // keep on one line instead of stacking, saves a whole row of height
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem !important;
+  }
 
-  // If a day has many events, cap how many show before "+X more"
-  .fc-daygrid-day-events {
-    max-height: 40px;
-    overflow: hidden;
+  .fc-toolbar-chunk {
+    display: flex;
+    align-items: center;
+  }
+
+  // Prev/next/today buttons — much smaller footprint
+  .fc-button {
+    padding: 0.2rem 0.45rem !important;
+    font-size: 0.7rem !important;
+    min-width: 0 !important;
+  }
+
+  .fc-prev-button,
+  .fc-next-button {
+    padding: 0.2rem 0.4rem !important;
+  }
+
+  .fc-today-button {
+    padding: 0.2rem 0.5rem !important;
+  }
+
+  .fc-toolbar-title {
+    font-size: 0.9rem !important;
+    margin: 0 0.3rem !important;
   }
 }
 

@@ -21,6 +21,7 @@ function Calendar() {
     const [url, setUrl] = useState('');
     const [addError, setAddError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 575);
 
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -44,6 +45,12 @@ function Calendar() {
         } catch (err) {
             console.error('Error fetching events:', err);
         }
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 575);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     useEffect(() => {
@@ -167,6 +174,7 @@ function Calendar() {
                 dateClick={handleDateClick}
                 eventClick={handleEventClick}
                 dayCellClassNames={isPrivileged ? 'fc-day-clickable' : ''}
+                dayMaxEvents={isMobile ? 1 : false}
             />
 
             {/* Add event modal */}
