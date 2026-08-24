@@ -4,7 +4,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import socket from "../websocket/socket";
 import forge from 'node-forge';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../components/Utilities/authHelpers';
 import PassphraseUnlock from '../components/Utilities/passphraseUnlock';
+
 
 const Messaging = () => {
     const messageContainerRef = useRef(null);
@@ -68,13 +70,11 @@ const Messaging = () => {
     };
 
     const fetchRecipientPublicKey = useCallback(async (recipientId) => {
-        const response = await fetch(`${API}/get-public-key/${recipientId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await authFetch(API, `${API}/get-public-key/${recipientId}`);
         if (!response.ok) throw new Error('Failed to fetch recipient public key');
-            const { publicKey } = await response.json();
-            return forge.pki.publicKeyFromPem(publicKey);
-    }, [token]);
+        const { publicKey } = await response.json();
+        return forge.pki.publicKeyFromPem(publicKey);
+    }, []);
 
     const encrypt = useCallback(async (plaintext, recipientId) => {
         const recipientPublicKey = await fetchRecipientPublicKey(recipientId);
@@ -204,7 +204,6 @@ const Messaging = () => {
         try {
             if (!message_id) throw new Error("message_id is required");
 
-            // Convert base64 to Uint8Array instead of binary string
             const encryptedBytes = forge.util.decode64(encryptedImageData.encryptedData);
             const uint8 = new Uint8Array(encryptedBytes.length);
             for (let i = 0; i < encryptedBytes.length; i++) {
@@ -223,9 +222,8 @@ const Messaging = () => {
             formData.append('mime_type', encryptedImageData.mimeType);
             formData.append('filename', encryptedImageData.filename);
 
-            const response = await fetch(`${API}/uploadEncryptedImage`, {
+            const response = await authFetch(API, `${API}/uploadEncryptedImage`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
                 body: formData
             });
 
@@ -370,12 +368,9 @@ const Messaging = () => {
     const authenticateUser = useCallback(async () => {
         if (!token) return;
         try {
-            const response = await fetch(`${API}/userauthenticate`, {
+            const response = await authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
             setUserId(Number(data.id));
@@ -398,9 +393,7 @@ const Messaging = () => {
 
     const fetchFriendsList = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/all-friends`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await authFetch(API, `${API}/all-friends`);
             const data = await response.json();
 
             if (data.friends === "no_friends") {
@@ -416,7 +409,7 @@ const Messaging = () => {
         } catch (error) {
             console.error("Error fetching friends list:", error);
         }
-    }, [token]);
+    }, []);
 
     const fetchMessageHistory = useCallback((friendId) => {
         if (userid && friendId) {
@@ -636,11 +629,10 @@ const Messaging = () => {
             const tempKey = `${selectedUser.id}-${Date.now()}`;
             pendingPlaintexts.current[tempKey] = plaintextMessage;
 
-            const res = await fetch(`${API}/messages`, {
+            const res = await authFetch(API, `${API}/messages`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     sender_id: userid,

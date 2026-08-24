@@ -321,34 +321,91 @@ app.post('/userlogin', authLimiter, async (req, res) => {
     const {email, password} = req.body;
     try{
         const user = await pool.query('SELECT * FROM forumusers WHERE LOWER(email) = LOWER($1)', [email]);
-        if(!user || user.rows[0] === undefined) 
-        {
+        if(!user || user.rows[0] === undefined) {
             return res.json({ success: false })
         }
         else{
-            bcrypt.compare(password, user.rows[0].password, function(err, response) {
-            if(err){
-                console.log(err)
-                return res.status(500).json({ success: false, message: 'Server error' });
-            }
-            else if(response){
-                if (!user.rows[0].verified) {
-                    return res.json({ success: false, message: 'Please verify your email before logging in.' });
+            bcrypt.compare(password, user.rows[0].password, async function(err, response) {
+                if(err){
+                    console.log(err)
+                    return res.status(500).json({ success: false, message: 'Server error' });
                 }
-                const token = jwt.sign({users_id: user.rows[0].users_id, username: user.rows[0].username, role: user.rows[0].role}, process.env.JWT_SECRET, { expiresIn: '7d' })
-                res.json({ success: true, token: token });
-            }
-            else{
-                res.json({success: false})
-            }
-        })
-        }
+                else if(response){
+                    if (!user.rows[0].verified) {
+                        return res.json({ success: false, message: 'Please verify your email before logging in.' });
+                    }
 
+                    const accessToken = jwt.sign(
+                        {users_id: user.rows[0].users_id, username: user.rows[0].username, role: user.rows[0].role},
+                        process.env.JWT_SECRET,
+                        { expiresIn: '1h' }
+                    );
+
+                    const refreshToken = crypto.randomBytes(40).toString('hex');
+                    const refreshExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+                    try {
+                        await pool.query(
+                            `INSERT INTO refresh_tokens (users_id, token, expires_at)
+                             VALUES ($1, $2, $3)`,
+                            [user.rows[0].users_id, refreshToken, refreshExpiry]
+                        );
+                        res.json({ success: true, token: accessToken, refreshToken });
+                    } catch (insertErr) {
+                        console.error('Error saving refresh token:', insertErr.message);
+                        res.status(500).json({ success: false, message: 'Server error' });
+                    }
+                }
+                else{
+                    res.json({success: false})
+                }
+            })
+        }
     }catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 })
+
+app.post('/refresh-token', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.sendStatus(401);
+
+    try {
+        const result = await pool.query(
+            `SELECT rt.users_id, rt.expires_at, u.username, u.role
+             FROM refresh_tokens rt
+             JOIN forumusers u ON u.users_id = rt.users_id
+             WHERE rt.token = $1`,
+            [refreshToken]
+        );
+
+        if (result.rows.length === 0) return res.sendStatus(403);
+
+        const row = result.rows[0];
+        if (new Date(row.expires_at) < new Date()) {
+            await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+            return res.sendStatus(403);
+        }
+
+        const newAccessToken = jwt.sign(
+            { users_id: row.users_id, username: row.username, role: row.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        const newExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+        await pool.query(
+            'UPDATE refresh_tokens SET expires_at = $1 WHERE token = $2',
+            [newExpiry, refreshToken]
+        );
+
+        res.json({ token: newAccessToken });
+    } catch (err) {
+        console.error('Refresh token error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 app.get('/get-public-key/:userid', authenticateToken, async (req, res) => {
     try {

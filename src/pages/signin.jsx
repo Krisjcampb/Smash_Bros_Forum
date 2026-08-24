@@ -22,6 +22,7 @@ function SignIn() {
             const data = await response.json();
             if (data.success) {
                 localStorage.setItem('token', data.token)
+                localStorage.setItem('refreshToken', data.refreshToken)
 
                 const keyResponse = await fetch(`${API}/get-encrypted-key`, {
                     headers: { 'Authorization': 'Bearer ' + data.token }

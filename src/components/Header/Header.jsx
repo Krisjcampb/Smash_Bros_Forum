@@ -8,6 +8,7 @@ import RotatingBanner from './RotatingBanner';
 import { useUserContext } from '../../pages/usercontext';
 import { getImageUrl } from '../Utilities/adjusturl';
 import { API } from '../Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 const FALLBACK_IMAGE = '/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png';
 
@@ -53,13 +54,9 @@ function Header() {
             return;
         }
 
-        // Authenticate user
-        fetch(`${API}/userauthenticate`, {
+        authFetch(API, `${API}/userauthenticate`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token,
-            },
+            headers: { 'Content-Type': 'application/json' },
         })
         .then(response => {
             if (!response.ok) throw new Error('Authentication failed');
@@ -70,13 +67,12 @@ function Header() {
             setUser(name);
             setUserId(id);
 
-            return fetch(`${API}/notifications/${id}`, {
+            return authFetch(API, `${API}/notifications/${id}`, {
                 method: 'GET',
-                headers: { 'Authorization': 'Bearer ' + token },
             });
         })
         .then(response => {
-            if (!response) return null; // If auth failed early
+            if (!response) return null;
             if (!response.ok) throw new Error('Failed to fetch notifications');
             return response.json();
         })
@@ -92,13 +88,12 @@ function Header() {
             console.error('Error in auth or notification initialization:', err);
         })
         .finally(() => {
-            // This ensures loading ends and login state updates only AFTER everything finishes trying to load
             if (localStorage.getItem('token')) {
                 setLoginState(true);
             }
             setLoading(false);
         });
-    }, []); // Empty dependency array means this runs strictly once on mount
+    }, []);
 
     useEffect(() => {
         if (!userid) return;
@@ -155,12 +150,9 @@ function Header() {
         try {
             const token = localStorage.getItem('token');
             if (token) {
-                await fetch(`${API}/notifications/mark-read`, {
+                await authFetch(API, `${API}/notifications/mark-read`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userid }),
                 });
             }
