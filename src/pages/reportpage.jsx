@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Table, Badge, Button, Card, Row, Col, Modal, Form } from 'react-bootstrap';
 import { API } from '../components/Utilities/apiUrl';
-import { authFetch } from '../Utilities/authHelpers';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 
 const ModerationReports = () => {

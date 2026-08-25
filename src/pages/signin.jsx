@@ -3,7 +3,7 @@ import { Container, Alert, Form, InputGroup, Button } from 'react-bootstrap'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { BsEnvelopeFill, BsLockFill, BsEye, BsEyeSlash } from 'react-icons/bs'
 import { API } from '../components/Utilities/apiUrl';
-import { authFetch } from '../Utilities/authHelpers';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 function SignIn() {
     const [email, setEmail] = useState("");

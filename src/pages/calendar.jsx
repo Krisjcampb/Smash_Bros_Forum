@@ -5,7 +5,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { Modal, Button, Form, InputGroup, Alert } from 'react-bootstrap';
 import { BsCalendarEventFill, BsGeoAltFill, BsLink45Deg, BsClock } from 'react-icons/bs';
 import { API } from '../components/Utilities/apiUrl';
-import { authFetch } from '../Utilities/authHelpers';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 function Calendar() {
     const calendarRef = useRef(null);

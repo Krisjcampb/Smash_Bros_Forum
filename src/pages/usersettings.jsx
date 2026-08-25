@@ -4,7 +4,7 @@ import { saveAs } from 'file-saver';
 import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload, BsMoon, BsSun, BsBell, BsBellSlash, BsExclamationTriangle } from 'react-icons/bs';
 import { encryptPrivateKey, decryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
-import { authFetch } from '../Utilities/authHelpers';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 function UserSettings({ toggleTheme }) {
     const [showChangePassphrase, setShowChangePassphrase] = useState(false);

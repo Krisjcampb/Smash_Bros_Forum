@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { API } from '../components/Utilities/apiUrl';
-import { authFetch } from '../Utilities/authHelpers';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 // Create User Context
 const UserContext = createContext();

@@ -7,7 +7,7 @@ import ListContent from '../components/Search Bar/ListContent'
 import axios from 'axios';
 import imageCompression from 'browser-image-compression';
 import { API } from '../components/Utilities/apiUrl';
-import { authFetch } from '../Utilities/authHelpers';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 function Homepage() {
     const [title, setTitle] = useState('')

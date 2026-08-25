@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { BsShieldLock, BsEye, BsEyeSlash, BsDownload } from 'react-icons/bs'
 import { encryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
-import { authFetch } from '../Utilities/authHelpers';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 export default function SetupKeys() {
     const [passphrase, setPassphrase] = useState('');

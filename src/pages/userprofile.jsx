@@ -6,6 +6,7 @@ import { NavLink } from 'react-router-dom'
 import { useUserContext } from './usercontext';
 import { getImageUrl } from '../components/Utilities/adjusturl';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../components/Utilities/authHelpers';
 
 const characterNameMap = {
         'Rosalina & Luma': 'Rosalina and Luma',
@@ -249,9 +250,9 @@ function Userprofile() {
                 body: JSON.stringify({ clickedImage, newCharacter }),
             })
 
-            await fetch(`${API}/update-profile/${userid}`, {
+            await authFetch(API, `${API}/update-profile/${userid}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, location, description }),
             })
         } catch {
@@ -282,11 +283,10 @@ function Userprofile() {
 
     const handleFriendAction = async () => {
         try {
-            const response = await fetch(`${API}/add-friend/${friendid}`, {
+            const response = await authFetch(API, `${API}/add-friend/${friendid}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ isRequest: true }),
             });
@@ -306,11 +306,10 @@ function Userprofile() {
 
     const handleRemoveFriend = async () => {
         try {
-            await fetch(`${API}/remove-friend/${friendid}`, {
+            await authFetch(API, `${API}/remove-friend/${friendid}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 }
             });
         } catch (error) {
@@ -344,11 +343,10 @@ function Userprofile() {
 
     const handleBlockFriend = async () => {
         try {
-            await fetch(`${API}/block/${friendid}`, {
+            await authFetch(API, `${API}/block/${friendid}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 }
             });
             setFriendshipStatus('not_friends');
@@ -360,11 +358,10 @@ function Userprofile() {
 
     const handleUnblock = async () => {
         try {
-            await fetch(`${API}/unblock/${friendid}`, {
+            await authFetch(API, `${API}/unblock/${friendid}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 }
             });
             setBlockStatus({ blocked: false, blockedByMe: false, blockedByThem: false });
@@ -376,11 +373,10 @@ function Userprofile() {
 
     useEffect(() => {
         if (friendid) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
                 },
             })
             .then((response) => response.json())
@@ -391,11 +387,10 @@ function Userprofile() {
                 setUserId(strid)
             })
 
-            fetch(`${API}/forumusers/${friendid}`, {
+            authFetch(API, `${API}/forumusers/${friendid}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
                 }
             })
             .then(response => response.json())
