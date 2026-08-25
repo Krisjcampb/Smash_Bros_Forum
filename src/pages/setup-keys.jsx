@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { BsShieldLock, BsEye, BsEyeSlash, BsDownload } from 'react-icons/bs'
 import { encryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 export default function SetupKeys() {
     const [passphrase, setPassphrase] = useState('');
@@ -38,11 +39,10 @@ export default function SetupKeys() {
                 });
 
                 // Save the new public key
-                await fetch(`${API}/forumusers/savePublicKey`, {
+                await authFetch(API, `${API}/forumusers/savePublicKey`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ publicKey: result.publicKeyPem }),
                 });
@@ -65,11 +65,10 @@ export default function SetupKeys() {
         setPassphraseError('');
         try {
             const { encryptedKey, salt, iv } = await encryptPrivateKey(privateKey, passphrase);
-            const response = await fetch(`${API}/save-encrypted-key`, {
+            const response = await authFetch(API, `${API}/save-encrypted-key`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ encryptedKey, salt, iv }),
             });

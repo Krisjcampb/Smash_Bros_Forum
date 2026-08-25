@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import UserComments from '../components/User Comments/UserComments';
 import TextMentionArea from '../components/User Comments/TextMentionArea';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../components/Utilities/authHelpers';
 import { toast } from 'react-toastify';
 import { PiArrowFatUpFill, PiArrowFatDownFill, PiArrowFatUp, PiArrowFatDown } from "react-icons/pi";
 
@@ -85,12 +86,9 @@ function Threads() {
                     username: m.username
                 }))
             };
-            const response = await fetch(`${API}/forumcomments`, {
+            const response = await authFetch(API, `${API}/forumcomments`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
 
@@ -110,12 +108,9 @@ function Threads() {
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token,
-                },
+                headers: { 'Content-Type': 'application/json' },
             })
             .then((response) => response.json())
             .then((data) => {
@@ -128,7 +123,6 @@ function Threads() {
                 console.error('Error fetching user role:', error);
             });
 
-            // Only fetch thread data if it wasn't passed through router state
             if (!forumContent) {
                 fetch(`${API}/forumcontent/${thread_id}`, {
                     method: 'GET',
@@ -232,12 +226,9 @@ function Threads() {
         });
 
         try {
-            await fetch(`${API}/forumlikes`, {
+            await authFetch(API, `${API}/forumlikes`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ thread_id }),
             });
             if (!wasLiked) toast.success('👍 Thread liked!', { autoClose: 1500, hideProgressBar: true });
@@ -268,12 +259,9 @@ function Threads() {
         });
 
         try {
-            await fetch(`${API}/forumdislikes`, {
+            await authFetch(API, `${API}/forumdislikes`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ thread_id }),
             });
         } catch (err) {

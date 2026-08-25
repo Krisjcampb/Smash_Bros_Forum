@@ -7,6 +7,7 @@ import ListContent from '../components/Search Bar/ListContent'
 import axios from 'axios';
 import imageCompression from 'browser-image-compression';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 function Homepage() {
     const [title, setTitle] = useState('')
@@ -29,11 +30,10 @@ function Homepage() {
 
     useEffect(() => {
         if (token) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 },
             })
             .then(response => response.json())
@@ -61,11 +61,10 @@ function Homepage() {
                 usersId
             };
 
-            const response = await fetch(`${API}/forumcontent`, {
+            const response = await authFetch(API, `${API}/forumcontent`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(body),
             });
@@ -94,13 +93,9 @@ function Homepage() {
                 formData.append('image', compressedFile);
                 formData.append('thread_id', thread_id);
 
-                const imageUploadResponse = await axios({
+                const imageUploadResponse = await authFetch(API, `${API}/forumimages`, {
                     method: 'POST',
-                    url: `${API}/forumimages`,
-                    data: formData,
-                    headers: {
-                        Authorization: 'Bearer ' + token
-                    },
+                    body: formData
                 });
 
                 if (imageUploadResponse.status !== 200) {

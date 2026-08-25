@@ -5,6 +5,7 @@ import { Modal, Button, Form, Alert, InputGroup } from 'react-bootstrap';
 import { BsEye, BsEyeSlash, BsShieldLock } from 'react-icons/bs';
 import { decryptPrivateKey } from './passphraseUtils';
 import { API } from '../Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 const PassphraseUnlock = ({ show, email, onUnlocked, onSkip }) => {
     const [passphrase, setPassphrase] = useState('');
@@ -24,9 +25,8 @@ const PassphraseUnlock = ({ show, email, onUnlocked, onSkip }) => {
         try {
             // Fetch the encrypted key blob from the server
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API}/get-encrypted-key`, {
+            const response = await authFetch(`${API}/get-encrypted-key`, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
             });

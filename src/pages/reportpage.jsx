@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Table, Badge, Button, Card, Row, Col, Modal, Form } from 'react-bootstrap';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
+
 
 const ModerationReports = () => {
     const [reports, setReports] = useState([]);
@@ -15,10 +17,9 @@ const ModerationReports = () => {
 
     const fetchReports = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/viewreports`, {
+            const response = await authFetch(API, `${API}/viewreports`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': 'Bearer ' + token,
                     'Content-Type': 'application/json'
                 }
             });
@@ -49,15 +50,15 @@ const ModerationReports = () => {
             setShowModal(true);
 
             if (report.report_type === 'thread' && report.thread_id) {
-                const res = await fetch(`${API}/forumcontent/${report.thread_id}`, {
-                    headers: { 'Authorization': 'Bearer ' + token }
+                const res = await authFetch(API, `${API}/forumcontent/${report.thread_id}`, {
+                    method: 'GET'
                 });
                 const data = await res.json();
                 setReportedContent(Array.isArray(data) ? data[0] : data);
 
             } else if (report.report_type === 'comment' && report.comment_id) {
-                const res = await fetch(`${API}/forumcomment/${report.comment_id}`, {
-                    headers: { 'Authorization': 'Bearer ' + token }
+                const res = await authFetch(API, `${API}/forumcomment/${report.comment_id}`, {
+                    method: 'GET'
                 });
                 const data = await res.json();
                 setReportedContent(Array.isArray(data) ? data[0] : data);
@@ -76,10 +77,9 @@ const ModerationReports = () => {
         // Threads and comments use different id fields so this checks which one exists
         const content_id = selectedReport.thread_id ?? selectedReport.comment_id;
 
-        const response = await fetch(`${API}/resolvereport`, {
+        const response = await authFetch(API, `${API}/resolvereport`, {
             method: 'PUT',
             headers: {
-                'Authorization': 'Bearer ' + token,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({

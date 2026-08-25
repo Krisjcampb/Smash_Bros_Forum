@@ -9,6 +9,7 @@ import { toast } from 'react-toastify'
 import { SkeletonGrid } from '../Utilities/skeletoncard'
 import { getImageUrl } from '../Utilities/adjusturl'
 import { API } from '../Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 const DefaultThumbnail = () => (
     <svg 
@@ -168,12 +169,9 @@ const ListContent = (props) => {
 
     const handleDelete = async (userRole) => {
         try {
-            const response = await fetch(`${API}/forumcontent/${currentThread.thread_id}`, {
+            const response = await authFetch(API, `${API}/forumcontent/${currentThread.thread_id}`, {
                 method: 'DELETE',
-                headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
             if (response.ok) {
                 setOriginalList(prev => prev.filter(t => t.thread_id !== currentThread.thread_id));
@@ -211,12 +209,9 @@ const ListContent = (props) => {
         });
 
         try {
-            await fetch(`${API}/forumlikes`, {
+            await authFetch(API, `${API}/forumlikes`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ thread_id }),
             });
             if (!wasLiked) toast.success('👍 Post liked!', { autoClose: 1500, hideProgressBar: true });
@@ -247,12 +242,9 @@ const ListContent = (props) => {
         });
 
         try {
-            await fetch(`${API}/forumdislikes`, {
+            await authFetch(API, `${API}/forumdislikes`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ thread_id }),
             });
         } catch (err) {
@@ -346,9 +338,9 @@ const ListContent = (props) => {
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                headers: { 'Content-Type': 'application/json' },
             }).then(r => r.json()).then(data => { setUserId(data.id); });
         }
     }, []);

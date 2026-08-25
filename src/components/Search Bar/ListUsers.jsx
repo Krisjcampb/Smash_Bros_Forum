@@ -5,6 +5,7 @@ import { Form, InputGroup } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { BsPersonFill, BsGeoAltFill, BsChatFill, BsSearch } from 'react-icons/bs';
 import { API } from '../Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 const roleBadgeStyle = (role) => {
     const colors = {
@@ -157,11 +158,10 @@ const ListUsers = () => {
         setEditError('');
         const token = localStorage.getItem('token');
         try {
-            const response = await fetch(`${API}/forumusers/edit/${editTargetId}`, {
+            const response = await authFetch(`${API}/forumusers/edit/${editTargetId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token,
                 },
                 body: JSON.stringify({
                     username: editUsername,
@@ -193,11 +193,10 @@ const ListUsers = () => {
         getUserList();
         const token = localStorage.getItem('token');
         if (token) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(`${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
                 },
             })
             .then(response => response.json())

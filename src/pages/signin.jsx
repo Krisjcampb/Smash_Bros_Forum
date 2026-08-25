@@ -3,6 +3,7 @@ import { Container, Alert, Form, InputGroup, Button } from 'react-bootstrap'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { BsEnvelopeFill, BsLockFill, BsEye, BsEyeSlash } from 'react-icons/bs'
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 function SignIn() {
     const [email, setEmail] = useState("");
@@ -24,8 +25,8 @@ function SignIn() {
                 localStorage.setItem('token', data.token)
                 localStorage.setItem('refreshToken', data.refreshToken)
 
-                const keyResponse = await fetch(`${API}/get-encrypted-key`, {
-                    headers: { 'Authorization': 'Bearer ' + data.token }
+                const keyResponse = await authFetch(API, `${API}/get-encrypted-key`, {
+                    method: 'GET',
                 });
 
                 if (keyResponse.status === 404) {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 // Create User Context
 const UserContext = createContext();
@@ -12,11 +13,10 @@ export const UserProvider = ({ children }) => {
     // Authenticate User and Set User ID
     useEffect(() => {
         if (token) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
                 },
             })
                 .then((response) => response.json())

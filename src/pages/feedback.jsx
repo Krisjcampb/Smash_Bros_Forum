@@ -56,12 +56,11 @@ function Feedback() {
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (token) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                    'Content-Type': 'application/json'
+                }
             })
                 .then(response => response.json())
                 .then(data => {

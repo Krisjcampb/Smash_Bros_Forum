@@ -5,6 +5,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { Modal, Button, Form, InputGroup, Alert } from 'react-bootstrap';
 import { BsCalendarEventFill, BsGeoAltFill, BsLink45Deg, BsClock } from 'react-icons/bs';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 function Calendar() {
     const calendarRef = useRef(null);
@@ -56,11 +57,10 @@ function Calendar() {
     useEffect(() => {
         fetchEvents();
         if (token) {
-            fetch(`${API}/userauthenticate`, {
+            authFetch(API, `${API}/userauthenticate`, {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
                 },
             })
             .then(res => res.json())
@@ -111,11 +111,10 @@ function Calendar() {
             : null;
 
         try {
-            const response = await fetch(`${API}/calendar-events`, {
+            const response = await authFetch(API, `${API}/calendar-events`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     title,
@@ -145,9 +144,9 @@ function Calendar() {
     const handleDeleteEvent = async () => {
         if (!selectedEvent) return;
         try {
-            await fetch(`${API}/calendar-events/${selectedEvent.id}`, {
+            await authFetch(API, `${API}/calendar-events/${selectedEvent.id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + token },
+                headers: { 'Content-Type': 'application/json' }
             });
             await fetchEvents();
             setShowViewModal(false);

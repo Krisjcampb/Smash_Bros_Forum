@@ -1754,9 +1754,15 @@ app.delete('/forumcomments/:commentId', authenticateToken, async (req, res) => {
   }
 })
 
-app.get('/edithistory/:commentId', async(req, res) => {
+app.get('/edithistory/:commentId', authenticateToken, async (req, res) => {
     try {
-        const { commentId } = req.params
+        const { commentId } = req.params;
+
+        // Only admins/moderators may view edit history
+        if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         const edithistory = await pool.query(
             `SELECT ce.old_content, ce.new_content, u.username AS edited_by, 
                     TO_CHAR(ce.edited_at, 'YYYY-MM-DD HH24:MI:SS') AS edit_timestamp 
@@ -1765,11 +1771,12 @@ app.get('/edithistory/:commentId', async(req, res) => {
              WHERE ce.comment_id = $1
              ORDER BY ce.edited_at DESC`, [commentId]
         );
-        res.json(edithistory.rows)
+        res.json(edithistory.rows);
     } catch(err){
-        console.error(err.message)
+        console.error(err.message);
+        res.status(500).json({ error: 'Server error' });
     }
-})
+});
 
 //FORUM COMMENT LIKES AND DISLIKES
 app.post('/commentlikes', authenticateToken, async (req, res) => {

@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver';
 import { BsEye, BsEyeSlash, BsShieldLock, BsDownload, BsUpload, BsMoon, BsSun, BsBell, BsBellSlash, BsExclamationTriangle } from 'react-icons/bs';
 import { encryptPrivateKey, decryptPrivateKey } from '../components/Utilities/passphraseUtils';
 import { API } from '../components/Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 function UserSettings({ toggleTheme }) {
     const [showChangePassphrase, setShowChangePassphrase] = useState(false);
@@ -94,11 +95,10 @@ function UserSettings({ toggleTheme }) {
                 });
             }
 
-            const response = await fetch(`${API}/push-subscribe`, {
+            const response = await authFetch(API, `${API}/push-subscribe`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({ subscription })
             });
@@ -128,9 +128,8 @@ function UserSettings({ toggleTheme }) {
         setIsResetting(true);
         try {
             // Delete all DMs + old keys on the server
-            const resetResponse = await fetch(`${API}/reset-messaging`, {
+            const resetResponse = await authFetch(API,  `${API}/reset-messaging`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
             });
             if (!resetResponse.ok) throw new Error('Failed to reset messaging');
 
@@ -150,11 +149,10 @@ function UserSettings({ toggleTheme }) {
             });
 
             // Save new key
-            const pubKeyResponse = await fetch(`${API}/forumusers/savePublicKey`, {
+            const pubKeyResponse = await authFetch(API, `${API}/forumusers/savePublicKey`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({ publicKey: result.publicKeyPem }),
             });
@@ -162,17 +160,15 @@ function UserSettings({ toggleTheme }) {
 
             // Encrypt key with new passphrase
             const { encryptedKey, salt, iv } = await encryptPrivateKey(result.privateKeyPem, resetNewPassphrase);
-            const saveKeyResponse = await fetch(`${API}/save-encrypted-key`, {
+            const saveKeyResponse = await authFetch(API, `${API}/save-encrypted-key`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({ encryptedKey, salt, iv }),
             });
             if (!saveKeyResponse.ok) throw new Error('Failed to save new encrypted key');
 
-            // Load the new key into session
             sessionStorage.setItem('privateKey', result.privateKeyPem);
 
             setResetStep('done');
@@ -199,12 +195,11 @@ function UserSettings({ toggleTheme }) {
             const subscription = await registration.pushManager.getSubscription();
             if (subscription) {
                 await subscription.unsubscribe();
-                // Optional: tell the backend so it stops trying to send to a dead subscription
-                await fetch(`${API}/push-unsubscribe`, {
+
+                await authFetch(API, `${API}/push-unsubscribe`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
+                        'Content-Type': 'application/json'
                     }
                 });
             }
@@ -288,8 +283,7 @@ function UserSettings({ toggleTheme }) {
 
         setIsSaving(true);
         try {
-            const fetchResponse = await fetch(`${API}/get-encrypted-key`, {
-                headers: { Authorization: `Bearer ${token}` },
+            const fetchResponse = await authFetch(API, `${API}/get-encrypted-key`, {
             });
             if (!fetchResponse.ok) throw new Error('Could not fetch your encrypted key');
 
@@ -297,11 +291,10 @@ function UserSettings({ toggleTheme }) {
             const privateKeyPem = await decryptPrivateKey(encryptedKey, salt, iv, currentPassphrase);
             const newEncrypted = await encryptPrivateKey(privateKeyPem, newPassphrase);
 
-            const saveResponse = await fetch(`${API}/update-encrypted-key`, {
+            const saveResponse = await authFetch(API, `${API}/update-encrypted-key`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify(newEncrypted),
             });

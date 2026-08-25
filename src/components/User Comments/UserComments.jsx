@@ -8,6 +8,7 @@ import Form from 'react-bootstrap/Form';
 import { toast } from 'react-toastify';
 import TextMentionArea from './TextMentionArea';
 import { API } from '../Utilities/apiUrl';
+import { authFetch } from '../Utilities/authHelpers';
 
 function UserComments({ userRole, userId, forumContent }) {
     const [comments, setComments] = useState([]);
@@ -196,7 +197,7 @@ function UserComments({ userRole, userId, forumContent }) {
 
     const getEditHistory = async (commentId) => {
         try {
-            const response = await fetch(`${API}/edithistory/${commentId}`);
+            const response = await authFetch(API, `${API}/edithistory/${commentId}`);
             const jsonData = await response.json();
             setEditHistory(jsonData);
         } catch (err) {
@@ -208,12 +209,9 @@ function UserComments({ userRole, userId, forumContent }) {
 
     const EditComment = async () => {
         try {
-            const response = await fetch(`${API}/forumcomments/${commentId}`, {
+            const response = await authFetch(API, `${API}/forumcomments/${commentId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content, mentions: editMentions, userId }),
             });
             if (response.ok) {
@@ -231,7 +229,7 @@ function UserComments({ userRole, userId, forumContent }) {
 
     const DeleteComment = async () => {
         try {
-            const response = await fetch(`${API}/forumcomments/${commentId}`, {
+            const response = await authFetch(API, `${API}/forumcomments/${commentId}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -251,7 +249,7 @@ function UserComments({ userRole, userId, forumContent }) {
     const BanUser = async () => {
         try {
             const duration = isPermanentBan ? -1 : banDuration;
-            const response = await fetch(`${API}/forumusers/${userId}`, {
+            const response = await authFetch(API, `${API}/forumusers/${userId}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ banReason, banDuration: duration, commentId }),
@@ -345,12 +343,9 @@ function UserComments({ userRole, userId, forumContent }) {
         });
 
         try {
-            const response = await fetch(`${API}/commentlikes`, {
+            const response = await authFetch(API, `${API}/commentlikes`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ comment_id }),
             });
             if (response.ok) {
@@ -383,12 +378,9 @@ function UserComments({ userRole, userId, forumContent }) {
         });
 
         try {
-            const response = await fetch(`${API}/commentdislikes`, {
+            const response = await authFetch(API, `${API}/commentdislikes`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ comment_id }),
             });
             if (response.ok) fetchData();
