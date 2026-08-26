@@ -28,7 +28,6 @@ function Threads() {
     const [threadLikesDislikes, setThreadNetLikesDislikes] = useState([]);
     const [submitting, setSubmitting] = useState(false);
     const thread_id = forumContent?.thread_id || threadId
-    const token = localStorage.getItem('token');
 
     const reportReasons = [
         "Sexual content", "Hateful or abusive content", "Harmful or dangerous acts",
