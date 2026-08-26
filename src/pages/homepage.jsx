@@ -4,7 +4,6 @@ import Modal from 'react-bootstrap/Modal'
 import { NavLink } from 'react-router-dom'
 import { BsTextLeft, BsCardHeading, BsImageFill } from 'react-icons/bs'
 import ListContent from '../components/Search Bar/ListContent'
-import axios from 'axios';
 import imageCompression from 'browser-image-compression';
 import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';

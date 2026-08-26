@@ -56,7 +56,6 @@ const ListContent = (props) => {
     const [reportDescription, setReportDescription] = useState('')
     const [submitting, setSubmitting] = useState(false);
     const { userRole, usersId, newThread } = props;
-    const token = localStorage.getItem('token');
 
     // ── Modal helpers ─────────────────────────────────────────────────────────
 

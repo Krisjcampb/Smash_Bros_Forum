@@ -13,7 +13,6 @@ const ModerationReports = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [modNotes, setModNotes] = useState('');
     const [allowResolutionChange, setAllowResolutionChange] = useState(false);
-    const token = localStorage.getItem('token');
 
     const fetchReports = useCallback(async () => {
         try {
@@ -29,7 +28,7 @@ const ModerationReports = () => {
         } catch (error) {
             console.error('Error fetching reports:', error);
         }
-    }, [token]);
+    }, []);
 
     useEffect(() => {
         fetchReports();

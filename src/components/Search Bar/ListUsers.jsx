@@ -156,7 +156,6 @@ const ListUsers = () => {
 
     const handleEditSubmit = async () => {
         setEditError('');
-        const token = localStorage.getItem('token');
         try {
             const response = await authFetch(`${API}/forumusers/edit/${editTargetId}`, {
                 method: 'PUT',

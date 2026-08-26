@@ -37,7 +37,6 @@ function UserComments({ userRole, userId, forumContent }) {
     const [blockedUserIds, setBlockedUserIds] = useState([]);
     const [expandedComments, setExpandedComments] = useState([]);
     const contentInputRef = useRef(null);
-    const token = localStorage.getItem('token');
 
     const sortOptions = [
         { value: 'newest', label: 'Newest First' },

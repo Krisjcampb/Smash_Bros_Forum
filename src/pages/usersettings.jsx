@@ -29,8 +29,7 @@ function UserSettings({ toggleTheme }) {
     const [showResetPass, setShowResetPass] = useState(false);
     const [resetError, setResetError] = useState('');
     const [isResetting, setIsResetting] = useState(false);
-    const [resetStep, setResetStep] = useState('warning'); // warning → passphrase → done
-    const token = localStorage.getItem('token');
+    const [resetStep, setResetStep] = useState('warning');
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light-theme');
     const isDark = theme === 'dark-theme';
     const keyInSession = !!sessionStorage.getItem('privateKey');
