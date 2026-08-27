@@ -1135,7 +1135,7 @@ footer {
   border-right: 1px solid #ddd;
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
+  border-radius: 0px 0px 12px 12px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   padding: 0 !important;
@@ -1314,6 +1314,58 @@ footer {
   background-color: white;
   padding: 10px 15px;
   border-top: 1px solid #ddd;
+}
+////////////////////
+.chat-back-button {
+  background: none;
+  border: none;
+  color: $secondary;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0 0.75rem 0 0;
+  cursor: pointer;
+  display: none; // hidden on desktop, shown only on mobile below
+
+  &:hover {
+    opacity: 0.7;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .messaging-page .row {
+    display: block; // stop side-by-side flex/grid behavior on mobile
+  }
+
+  .messaging-page .friends-list,
+  .messaging-page .chat-area {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+  }
+
+  // Default mobile state: show friends list, hide chat
+  .messaging-page .chat-area {
+    display: none;
+  }
+
+  // When a user is selected: hide friends list, show chat
+  .messaging-page.has-selected-user .friends-list {
+    display: none;
+  }
+
+  .messaging-page.has-selected-user .chat-area {
+    display: flex;
+  }
+
+  .chat-back-button {
+    display: inline-block;
+  }
+
+  .chat-card,
+  .friends-list {
+    height: calc(100vh - 100px); // adjust based on your actual header height
+    border-radius: 0;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

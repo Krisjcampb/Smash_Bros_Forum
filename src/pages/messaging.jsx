@@ -775,7 +775,7 @@ const Messaging = () => {
                                         alt={u.name}
                                         className="friend-avatar me-3"
                                     />
-                                    <span className="friend-name">{u.name}</span>
+                                    <span className="friend-name"> {u.name}</span>
                                 </ListGroup.Item>
                             ))
                         )}
@@ -784,7 +784,15 @@ const Messaging = () => {
                 <Col sm={8} className='p-3 chat-area'>
                     {selectedUser ? (
                         <Card className='h-100 chat-card'>
-                            <Card.Header className='d-flex justify-content-between align-items-center chat-header'>
+                            <Card.Header className='d-flex align-items-center chat-header'>
+                                <button
+                                    type="button"
+                                    className="chat-back-button"
+                                    onClick={() => setSelectedUser(null)}
+                                    aria-label="Back to friends list"
+                                >
+                                    ←
+                                </button>
                                 <Link
                                     to={`/userprofile/${selectedUser.name}/${selectedUser.id}`}
                                     className='text-decoration-none friend-name'
