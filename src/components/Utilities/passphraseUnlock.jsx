@@ -24,7 +24,7 @@ const PassphraseUnlock = ({ show, email, onUnlocked, onSkip }) => {
 
         try {
             // Fetch the encrypted key blob from the server
-            const response = await authFetch(`${API}/get-encrypted-key`, {
+            const response = await authFetch(API, `${API}/get-encrypted-key`, {
                 headers: {
                     'Content-Type': 'application/json',
                 },
