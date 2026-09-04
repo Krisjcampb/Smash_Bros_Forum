@@ -212,7 +212,8 @@ function UserSettings({ toggleTheme }) {
     };
 
     useEffect(() => {
-        document.body.className = theme;
+        document.body.classList.remove('light-theme', 'dark-theme');
+        document.body.classList.add(theme);
     }, [theme]);
 
     const handleToggleTheme = () => {

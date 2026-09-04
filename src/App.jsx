@@ -31,7 +31,8 @@ export default function App() {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light-theme');
 
     useEffect(() => {
-        document.body.className = theme;
+        document.body.classList.remove('light-theme', 'dark-theme');
+        document.body.classList.add(theme);
     }, [theme]);
 
     const toggleTheme = () => {
