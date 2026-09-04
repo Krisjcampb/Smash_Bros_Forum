@@ -1356,8 +1356,6 @@ footer {
     width: 100%;
     max-width: 100%;
     flex: none;
-    height: 100%;
-    padding: 0px 0px;
   }
 
   .messaging-page .chat-area {
@@ -1370,8 +1368,6 @@ footer {
 
   .messaging-page.has-selected-user .chat-area {
     display: flex;
-    flex-direction: column;
-    height: 100%;
   }
 
   .chat-back-button {
@@ -1380,10 +1376,8 @@ footer {
 
   .chat-card,
   .friends-list {
-    height: 100%;
+    height: calc(100dvh - 100px); // adjust the 100px if there's still a gap/overflow
     border-radius: 0;
-    display: flex;
-    flex-direction: column;
   }
 
   .chat-body {
