@@ -1370,6 +1370,7 @@ footer {
 
   .messaging-page.has-selected-user .chat-area {
     display: flex;
+    padding: 0px, 0px;
   }
 
   .chat-back-button {
@@ -1382,12 +1383,12 @@ footer {
     border-radius: 0;
   }
 ////////
-  // .chat-body {
-  //   max-height: none;
-  //   flex: 1 1 auto;
-  //   min-height: 0;
-  //   overflow-y: auto
-  // }
+  .chat-body {
+    max-height: 80vh;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto
+  }
 ////////
   .messages-container {
     flex: 1 1 auto;
