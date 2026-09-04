@@ -1341,6 +1341,7 @@ footer {
     width: 100%;
     max-width: 100%;
     flex: none;
+    padding: 0px 0px
   }
 
   // Default mobile state: show friends list, hide chat
@@ -1365,6 +1366,17 @@ footer {
   .friends-list {
     height: calc(100vh - 100px); // adjust based on your actual header height
     border-radius: 0;
+  }
+
+  .chat-body {
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0; // needed for flex children with overflow to size correctly
+  }
+  
+  .chat-card {
+    display: flex;
+    flex-direction: column;
   }
 }
 
