@@ -1335,7 +1335,7 @@ footer {
   body.messaging-active .site-footer {
     display: none;
   }
-
+////////
   body.messaging-active .messaging-page {
     height: 100dvh;
     margin-top: 0 !important;
@@ -1343,9 +1343,9 @@ footer {
     flex-direction: column;
     overflow: hidden;
   }
-
+////////
   .messaging-page .row {
-    display: block;
+    display: block; // stop side-by-side flex/grid behavior on mobile
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -1358,10 +1358,12 @@ footer {
     flex: none;
   }
 
+  // Default mobile state: show friends list, hide chat
   .messaging-page .chat-area {
     display: none;
   }
 
+  // When a user is selected: hide friends list, show chat
   .messaging-page.has-selected-user .friends-list {
     display: none;
   }
@@ -1376,16 +1378,17 @@ footer {
 
   .chat-card,
   .friends-list {
-    height: calc(100dvh - 100px); // adjust the 100px if there's still a gap/overflow
+    height: calc(100vh - 100px); // adjust based on your actual header height
     border-radius: 0;
   }
-
-  .chat-body {
-    max-height: none;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-
+////////
+  // .chat-body {
+  //   max-height: none;
+  //   flex: 1 1 auto;
+  //   min-height: 0;
+  //   overflow-y: auto
+  // }
+////////
   .messages-container {
     flex: 1 1 auto;
     min-height: 0;
