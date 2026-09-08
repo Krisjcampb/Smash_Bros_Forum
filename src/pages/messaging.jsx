@@ -35,6 +35,13 @@ const Messaging = () => {
         }
     }, [token]);
 
+    useEffect(() => {
+        document.body.classList.add('messaging-active');
+        return () => {
+            document.body.classList.remove('messaging-active');
+        };
+    }, []);
+
     const handleSkipPassphrase = () => {
         setShowPassphraseModal(false);
         if (window.history.state && window.history.state.idx > 0) {
@@ -733,10 +740,15 @@ const Messaging = () => {
     }, [usernotif, listfriends]);
 
     useEffect(() => {
-        if (messageContainerRef.current) {
-            messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
-        }
-    }, [messages]);
+        const scrollToBottom = () => {
+            if (messageContainerRef.current) {
+                messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+            }
+        };
+        // Wait a frame so the DOM has painted the new messages before measuring scrollHeight
+        const raf = requestAnimationFrame(scrollToBottom);
+        return () => cancelAnimationFrame(raf);
+    }, [messages, selectedUser]);
 
     // RENDER
 
@@ -781,7 +793,7 @@ const Messaging = () => {
                         )}
                     </ListGroup>
                 </Col>
-                <Col sm={8} className='p-3 chat-area'>
+                <Col sm={8} className='chat-area'>
                     {selectedUser ? (
                         <Card className='h-100 chat-card'>
                             <Card.Header className='d-flex align-items-center chat-header'>
