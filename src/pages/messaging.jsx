@@ -27,6 +27,7 @@ const Messaging = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
     const token = localStorage.getItem('token')
+    const messagesEndRef = useRef(null);
 
     useEffect(() => {
         const keyInSession = !!sessionStorage.getItem('privateKey');
@@ -875,6 +876,7 @@ const Messaging = () => {
                                                     )}
                                             </div>
                                         ))}
+                                    <div ref={messagesEndRef} />
                                 </div>
                             </Card.Body>
                             <Card.Footer className='chat-footer'>
