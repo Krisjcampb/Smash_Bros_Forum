@@ -7,12 +7,14 @@ import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';
 import PassphraseUnlock from '../components/Utilities/passphraseUnlock';
 
+const PAGE_SIZE = 50;
 
 const Messaging = () => {
     const messageContainerRef = useRef(null);
+    const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const messageRefs = useRef({});
-    
+
     const [selectedUser, setSelectedUser] = useState(null)
     const [messageInput, setMessageInput] = useState('')
     const [selectedMessageId, setSelectedMessageId] = useState(null);
@@ -27,7 +29,16 @@ const Messaging = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
     const token = localStorage.getItem('token')
-    const messagesEndRef = useRef(null);
+
+    // Pagination state, per friendId
+    const [hasMoreByFriend, setHasMoreByFriend] = useState({});
+    const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+    const isLoadingOlderRef = useRef(false);
+
+    // Tracks whether we should auto-scroll to bottom (fresh load / new message)
+    // vs preserve scroll position (loading older history)
+    const pendingScrollMode = useRef('bottom'); // 'bottom' | 'preserve' | 'none'
+    const preserveScrollInfo = useRef({ scrollHeight: 0, scrollTop: 0 });
 
     useEffect(() => {
         const keyInSession = !!sessionStorage.getItem('privateKey');
@@ -62,7 +73,7 @@ const Messaging = () => {
             friend.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [listfriends, searchQuery]);
-    
+
     const location = useLocation();
     const usernotif = useMemo(() => location.state?.entityID || null, [location.state]);
 
@@ -131,7 +142,6 @@ const Messaging = () => {
             const iv = forge.util.decode64(ivB64);
             const ciphertextWithTag = forge.util.decode64(ciphertextB64);
 
-            // Last 16 bytes are the GCM authentication tag
             const ciphertext = ciphertextWithTag.slice(0, -16);
             const tag = ciphertextWithTag.slice(-16);
 
@@ -166,29 +176,27 @@ const Messaging = () => {
 
             const aesKey = forge.random.getBytesSync(32);
             const iv = forge.random.getBytesSync(12);
-            
+
             const cipher = forge.cipher.createCipher('AES-GCM', aesKey);
             cipher.start({ iv });
             cipher.update(forge.util.createBuffer(binary));
             cipher.finish();
-            
+
             const encryptedData = cipher.output.getBytes();
             const tag = cipher.mode.tag.getBytes();
-            
+
             const recipientPublicKey = await fetchRecipientPublicKey(recipientId);
             const senderPublicKey = getSenderPublicKey();
-            
+
             const encryptedForSender = senderPublicKey.encrypt(aesKey, 'RSA-OAEP');
             const encryptedForRecipient = recipientPublicKey.encrypt(aesKey, 'RSA-OAEP');
-            
-            // combining encryptedData + tag into a Uint8Array
+
             const encryptedUint8 = new Uint8Array([...encryptedData].map(c => c.charCodeAt(0)));
             const tagUint8 = new Uint8Array([...tag].map(c => c.charCodeAt(0)));
             const combined = new Uint8Array(encryptedUint8.length + tagUint8.length);
             combined.set(encryptedUint8);
             combined.set(tagUint8, encryptedUint8.length);
 
-            // Chunked conversion to avoid stack overflow on large files
             let combinedBinary = '';
             for (let i = 0; i < combined.length; i += chunkSize) {
                 combinedBinary += String.fromCharCode.apply(null, combined.subarray(i, i + chunkSize));
@@ -256,8 +264,8 @@ const Messaging = () => {
 
             const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
 
-            const encryptedAESKey = senderId === userid 
-                ? imageData.encrypted_key_sender 
+            const encryptedAESKey = senderId === userid
+                ? imageData.encrypted_key_sender
                 : imageData.encrypted_key_recipient;
 
             const aesKey = privateKey.decrypt(
@@ -269,19 +277,17 @@ const Messaging = () => {
             const arrayBuffer = await response.arrayBuffer();
             const uint8 = new Uint8Array(arrayBuffer);
 
-            // Split off last 16 bytes as GCM tag
             const ciphertext = uint8.slice(0, -16);
             const tag = uint8.slice(-16);
 
             const iv = forge.util.decode64(imageData.iv);
 
             const decipher = forge.cipher.createDecipher('AES-GCM', aesKey);
-            decipher.start({ 
-                iv, 
-                tag: forge.util.createBuffer(String.fromCharCode(...tag)) 
+            decipher.start({
+                iv,
+                tag: forge.util.createBuffer(String.fromCharCode(...tag))
             });
 
-            // Feed ciphertext in chunks to avoid stack overflow
             const chunkSize = 0x8000;
             for (let i = 0; i < ciphertext.length; i += chunkSize) {
                 const chunk = ciphertext.subarray(i, i + chunkSize);
@@ -308,23 +314,23 @@ const Messaging = () => {
             return null;
         }
     }, [userid]);
-    
+
     // IMAGE HANDLERS
 
     const handleImageSelect = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
+
         if (!file.type.startsWith('image/')) {
             alert('Please select an image file');
             return;
         }
-        
+
         if (file.size > 5 * 1024 * 1024) {
             alert('Image must be under 5 MB');
             return;
         }
-        
+
         setSelectedImage(file);
         e.target.value = '';
     };
@@ -419,17 +425,57 @@ const Messaging = () => {
         }
     }, []);
 
+    // Fetch the most recent page of history (used on opening a chat)
     const fetchMessageHistory = useCallback((friendId) => {
         if (userid && friendId) {
-            socket.emit('getMessageHistory', { userId: userid, friendId });
+            pendingScrollMode.current = 'bottom';
+            socket.emit('getMessageHistory', { userId: userid, friendId, before: null, limit: PAGE_SIZE });
         }
     }, [userid]);
 
-    const handleUserSelection = (user) => {
-        setSelectedUser(user);
-        fetchMessageHistory(user.id);
+    // Fetch an older page (used when scrolling up)
+    const fetchOlderMessages = useCallback(() => {
+        if (!selectedUser || !userid) return;
+        if (isLoadingOlderRef.current) return;
+        if (hasMoreByFriend[selectedUser.id] === false) return;
+
+        const chat = messages.find(c => c.friendId === selectedUser.id);
+        const oldest = chat?.messages?.[0];
+        if (!oldest) return;
+
+        const container = messageContainerRef.current;
+        if (container) {
+            preserveScrollInfo.current = {
+                scrollHeight: container.scrollHeight,
+                scrollTop: container.scrollTop
+            };
+        }
+
+        isLoadingOlderRef.current = true;
+        setIsLoadingOlder(true);
+        pendingScrollMode.current = 'preserve';
+
+        socket.emit('getMessageHistory', {
+            userId: userid,
+            friendId: selectedUser.id,
+            before: oldest.message_id,
+            limit: PAGE_SIZE
+        });
+    }, [selectedUser, userid, messages, hasMoreByFriend]);
+
+    const handleUserSelection = (u) => {
+        setSelectedUser(u);
     };
-    
+
+    // Scroll-up detection to trigger loading older messages
+    const handleScroll = useCallback(() => {
+        const container = messageContainerRef.current;
+        if (!container) return;
+        if (container.scrollTop < 80) {
+            fetchOlderMessages();
+        }
+    }, [fetchOlderMessages]);
+
     // SOCKET EVENTS
 
     useEffect(() => {
@@ -452,8 +498,8 @@ const Messaging = () => {
             ...chat,
             messages: chat.messages.map(msg => ({
                 ...msg,
-                decrypted_text: msg.is_deleted 
-                    ? null 
+                decrypted_text: msg.is_deleted
+                    ? null
                     : decrypt(msg.encrypted_text || msg.message_text, msg.sender_id)
             }))
         })));
@@ -461,22 +507,22 @@ const Messaging = () => {
 
     useEffect(() => {
         const handleMessageHistory = (data) => {
-            if (!data?.messages?.length) return;
-            console.log('📨 Message history sample:', data.messages.slice(-3).map(m => ({
-                message_id: m.message_id,
-                decrypted_text: m.decrypted_text,
-                filepath: m.filepath,
-                has_image_iv: !!m.image_iv
-            })));
-            const { friendId, messages } = data;
+            if (!data) return;
+            const { friendId, messages: incoming = [], hasMore } = data;
 
-            const decryptedMessages = messages.map((msg) => ({
+            const decryptedMessages = incoming.map((msg) => ({
                 ...msg,
                 encrypted_text: msg.message_text,
-
                 decrypted_text: msg.is_deleted
                     ? null
                     : decrypt(msg.message_text, msg.sender_id)
+            }));
+
+            // hasMore may be undefined if backend doesn't support pagination yet;
+            // treat undefined as "no more" so we don't loop forever requesting the same page.
+            setHasMoreByFriend(prev => ({
+                ...prev,
+                [friendId]: hasMore === undefined ? false : hasMore
             }));
 
             setMessages(prevMessages => {
@@ -484,18 +530,30 @@ const Messaging = () => {
 
                 if (existingIndex !== -1) {
                     const existing = prevMessages[existingIndex].messages;
-                    const newMsgs = decryptedMessages.filter(
-                        m => !existing.some(e => e.message_id === m.message_id)
-                    );
+                    const existingIds = new Set(existing.map(e => e.message_id));
+                    const newOnes = decryptedMessages.filter(m => !existingIds.has(m.message_id));
+
+                    if (newOnes.length === 0) return prevMessages;
+
+                    // Older-page fetches return messages that come BEFORE what we have,
+                    // so prepend; everything else (fresh load / live receive) appends.
+                    const isOlderPage = pendingScrollMode.current === 'preserve';
+                    const merged = isOlderPage
+                        ? [...newOnes, ...existing]
+                        : [...existing, ...newOnes];
+
                     return prevMessages.map((chat, i) =>
                         i === existingIndex
-                            ? { ...chat, messages: [...chat.messages, ...newMsgs] }
+                            ? { ...chat, messages: merged }
                             : chat
                     );
                 }
 
                 return [...prevMessages, { friendId, messages: decryptedMessages }];
             });
+
+            isLoadingOlderRef.current = false;
+            setIsLoadingOlder(false);
         };
 
         socket.on('messageHistory', handleMessageHistory);
@@ -522,6 +580,8 @@ const Messaging = () => {
 
                 is_deleted: false,
             };
+
+            pendingScrollMode.current = 'bottom';
 
             setMessages((prevMessages) => {
                 const chatIndex = prevMessages.findIndex(
@@ -583,13 +643,14 @@ const Messaging = () => {
                 is_deleted: false,
             };
 
+            pendingScrollMode.current = 'bottom';
+
             setMessages(prevMessages => {
                 const chatIndex = prevMessages.findIndex(
                     chat => chat.friendId === message.sender_id || chat.friendId === message.receiver_id
                 );
 
                 if (chatIndex !== -1) {
-                    // Check for exact duplicate by message_id before appending
                     const already = prevMessages[chatIndex].messages.some(
                         msg => msg.message_id === message.message_id
                     );
@@ -633,7 +694,6 @@ const Messaging = () => {
 
             const encryptedMessage = await encrypt(plaintextMessage, selectedUser.id);
 
-            //  TEMP KEY for optimistic UI
             const tempKey = `${selectedUser.id}-${Date.now()}`;
             pendingPlaintexts.current[tempKey] = plaintextMessage;
 
@@ -740,16 +800,28 @@ const Messaging = () => {
         if (selectedUserFromNotif) setSelectedUser(selectedUserFromNotif);
     }, [usernotif, listfriends]);
 
+    // Scroll handling: bottom on fresh load / new messages, preserve position on older-page load
     useEffect(() => {
-        const scrollToBottom = () => {
-            if (messageContainerRef.current) {
-                messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
-            }
-        };
-        // Wait a frame so the DOM has painted the new messages before measuring scrollHeight
-        const raf = requestAnimationFrame(scrollToBottom);
-        return () => cancelAnimationFrame(raf);
-    }, [messages, selectedUser]);
+        const container = messageContainerRef.current;
+        if (!container) return;
+
+        if (pendingScrollMode.current === 'bottom') {
+            const raf = requestAnimationFrame(() => {
+                messagesEndRef.current?.scrollIntoView({ block: 'end' });
+            });
+            return () => cancelAnimationFrame(raf);
+        }
+
+        if (pendingScrollMode.current === 'preserve') {
+            const raf = requestAnimationFrame(() => {
+                const { scrollHeight: oldHeight, scrollTop: oldTop } = preserveScrollInfo.current;
+                const newHeight = container.scrollHeight;
+                container.scrollTop = oldTop + (newHeight - oldHeight);
+                pendingScrollMode.current = 'none';
+            });
+            return () => cancelAnimationFrame(raf);
+        }
+    }, [messages, selectedUser, decryptedImages]);
 
     // RENDER
 
@@ -814,7 +886,22 @@ const Messaging = () => {
                                 </Link>
                             </Card.Header>
                             <Card.Body className='chat-body'>
-                                <div ref={messageContainerRef} className='messages-container'>
+                                <div
+                                    ref={messageContainerRef}
+                                    className='messages-container'
+                                    onScroll={handleScroll}
+                                >
+                                    {isLoadingOlder && (
+                                        <div className='text-center py-2'>
+                                            <span className="spinner-border spinner-border-sm me-2" />
+                                            Loading older messages...
+                                        </div>
+                                    )}
+                                    {hasMoreByFriend[selectedUser.id] === false && (
+                                        <div className='text-center text-muted py-2' style={{ fontSize: '0.8rem' }}>
+                                            You've reached the start of this conversation
+                                        </div>
+                                    )}
                                     {messages
                                         .find(chat => chat.friendId === selectedUser.id)
                                         ?.messages.map((msg, index) => (
@@ -827,12 +914,12 @@ const Messaging = () => {
                                                 {msg.is_deleted
                                                 ? <i>Deleted Message</i>
                                                 : !msg.filepath && msg.decrypted_text}
-                                                
+
                                                 {msg.filepath && decryptedImages[msg.message_id] && (
-                                                    <img 
-                                                        src={decryptedImages[msg.message_id]} 
+                                                    <img
+                                                        src={decryptedImages[msg.message_id]}
                                                         alt="Encrypted attachment"
-                                                        style={{ 
+                                                        style={{
                                                             maxWidth: '100%',
                                                             maxHeight: '300px',
                                                             borderRadius: '8px',
@@ -846,7 +933,7 @@ const Messaging = () => {
                                                         }}
                                                     />
                                                 )}
-                                                
+
                                                 {msg.filepath && !decryptedImages[msg.message_id] && (
                                                     <div style={{
                                                         padding: '1rem',
@@ -858,7 +945,7 @@ const Messaging = () => {
                                                         Decrypting image...
                                                     </div>
                                                 )}
-                                                
+
                                                 {selectedMessageId === msg.message_id &&
                                                     msg.sender_id === userid &&
                                                     !msg.is_deleted && (
@@ -891,12 +978,12 @@ const Messaging = () => {
                                         justifyContent: 'space-between'
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <img 
-                                                src={URL.createObjectURL(selectedImage)} 
+                                            <img
+                                                src={URL.createObjectURL(selectedImage)}
                                                 alt="Preview"
-                                                style={{ 
-                                                    height: '40px', 
-                                                    width: '40px', 
+                                                style={{
+                                                    height: '40px',
+                                                    width: '40px',
                                                     objectFit: 'cover',
                                                     borderRadius: '4px'
                                                 }}
@@ -905,8 +992,8 @@ const Messaging = () => {
                                                 {selectedImage.name} ({(selectedImage.size / 1024).toFixed(1)} KB)
                                             </span>
                                         </div>
-                                        <Button 
-                                            variant="link" 
+                                        <Button
+                                            variant="link"
                                             size="sm"
                                             onClick={() => setSelectedImage(null)}
                                             style={{ color: '#d00000' }}
@@ -915,9 +1002,9 @@ const Messaging = () => {
                                         </Button>
                                     </div>
                                 )}
-                                
+
                                 <Form className='d-flex' onSubmit={(e) => {
-                                    e.preventDefault(); 
+                                    e.preventDefault();
                                     handleSendMessage();
                                 }}>
                                     <input
@@ -927,9 +1014,9 @@ const Messaging = () => {
                                         style={{ display: 'none' }}
                                         ref={fileInputRef}
                                     />
-                                    
-                                    <Button 
-                                        variant="outline-secondary" 
+
+                                    <Button
+                                        variant="outline-secondary"
                                         onClick={() => fileInputRef.current?.click()}
                                         className="me-2"
                                         disabled={isUploadingImage}
@@ -937,7 +1024,7 @@ const Messaging = () => {
                                     >
                                         📎
                                     </Button>
-                                    
+
                                     <Form.Control
                                         type='text'
                                         placeholder='Type your message...'
@@ -952,9 +1039,9 @@ const Messaging = () => {
                                         className='ms-8 me-8'
                                         disabled={isUploadingImage}
                                     />
-                                    
-                                    <Button 
-                                        variant='primary' 
+
+                                    <Button
+                                        variant='primary'
                                         onClick={handleSendMessage}
                                         disabled={isUploadingImage || (!messageInput.trim() && !selectedImage)}
                                     >

@@ -2681,24 +2681,56 @@ const saveMessageToDB = async ({ sender_id, receiver_id, message_text, username 
     }
 };
 
-const getMessagesFromDB = async (userId, friendId) => {
+const getMessagesFromDB = async (userId, friendId, beforeMessageId = null, limit = 50) => {
     try {
-        const result = await pool.query(
-            `SELECT 
-                m.*, i.filepath, i.encrypted_key_sender, i.encrypted_key_recipient, i.iv as image_iv, i.mime_type
-             FROM messages m
-             LEFT JOIN encrypted_message_images i
-                ON m.message_id = i.message_id
-             WHERE (m.sender_id = $1 AND m.receiver_id = $2)
-                OR (m.sender_id = $2 AND m.receiver_id = $1)
-             ORDER BY m.timestamp ASC`,
-            [userId, friendId]
-        );
+        let query, params;
 
-        return result.rows;
+        if (beforeMessageId) {
+            // Fetch messages older than the given message's timestamp
+            query = `
+                SELECT 
+                    m.*, i.filepath, i.encrypted_key_sender, i.encrypted_key_recipient, i.iv as image_iv, i.mime_type
+                FROM messages m
+                LEFT JOIN encrypted_message_images i
+                    ON m.message_id = i.message_id
+                WHERE (
+                    (m.sender_id = $1 AND m.receiver_id = $2)
+                    OR (m.sender_id = $2 AND m.receiver_id = $1)
+                )
+                AND m.timestamp < (SELECT timestamp FROM messages WHERE message_id = $3)
+                ORDER BY m.timestamp DESC
+                LIMIT $4
+            `;
+            params = [userId, friendId, beforeMessageId, limit + 1]; // fetch 1 extra to detect "hasMore"
+        } else {
+            // Most recent page
+            query = `
+                SELECT 
+                    m.*, i.filepath, i.encrypted_key_sender, i.encrypted_key_recipient, i.iv as image_iv, i.mime_type
+                FROM messages m
+                LEFT JOIN encrypted_message_images i
+                    ON m.message_id = i.message_id
+                WHERE (m.sender_id = $1 AND m.receiver_id = $2)
+                   OR (m.sender_id = $2 AND m.receiver_id = $1)
+                ORDER BY m.timestamp DESC
+                LIMIT $3
+            `;
+            params = [userId, friendId, limit + 1];
+        }
+
+        const result = await pool.query(query, params);
+        const rows = result.rows;
+
+        const hasMore = rows.length > limit;
+        const page = hasMore ? rows.slice(0, limit) : rows;
+
+        // Rows came back newest-first; reverse to ascending order for display
+        page.reverse();
+
+        return { messages: page, hasMore };
     } catch (err) {
         console.error(err);
-        return [];
+        return { messages: [], hasMore: false };
     }
 };
 
@@ -2881,16 +2913,19 @@ io.on("connection", (socket) => {
         }
     });
 
-    socket.on("getMessageHistory", async ({ userId, friendId }) => {
+    socket.on("getMessageHistory", async ({ userId, friendId, before, limit }) => {
         try {
-        const messages = await getMessagesFromDB(userId, friendId);
-        const formatted = messages.map(msg => ({
-            ...msg,
-            message_text: msg.iv === 'v2' 
-                ? msg.message_text
-                : `${msg.iv}:${msg.message_text}`
-        }));
-        socket.emit('messageHistory', { friendId, messages: formatted });
+            const pageLimit = Number(limit) || 50;
+            const { messages, hasMore } = await getMessagesFromDB(userId, friendId, before || null, pageLimit);
+
+            const formatted = messages.map(msg => ({
+                ...msg,
+                message_text: msg.iv === 'v2'
+                    ? msg.message_text
+                    : `${msg.iv}:${msg.message_text}`
+            }));
+
+            socket.emit('messageHistory', { friendId, messages: formatted, hasMore });
         } catch (error) {
             console.error('Error retrieving message history:', error);
         }
