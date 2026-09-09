@@ -30,6 +30,10 @@ const Messaging = () => {
     const navigate = useNavigate();
     const token = localStorage.getItem('token')
 
+    //tracking state of loaded images
+    const [loadedImageIds, setLoadedImageIds] = useState(() => new Set());
+    const scrollTimeoutRef = useRef(null);
+
     // Pagination state, per friendId
     const [hasMoreByFriend, setHasMoreByFriend] = useState({});
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
@@ -62,6 +66,17 @@ const Messaging = () => {
             navigate('/');
         }
     };
+
+    const expectedImageIds = useMemo(() => {
+        const chat = messages.find(c => c.friendId === selectedUser?.id);
+        if (!chat) return [];
+        return chat.messages.filter(m => m.filepath).map(m => m.message_id);
+    }, [messages, selectedUser]);
+
+    const allImagesReady = useMemo(() => {
+        if (expectedImageIds.length === 0) return true;
+        return expectedImageIds.every(id => loadedImageIds.has(id));
+    }, [expectedImageIds, loadedImageIds]);
 
     const getProfileImageUrl = useCallback((characterName, selectedSkin) => {
         if (!characterName || selectedSkin === null) return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`;
@@ -369,6 +384,13 @@ const Messaging = () => {
                     } catch (err) {
                         processedIds.current.delete(msg.message_id);
                         console.error('Failed to decrypt image:', err);
+                        // Won't ever render an <img>, so mark ready so it doesn't block scrolling
+                        setLoadedImageIds(prev => {
+                            if (prev.has(msg.message_id)) return prev;
+                            const next = new Set(prev);
+                            next.add(msg.message_id);
+                            return next;
+                        });
                     }
                 }
             }));
@@ -770,6 +792,7 @@ const Messaging = () => {
     useEffect(() => {
         processedIds.current.clear();
         setDecryptedImages({});
+        setLoadedImageIds(new Set());
     }, [selectedUser]);
 
     useEffect(() => {
@@ -806,6 +829,16 @@ const Messaging = () => {
         if (!container) return;
 
         if (pendingScrollMode.current === 'bottom') {
+            if (!allImagesReady) {
+                // Not ready yet — set a safety timeout in case an image never fires load/error
+                clearTimeout(scrollTimeoutRef.current);
+                scrollTimeoutRef.current = setTimeout(() => {
+                    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+                }, 2000); // fallback: scroll anyway after 2s even if something is stuck
+                return () => clearTimeout(scrollTimeoutRef.current);
+            }
+
+            clearTimeout(scrollTimeoutRef.current);
             const raf = requestAnimationFrame(() => {
                 messagesEndRef.current?.scrollIntoView({ block: 'end' });
             });
@@ -821,7 +854,7 @@ const Messaging = () => {
             });
             return () => cancelAnimationFrame(raf);
         }
-    }, [messages, selectedUser, decryptedImages]);
+    }, [messages, selectedUser, decryptedImages, allImagesReady]);
 
     // RENDER
 
@@ -916,10 +949,10 @@ const Messaging = () => {
                                                 : !msg.filepath && msg.decrypted_text}
 
                                                 {msg.filepath && decryptedImages[msg.message_id] && (
-                                                    <img
-                                                        src={decryptedImages[msg.message_id]}
+                                                    <img 
+                                                        src={decryptedImages[msg.message_id]} 
                                                         alt="Encrypted attachment"
-                                                        style={{
+                                                        style={{ 
                                                             maxWidth: '100%',
                                                             maxHeight: '300px',
                                                             borderRadius: '8px',
@@ -930,6 +963,23 @@ const Messaging = () => {
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             window.open(decryptedImages[msg.message_id], '_blank');
+                                                        }}
+                                                        onLoad={() => {
+                                                            setLoadedImageIds(prev => {
+                                                                if (prev.has(msg.message_id)) return prev;
+                                                                const next = new Set(prev);
+                                                                next.add(msg.message_id);
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        onError={() => {
+                                                            // Treat a broken image as "ready" too, so it doesn't block the scroll forever
+                                                            setLoadedImageIds(prev => {
+                                                                if (prev.has(msg.message_id)) return prev;
+                                                                const next = new Set(prev);
+                                                                next.add(msg.message_id);
+                                                                return next;
+                                                            });
                                                         }}
                                                     />
                                                 )}
