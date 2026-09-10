@@ -1278,6 +1278,7 @@ footer {
 
 .chat-body {
     max-height: 70vh;
+    min-height: 70vh;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -1287,7 +1288,6 @@ footer {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
 }
 
 .message {
@@ -1382,6 +1382,12 @@ footer {
     height: calc(100vh - 100px); // adjust based on your actual header height
     border-radius: 0;
   }
+
+  .chat-card {
+    display: flex;
+    flex-direction: column;
+  }
+  
 ////////
   .chat-body {
     max-height: 80vh;
