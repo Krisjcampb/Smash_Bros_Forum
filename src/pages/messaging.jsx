@@ -923,109 +923,108 @@ const Messaging = () => {
                                 </Link>
                             </Card.Header>
                             <Card.Body className='chat-body'>
-                                {isInitialLoading ? (
+                                {isInitialLoading && (
                                     <div className='d-flex flex-column justify-content-center align-items-center h-100' style={{ minHeight: '200px' }}>
                                         <span className="spinner-border spinner-border-sm mb-2" />
                                         <span className='text-muted' style={{ fontSize: '0.9rem' }}>Fetching messages...</span>
                                     </div>
-                                ) : (
-                                    <div
-                                        ref={messageContainerRef}
-                                        className='messages-container'
-                                        onScroll={handleScroll}
-                                    >
-                                        {isLoadingOlder && (
-                                            <div className='text-center py-2'>
-                                                <span className="spinner-border spinner-border-sm me-2" />
-                                                Loading older messages...
-                                            </div>
-                                        )}
-                                        {hasMoreByFriend[selectedUser.id] === false && (
-                                            <div className='text-center text-muted py-2' style={{ fontSize: '0.8rem' }}>
-                                                You've reached the start of this conversation
-                                            </div>
-                                        )}
-                                        {messages
-                                            .find(chat => chat.friendId === selectedUser.id)
-                                            ?.messages.map((msg, index) => (
-                                                <div
-                                                    key={index}
-                                                    ref={(el) => (messageRefs.current[msg.message_id] = el)}
-                                                    className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
-                                                    onClick={() => setSelectedMessageId(msg.message_id)}
-                                                >
-                                                    {msg.is_deleted
-                                                    ? <i>Deleted Message</i>
-                                                    : !msg.filepath && msg.decrypted_text}
+                                )}
+                                <div
+                                    ref={messageContainerRef}
+                                    style={{ visibility: isInitialLoading ? 'hidden' : 'visible' }}
+                                    className='messages-container'
+                                    onScroll={handleScroll}
+                                >
+                                    {isLoadingOlder && (
+                                        <div className='text-center py-2'>
+                                            <span className="spinner-border spinner-border-sm me-2" />
+                                            Loading older messages...
+                                        </div>
+                                    )}
+                                    {hasMoreByFriend[selectedUser.id] === false && (
+                                        <div className='text-center text-muted py-2' style={{ fontSize: '0.8rem' }}>
+                                            You've reached the start of this conversation
+                                        </div>
+                                    )}
+                                    {messages
+                                        .find(chat => chat.friendId === selectedUser.id)
+                                        ?.messages.map((msg, index) => (
+                                            <div
+                                                key={index}
+                                                ref={(el) => (messageRefs.current[msg.message_id] = el)}
+                                                className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
+                                                onClick={() => setSelectedMessageId(msg.message_id)}
+                                            >
+                                                {msg.is_deleted
+                                                ? <i>Deleted Message</i>
+                                                : !msg.filepath && msg.decrypted_text}
 
-                                                    {msg.filepath && decryptedImages[msg.message_id] && (
-                                                        <img 
-                                                            src={decryptedImages[msg.message_id]} 
-                                                            alt="Encrypted attachment"
-                                                            style={{ 
-                                                                maxWidth: '100%',
-                                                                maxHeight: '300px',
-                                                                borderRadius: '8px',
-                                                                marginTop: msg.message_text ? '0.5rem' : '0',
-                                                                cursor: 'pointer',
-                                                                display: 'block'
-                                                            }}
+                                                {msg.filepath && decryptedImages[msg.message_id] && (
+                                                    <img 
+                                                        src={decryptedImages[msg.message_id]} 
+                                                        alt="Encrypted attachment"
+                                                        style={{ 
+                                                            maxWidth: '100%',
+                                                            maxHeight: '300px',
+                                                            borderRadius: '8px',
+                                                            marginTop: msg.message_text ? '0.5rem' : '0',
+                                                            cursor: 'pointer',
+                                                            display: 'block'
+                                                        }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(decryptedImages[msg.message_id], '_blank');
+                                                        }}
+                                                        onLoad={() => {
+                                                            setLoadedImageIds(prev => {
+                                                                if (prev.has(msg.message_id)) return prev;
+                                                                const next = new Set(prev);
+                                                                next.add(msg.message_id);
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        onError={() => {
+                                                            setLoadedImageIds(prev => {
+                                                                if (prev.has(msg.message_id)) return prev;
+                                                                const next = new Set(prev);
+                                                                next.add(msg.message_id);
+                                                                return next;
+                                                            });
+                                                        }}
+                                                    />
+                                                )}
+
+                                                {msg.filepath && !decryptedImages[msg.message_id] && (
+                                                    <div style={{
+                                                        padding: '1rem',
+                                                        background: 'rgba(0,0,0,0.1)',
+                                                        borderRadius: '8px',
+                                                        textAlign: 'center'
+                                                    }}>
+                                                        <span className="spinner-border spinner-border-sm me-2" />
+                                                        Decrypting image...
+                                                    </div>
+                                                )}
+
+                                                {selectedMessageId === msg.message_id &&
+                                                    msg.sender_id === userid &&
+                                                    !msg.is_deleted && (
+                                                        <Button
+                                                            variant="outline-danger"
+                                                            size="sm"
+                                                            className="mt-1"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                window.open(decryptedImages[msg.message_id], '_blank');
+                                                                handleDeleteMessage(msg.message_id);
                                                             }}
-                                                            onLoad={() => {
-                                                                setLoadedImageIds(prev => {
-                                                                    if (prev.has(msg.message_id)) return prev;
-                                                                    const next = new Set(prev);
-                                                                    next.add(msg.message_id);
-                                                                    return next;
-                                                                });
-                                                            }}
-                                                            onError={() => {
-                                                                // Treat a broken image as "ready" too, so it doesn't block the scroll forever
-                                                                setLoadedImageIds(prev => {
-                                                                    if (prev.has(msg.message_id)) return prev;
-                                                                    const next = new Set(prev);
-                                                                    next.add(msg.message_id);
-                                                                    return next;
-                                                                });
-                                                            }}
-                                                        />
+                                                        >
+                                                            Delete
+                                                        </Button>
                                                     )}
-
-                                                    {msg.filepath && !decryptedImages[msg.message_id] && (
-                                                        <div style={{
-                                                            padding: '1rem',
-                                                            background: 'rgba(0,0,0,0.1)',
-                                                            borderRadius: '8px',
-                                                            textAlign: 'center'
-                                                        }}>
-                                                            <span className="spinner-border spinner-border-sm me-2" />
-                                                            Decrypting image...
-                                                        </div>
-                                                    )}
-
-                                                    {selectedMessageId === msg.message_id &&
-                                                        msg.sender_id === userid &&
-                                                        !msg.is_deleted && (
-                                                            <Button
-                                                                variant="outline-danger"
-                                                                size="sm"
-                                                                className="mt-1"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeleteMessage(msg.message_id);
-                                                                }}
-                                                            >
-                                                                Delete
-                                                            </Button>
-                                                        )}
-                                                </div>
-                                            ))}
-                                        <div ref={messagesEndRef} />
-                                    </div>
-                                )}
+                                            </div>
+                                        ))}
+                                    <div ref={messagesEndRef} />
+                                </div>
                             </Card.Body>
                             <Card.Footer className='chat-footer'>
                                 {selectedImage && (
