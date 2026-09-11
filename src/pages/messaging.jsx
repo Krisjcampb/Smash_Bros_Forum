@@ -542,8 +542,6 @@ const Messaging = () => {
                     : decrypt(msg.message_text, msg.sender_id)
             }));
 
-            // hasMore may be undefined if backend doesn't support pagination yet;
-            // treat undefined as "no more" so we don't loop forever requesting the same page.
             setHasMoreByFriend(prev => ({
                 ...prev,
                 [friendId]: hasMore === undefined ? false : hasMore
@@ -559,8 +557,6 @@ const Messaging = () => {
 
                     if (newOnes.length === 0) return prevMessages;
 
-                    // Older-page fetches return messages that come BEFORE what we have,
-                    // so prepend; everything else (fresh load / live receive) appends.
                     const isOlderPage = pendingScrollMode.current === 'preserve';
                     const merged = isOlderPage
                         ? [...newOnes, ...existing]
@@ -573,11 +569,25 @@ const Messaging = () => {
                     );
                 }
 
+                // No existing chat entry yet — always add one, even if empty,
+                // so this state update is never a no-op and downstream effects fire.
                 return [...prevMessages, { friendId, messages: decryptedMessages }];
             });
 
+            // Explicitly clear loading flags here too, independent of whether
+            // `messages` state changed — this guarantees no infinite spinner.
             isLoadingOlderRef.current = false;
             setIsLoadingOlder(false);
+
+            if (pendingScrollMode.current === 'bottom') {
+                // Nothing to wait on if there are no images in this batch;
+                // let the scroll effect run on next tick regardless of allImagesReady,
+                // since there's nothing to load.
+                if (incoming.length === 0) {
+                    setIsInitialLoading(false);
+                    pendingScrollMode.current = 'none';
+                }
+            }
         };
 
         socket.on('messageHistory', handleMessageHistory);
@@ -924,7 +934,15 @@ const Messaging = () => {
                             </Card.Header>
                             <Card.Body className='chat-body'>
                                 {isInitialLoading && (
-                                    <div className='d-flex flex-column justify-content-center align-items-center h-100' style={{ minHeight: '200px' }}>
+                                    <div
+                                        className='d-flex flex-column justify-content-center align-items-center'
+                                        style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            zIndex: 2,
+                                            background: 'inherit'
+                                        }}
+                                    >
                                         <span className="spinner-border spinner-border-sm mb-2" />
                                         <span className='text-muted' style={{ fontSize: '0.9rem' }}>Fetching messages...</span>
                                     </div>
