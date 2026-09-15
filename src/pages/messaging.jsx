@@ -884,7 +884,7 @@ const Messaging = () => {
 
     return (
         <Container fluid className={`mt-5 messaging-page ${selectedUser ? 'has-selected-user' : ''}`}>
-            <Row className='h-100'>
+            <Row className='h-90'>
                 <Col sm={4} className='p-3 friends-list'>
                     <div className="friends-list-header">
                         <h4>Friends</h4>
@@ -959,7 +959,10 @@ const Messaging = () => {
                                 )}
                                 <div
                                     ref={messageContainerRef}
-                                    style={{ visibility: isInitialLoading ? 'hidden' : 'visible' }}
+                                    style={{ 
+                                        visibility: isInitialLoading ? 'hidden' : 'visible',
+                                        overflow: isInitialLoading ? 'hidden' : 'auto'
+                                     }}
                                     className='messages-container'
                                     onScroll={handleScroll}
                                 >
