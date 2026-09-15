@@ -508,11 +508,11 @@ const Messaging = () => {
     }, []);
 
     useEffect(() => {
-        if (selectedUser && userid) {
-            const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
-            socket.emit("joinRoom", { userId: sorted[0], friendId: sorted[1] });
-            setTimeout(() => fetchMessageHistory(selectedUser.id), 100);
-        }
+        if (!selectedUser || !userid) return;
+
+        const sorted = [userid, selectedUser.id].sort((a, b) => a - b);
+        socket.emit("joinRoom", { userId: sorted[0], friendId: sorted[1] });
+        fetchMessageHistory(selectedUser.id);
     }, [selectedUser, userid, fetchMessageHistory]);
 
     useEffect(() => {
@@ -807,6 +807,16 @@ const Messaging = () => {
         setLoadedImageIds(new Set());
         setIsInitialLoading(true); // show loading immediately for the new selection
     }, [selectedUser]);
+
+    useEffect(() => {
+        if (!isInitialLoading) return;
+
+        const failsafe = setTimeout(() => {
+            setIsInitialLoading(false);
+        }, 8000);
+
+        return () => clearTimeout(failsafe);
+    }, [isInitialLoading, selectedUser]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
