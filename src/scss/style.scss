@@ -1337,8 +1337,8 @@ footer {
   }
 
   body.messaging-active .messaging-page {
-    height: 100dvh;
-    min-height: 100dvh;
+    height: calc(100dvh - 68px);
+    min-height: calc(100dvh - 68px);
     margin-top: 0 !important;
     display: flex;
     flex-direction: column;
@@ -1379,7 +1379,7 @@ footer {
 
   .chat-card,
   .friends-list {
-    height: calc(100dvh - 100px);
+    height: calc(100dvh - 68px);
     border-radius: 0;
   }
 
