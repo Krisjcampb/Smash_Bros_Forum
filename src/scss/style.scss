@@ -1338,6 +1338,7 @@ footer {
 
   body.messaging-active .messaging-page {
     height: 100dvh;
+    min-height: 100dvh;
     margin-top: 0 !important;
     display: flex;
     flex-direction: column;
@@ -1346,8 +1347,9 @@ footer {
 
   .messaging-page .row {
     display: block;
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
+    height: 0;
     overflow: hidden;
   }
 

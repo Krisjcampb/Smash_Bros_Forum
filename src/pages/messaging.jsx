@@ -884,7 +884,7 @@ const Messaging = () => {
 
     return (
         <Container fluid className={`mt-5 messaging-page ${selectedUser ? 'has-selected-user' : ''}`}>
-            <Row className='h-100'>
+            <Row className='messaging-row'>
                 <Col sm={4} className='p-3 friends-list'>
                     <div className="friends-list-header">
                         <h4>Friends</h4>
