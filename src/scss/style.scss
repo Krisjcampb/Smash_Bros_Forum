@@ -1336,6 +1336,11 @@ footer {
     display: none;
   }
 
+  .messaging-page.container-fluid {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   body.messaging-active .messaging-page {
     height: calc(100dvh - 68px);
     min-height: calc(100dvh - 68px);
@@ -1343,6 +1348,7 @@ footer {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    background: transparent;
   }
 
   .messaging-page .row {
@@ -1351,6 +1357,8 @@ footer {
     min-height: 0;
     height: 0;
     overflow: hidden;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .messaging-page .friends-list,
@@ -1358,6 +1366,8 @@ footer {
     width: 100%;
     max-width: 100%;
     flex: none;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .messaging-page .chat-area {
@@ -1401,7 +1411,7 @@ footer {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-}
+  }
 
   .messages-container {
     flex: 1 1 auto;
