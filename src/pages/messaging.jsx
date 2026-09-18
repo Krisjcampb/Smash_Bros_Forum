@@ -77,7 +77,7 @@ const Messaging = () => {
 
     // Derived loading state — no separate boolean to desync from reality.
     const isInitialLoading = selectedUser
-        ? !fetchedFriends.has(selectedUser.id)
+        ? !fetchedFriends.has(selectedUser.id) || !allImagesReady
         : false;
 
     const expectedImageIds = useMemo(() => {
