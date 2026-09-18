@@ -75,11 +75,6 @@ const Messaging = () => {
         }
     };
 
-    // Derived loading state — no separate boolean to desync from reality.
-    const isInitialLoading = selectedUser
-        ? !fetchedFriends.has(selectedUser.id) || !allImagesReady
-        : false;
-
     const expectedImageIds = useMemo(() => {
         const chat = messages.find(c => c.friendId === selectedUser?.id);
         if (!chat) return [];
@@ -90,6 +85,11 @@ const Messaging = () => {
         if (expectedImageIds.length === 0) return true;
         return expectedImageIds.every(id => loadedImageIds.has(id));
     }, [expectedImageIds, loadedImageIds]);
+
+        // Derived loading state — no separate boolean to desync from reality.
+    const isInitialLoading = selectedUser
+        ? !fetchedFriends.has(selectedUser.id) || !allImagesReady
+        : false;
 
     const getProfileImageUrl = useCallback((characterName, selectedSkin) => {
         if (!characterName || selectedSkin === null) return `${process.env.REACT_APP_CDN_URL}/pfp_images/Super Smash Bros Ultimate/Fighter Portraits/Mario/chara_3_mario_00.png`;
