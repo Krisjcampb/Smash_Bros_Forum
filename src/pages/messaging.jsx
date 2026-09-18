@@ -26,22 +26,22 @@ const Messaging = () => {
     const [selectedImage, setSelectedImage] = useState(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [showPassphraseModal, setShowPassphraseModal] = useState(false);
-    const [isInitialLoading, setIsInitialLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
     const token = localStorage.getItem('token')
+
+    const [fetchedFriends, setFetchedFriends] = useState(() => new Set());
 
     //tracking state of loaded images
     const [loadedImageIds, setLoadedImageIds] = useState(() => new Set());
     const scrollTimeoutRef = useRef(null);
 
-    // Pagination state, per friendId
+    // Pagination state
     const [hasMoreByFriend, setHasMoreByFriend] = useState({});
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
     const isLoadingOlderRef = useRef(false);
 
-    // Tracks whether we should auto-scroll to bottom (fresh load / new message)
-    // vs preserve scroll position (loading older history)
+    // Track whether to auto-scroll to bottom
     const pendingScrollMode = useRef('bottom'); // 'bottom' | 'preserve' | 'none'
     const preserveScrollInfo = useRef({ scrollHeight: 0, scrollTop: 0 });
 
@@ -59,6 +59,13 @@ const Messaging = () => {
         };
     }, []);
 
+    // Guarantee a connection attempt whenever this page mounts
+    useEffect(() => {
+        if (!socket.connected) {
+            socket.connect();
+        }
+    }, []);
+
     const handleSkipPassphrase = () => {
         setShowPassphraseModal(false);
         if (window.history.state && window.history.state.idx > 0) {
@@ -67,6 +74,11 @@ const Messaging = () => {
             navigate('/');
         }
     };
+
+    // Derived loading state — no separate boolean to desync from reality.
+    const isInitialLoading = selectedUser
+        ? !fetchedFriends.has(selectedUser.id)
+        : false;
 
     const expectedImageIds = useMemo(() => {
         const chat = messages.find(c => c.friendId === selectedUser?.id);
@@ -448,16 +460,15 @@ const Messaging = () => {
         }
     }, []);
 
-    // Fetch the most recent page of history (used on opening a chat)
+    // Fetch the most recent page of history
     const fetchMessageHistory = useCallback((friendId) => {
         if (userid && friendId) {
             pendingScrollMode.current = 'bottom';
-            setIsInitialLoading(true);
             socket.emit('getMessageHistory', { userId: userid, friendId, before: null, limit: PAGE_SIZE });
         }
     }, [userid]);
 
-    // Fetch an older page (used when scrolling up)
+    // Fetch an older page
     const fetchOlderMessages = useCallback(() => {
         if (!selectedUser || !userid) return;
         if (isLoadingOlderRef.current) return;
@@ -503,8 +514,18 @@ const Messaging = () => {
     // SOCKET EVENTS
 
     useEffect(() => {
-        socket.on("connect", () => console.log("Socket connected:", socket.id));
-        return () => socket.off("connect");
+        const handleConnect = () => console.log("Socket connected:", socket.id);
+        const handleDisconnect = (reason) => console.log("Socket disconnected:", reason);
+        const handleConnectError = (err) => console.log("Socket connect_error:", err.message);
+
+        socket.on("connect", handleConnect);
+        socket.on("disconnect", handleDisconnect);
+        socket.on("connect_error", handleConnectError);
+        return () => {
+            socket.off("connect", handleConnect);
+            socket.off("disconnect", handleDisconnect);
+            socket.off("connect_error", handleConnectError);
+        };
     }, []);
 
     useEffect(() => {
@@ -547,6 +568,13 @@ const Messaging = () => {
                 [friendId]: hasMore === undefined ? false : hasMore
             }));
 
+            setFetchedFriends(prev => {
+                if (prev.has(friendId)) return prev;
+                const next = new Set(prev);
+                next.add(friendId);
+                return next;
+            });
+
             setMessages(prevMessages => {
                 const existingIndex = prevMessages.findIndex(c => c.friendId === friendId);
 
@@ -569,24 +597,14 @@ const Messaging = () => {
                     );
                 }
 
-                // No existing chat entry yet — always add one, even if empty,
-                // so this state update is never a no-op and downstream effects fire.
                 return [...prevMessages, { friendId, messages: decryptedMessages }];
             });
 
-            // Explicitly clear loading flags here too, independent of whether
-            // `messages` state changed — this guarantees no infinite spinner.
             isLoadingOlderRef.current = false;
             setIsLoadingOlder(false);
 
-            if (pendingScrollMode.current === 'bottom') {
-                // Nothing to wait on if there are no images in this batch;
-                // let the scroll effect run on next tick regardless of allImagesReady,
-                // since there's nothing to load.
-                if (incoming.length === 0) {
-                    setIsInitialLoading(false);
-                    pendingScrollMode.current = 'none';
-                }
+            if (pendingScrollMode.current === 'bottom' && incoming.length === 0) {
+                pendingScrollMode.current = 'none';
             }
         };
 
@@ -805,14 +823,19 @@ const Messaging = () => {
         processedIds.current.clear();
         setDecryptedImages({});
         setLoadedImageIds(new Set());
-        setIsInitialLoading(true); // show loading immediately for the new selection
     }, [selectedUser]);
 
     useEffect(() => {
-        if (!isInitialLoading) return;
+        if (!isInitialLoading || !selectedUser) return;
 
+        const friendId = selectedUser.id;
         const failsafe = setTimeout(() => {
-            setIsInitialLoading(false);
+            setFetchedFriends(prev => {
+                if (prev.has(friendId)) return prev;
+                const next = new Set(prev);
+                next.add(friendId);
+                return next;
+            });
         }, 8000);
 
         return () => clearTimeout(failsafe);
@@ -856,7 +879,6 @@ const Messaging = () => {
                 clearTimeout(scrollTimeoutRef.current);
                 scrollTimeoutRef.current = setTimeout(() => {
                     messagesEndRef.current?.scrollIntoView({ block: 'end' });
-                    setIsInitialLoading(false);
                 }, 2000);
                 return () => clearTimeout(scrollTimeoutRef.current);
             }
@@ -864,7 +886,6 @@ const Messaging = () => {
             clearTimeout(scrollTimeoutRef.current);
             const raf = requestAnimationFrame(() => {
                 messagesEndRef.current?.scrollIntoView({ block: 'end' });
-                setIsInitialLoading(false);
             });
             return () => cancelAnimationFrame(raf);
         }
@@ -884,7 +905,7 @@ const Messaging = () => {
 
     return (
         <Container fluid className={`mt-5 messaging-page ${selectedUser ? 'has-selected-user' : ''}`}>
-            <Row className='messaging-row'>
+            <Row>
                 <Col sm={4} className='p-3 friends-list'>
                     <div className="friends-list-header">
                         <h4>Friends</h4>
@@ -959,10 +980,10 @@ const Messaging = () => {
                                 )}
                                 <div
                                     ref={messageContainerRef}
-                                    style={{ 
+                                    style={{
                                         visibility: isInitialLoading ? 'hidden' : 'visible',
                                         overflow: isInitialLoading ? 'hidden' : 'auto'
-                                     }}
+                                    }}
                                     className='messages-container'
                                     onScroll={handleScroll}
                                 >
