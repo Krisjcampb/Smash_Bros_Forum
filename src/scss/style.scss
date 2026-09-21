@@ -4602,8 +4602,8 @@ body.dark-theme {
     min-height: 40px;
   }
 
-  .comment-card .user-section {
-    display: none; // hide the body's avatar column on mobile only
+  .comment-card .comment-body .user-section {
+    display: none;
   }
 
   .comment-header-user {
