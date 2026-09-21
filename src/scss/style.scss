@@ -4599,13 +4599,14 @@ body.dark-theme {
 
   .comment-card .user-section {
     flex: 0 0 auto;
-    margin-right: 0.3rem;
+    margin-right: 0.2rem;
 
     .user-avatar {
-      width: 26px;
-      height: 26px;
+      width: 22px;
+      height: 22px;
       border-width: 1.5px;
       margin-bottom: 0;
+      margin-left: 0;
     }
 
     .username {
@@ -4620,7 +4621,7 @@ body.dark-theme {
   .comment-card .comment-content {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 0.83rem;
+    font-size: 12px;
     line-height: 1.35;
   }
 
