@@ -459,7 +459,12 @@ function UserComments({ userRole, userId, forumContent }) {
                         <div key={comment.comment_id} className="comment-card">
                             <div className="comment-header">
                                 <Link to={`/userprofile/${comment.username}/${comment.users_id}`}
-                                    className="text-white text-decoration-none">
+                                    className="text-white text-decoration-none d-flex align-items-center comment-header-user">
+                                    <Image
+                                        src={getProfileImageUrl(comment.character_name, comment.selected_skin)}
+                                        alt="User Profile"
+                                        className="user-avatar comment-header-avatar"
+                                    />
                                     <strong>{comment.username}</strong>
                                 </Link>
                                 <span className="comment-meta">{updatedNums(comment.timeposted)}</span>

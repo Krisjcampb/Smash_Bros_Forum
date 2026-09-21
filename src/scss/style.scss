@@ -4163,6 +4163,10 @@ body.dark-theme {
   }
 }
 
+.comment-header-avatar {
+    display: none;
+}
+
 @media (max-width: 575.98px) {
   .site-header {
     padding: 0.55rem 0.65rem;
@@ -4581,6 +4585,7 @@ body.dark-theme {
     }
 
   }
+  
 
   .action-button,
   .report-button,
@@ -4598,24 +4603,20 @@ body.dark-theme {
   }
 
   .comment-card .user-section {
-    flex: 0 0 auto;
-    margin-right: 0.2rem;
+    display: none; // hide the body's avatar column on mobile only
+  }
 
-    .user-avatar {
-      width: 22px;
-      height: 22px;
-      border-width: 1.5px;
-      margin-bottom: 0;
-      margin-left: 0;
-    }
+  .comment-header-user {
+    gap: 0.5rem;
+  }
 
-    .username {
-      display: none;
-    }
-
-    .role-badge {
-      display: none;
-    }
+  .comment-header-avatar {
+    display: inline-block; // override the desktop "display: none" above
+    width: 22px;
+    height: 22px;
+    border-width: 1.5px;
+    margin-bottom: 0;
+    flex-shrink: 0;
   }
 
   .comment-card .comment-content {
