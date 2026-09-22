@@ -572,7 +572,7 @@ footer {
     align-items: center;
     
     .comment-meta {
-      font-size: 0.85rem;
+      font-size: 0.86rem;
       color: rgba($light, 0.9);
     }
   }
@@ -4590,11 +4590,11 @@ body.dark-theme {
   .action-button,
   .report-button,
   .mod-tools-button {
-    min-height: 36px;
+    min-height: 22px;
     display: inline-flex;
     align-items: center;
-    font-size: 0.72rem;
-    padding: 0.12rem 0.4rem;
+    font-size: 0.68rem;
+    padding: 0.05rem 0.35rem;
   }
 
   .thread-vote-sidebar .vote-button {
@@ -4619,22 +4619,24 @@ body.dark-theme {
     flex-shrink: 0;
   }
 
-  .comment-card .comment-content {
+  .comment-card .comment-body .comment-content {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.35;
   }
 
   .comment-card .comment-footer {
-    padding: 0.1rem 0.65rem;
-    min-height: auto;
+    height: 30px;
+    min-height: 30px;
+    padding: 0 0.65rem; // remove vertical padding entirely — height is now fixed, not content-driven
   }
 
   .comment-footer-button-group,
   .comment-footer-buttons-wrap {
     gap: 0.35rem;
   }
+  
 
   .calendar-page {
     padding: 0 0.5rem;
