@@ -571,9 +571,28 @@ footer {
     justify-content: space-between;
     align-items: center;
     
+    .comment-header-user {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    .comment-header-username {
+      min-width: 0;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+    }
+    
     .comment-meta {
       font-size: 0.86rem;
       color: rgba($light, 0.9);
+      flex-shrink: 0;
+      white-space: nowrap;
     }
   }
 
@@ -4650,9 +4669,10 @@ body.dark-theme {
     font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.04em;
-    padding: 1px 5px;
+    padding: 1px 4px;
     border-radius: 4px;
     line-height: 1.4;
+    margin-left: 5px;
 
     &--admin {
         color: #ff6b6b;
