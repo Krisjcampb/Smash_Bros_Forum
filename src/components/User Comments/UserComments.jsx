@@ -465,7 +465,14 @@ function UserComments({ userRole, userId, forumContent }) {
                                         alt="User Profile"
                                         className="user-avatar comment-header-avatar"
                                     />
-                                    <strong>{comment.username}</strong>
+                                    <span className="comment-header-name-wrap">
+                                        <strong className="comment-header-username">{comment.username}</strong>
+                                        {(comment.role === 'admin' || comment.role === 'moderator') && (
+                                            <span className={`comment-header-role-tag comment-header-role-tag--${comment.role}`}>
+                                                {comment.role === 'admin' ? 'ADMIN' : 'MOD'}
+                                            </span>
+                                        )}
+                                    </span>
                                 </Link>
                                 <span className="comment-meta">{updatedNums(comment.timeposted)}</span>
                             </div>
