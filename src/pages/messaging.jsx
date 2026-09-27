@@ -1026,6 +1026,8 @@ const Messaging = () => {
                                                             maxHeight: '300px',
                                                             borderRadius: '8px',
                                                             marginTop: msg.message_text ? '0.5rem' : '0',
+                                                            marginLeft: 'auto',
+                                                            marginRight: 'auto',
                                                             cursor: 'pointer',
                                                             display: 'block'
                                                         }}

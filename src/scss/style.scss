@@ -1320,7 +1320,7 @@ footer {
     padding: 8px 12px;
     border-radius: 15px;
     margin: 5px;
-    max-width: 75%;
+    max-width: 65%;
     word-wrap: break-word;
 }
 
@@ -1442,6 +1442,10 @@ footer {
   .messages-container {
     flex: 1 1 auto;
     min-height: 0;
+  }
+
+  .message {
+    max-width: 75%;
   }
 }
 
