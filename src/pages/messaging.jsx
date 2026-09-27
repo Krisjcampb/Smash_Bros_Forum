@@ -1007,9 +1007,15 @@ const Messaging = () => {
                                                 className={`message ${msg.sender_id === userid ? 'sent' : 'received'}`}
                                                 onClick={() => setSelectedMessageId(msg.message_id)}
                                             >
-                                                {msg.is_deleted
-                                                ? <i>Deleted Message</i>
-                                                : !msg.filepath && msg.decrypted_text}
+                                                {msg.is_deleted ? (
+                                                    <i>Deleted Message</i>
+                                                ) : (
+                                                    msg.decrypted_text && msg.decrypted_text !== '[Image]' && (
+                                                        <div style={{ marginBottom: msg.filepath ? '0.25rem' : 0 }}>
+                                                            {msg.decrypted_text}
+                                                        </div>
+                                                    )
+                                                )}
 
                                                 {msg.filepath && decryptedImages[msg.message_id] && (
                                                     <img 
