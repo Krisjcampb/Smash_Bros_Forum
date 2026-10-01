@@ -19,10 +19,10 @@ const handleLogout = () => {
 };
 
 function Header() {
-    const [user, setUser] = useState('');
-    const [userid, setUserId] = useState('');
-    const [loginstate, setLoginState] = useState(false);
-    const [loading, setLoading] = useState(true);
+    // User identity now comes from the shared context instead of a separate /userauthenticate call
+    const { profilePicture, userid, username: user, authLoading: loading } = useUserContext();
+    const loginstate = !!userid;
+
     const [notifications, setNotifications] = useState([]);
     const [hasUnread, setHasUnread] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -31,7 +31,6 @@ function Header() {
     const userprofile = `/userprofile/${user}/${userid}`;
     const navigate = useNavigate();
     const location = useLocation();
-    const { profilePicture } = useUserContext();
     const { characterName, selectedSkin } = profilePicture;
     const headerImageUrl = getImageUrl(characterName, selectedSkin, 'header');
 
@@ -47,53 +46,23 @@ function Header() {
         "New messages? Check your inbox!",
     ];
 
+    // Load notifications once the user is known
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setLoading(false);
-            return;
-        }
+        if (!userid) return;
 
-        authFetch(API, `${API}/userauthenticate`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Authentication failed');
-            return response.json();
-        })
-        .then(userData => {
-            const { id, name } = userData;
-            setUser(name);
-            setUserId(id);
-
-            return authFetch(API, `${API}/notifications/${id}`, {
-                method: 'GET',
+        authFetch(API, `${API}/notifications/${userid}`, { method: 'GET' })
+            .then((res) => {
+                if (!res.ok) throw new Error('Failed to fetch notifications');
+                return res.json();
+            })
+            .then((data) => {
+                setNotifications(data);
+                setHasUnread(data.some((notification) => !notification.is_read));
+            })
+            .catch((err) => {
+                console.error('Error fetching notifications:', err);
             });
-        })
-        .then(response => {
-            if (!response) return null;
-            if (!response.ok) throw new Error('Failed to fetch notifications');
-            return response.json();
-        })
-        .then(notificationData => {
-            if (notificationData) {
-                setNotifications(notificationData);
-                setHasUnread(notificationData.some(notification => !notification.is_read));
-            } else {
-                console.error('No notifications data received');
-            }
-        })
-        .catch(err => {
-            console.error('Error in auth or notification initialization:', err);
-        })
-        .finally(() => {
-            if (localStorage.getItem('token')) {
-                setLoginState(true);
-            }
-            setLoading(false);
-        });
-    }, []);
+    }, [userid]);
 
     useEffect(() => {
         if (!userid) return;

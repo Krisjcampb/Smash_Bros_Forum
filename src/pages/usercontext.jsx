@@ -2,78 +2,87 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';
 
-// Create User Context
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
     const [profilePicture, setProfilePicture] = useState({ characterName: 'Mario', selectedSkin: '0' });
     const [userid, setUserId] = useState(null);
+    const [username, setUsername] = useState('');
+    const [userrole, setUserRole] = useState('');
     const token = localStorage.getItem('token');
+    const [authLoading, setAuthLoading] = useState(!!token);
 
-    // Authenticate User and Set User ID
-    useEffect(() => {
-        if (token) {
-            authFetch(API, `${API}/userauthenticate`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    const { id } = data;
-                    setUserId(id);
-                })
-                .catch((error) => {
-                    console.error('Error authenticating user:', error);
-                });
-        }
-    }, [token]);
-
-    // Retrieve Profile Picture
-    const retrieveImage = useCallback(async () => {
-        if (!userid) {
-            console.warn('No user ID available. Skipping profile picture retrieval.');
+    const authenticate = useCallback(async () => {
+        if (!localStorage.getItem('token')) {
+            setAuthLoading(false);
             return;
         }
+        try {
+            const response = await authFetch(API, `${API}/userauthenticate`, { method: 'GET' });
+            if (!response.ok) throw new Error(`Auth failed (${response.status})`);
+            const { id, name, role } = await response.json();
+            setUserId(id);
+            setUsername(name);
+            setUserRole(role);
+        } catch (error) {
+            console.error('Error authenticating user:', error);
+        } finally {
+            setAuthLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (token) authenticate();
+    }, [token, authenticate]);
+
+    // If the tab sat idle and auth never completed, try again when it wakes up
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible' && !userid) authenticate();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [userid, authenticate]);
+
+    const retrieveImage = useCallback(async () => {
+        if (!userid) return;
 
         try {
             const response = await fetch(`${API}/retrieve-image/${userid}`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
-
-            if (!response.ok) {
-                throw new Error(`Error fetching profile picture: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`Error fetching profile picture: ${response.statusText}`);
 
             const data = await response.json();
+            if (!data || data.length === 0) throw new Error('No profile picture data received.');
 
-            if (!data || data.length === 0) {
-                throw new Error('No profile picture data received.');
-            }
-
-            const characterName = data[0].character_name;
-            const selectedSkin = data[0].selected_skin;
-
-            setProfilePicture({ characterName, selectedSkin }); // Save base data
-            console.log('Profile picture updated:', { characterName, selectedSkin });
+            setProfilePicture({
+                characterName: data[0].character_name,
+                selectedSkin: data[0].selected_skin,
+            });
         } catch (error) {
             console.error('Error retrieving profile picture:', error);
-            setProfilePicture({ characterName: 'Mario', selectedSkin: '0' }); // Fallback
         }
     }, [userid]);
 
     useEffect(() => {
-        if (userid) {
-            retrieveImage();
-        }
+        if (userid) retrieveImage();
     }, [userid, retrieveImage]);
 
     return (
-        <UserContext.Provider value={{ profilePicture, setProfilePicture, retrieveImage, setUserId }}>
+        <UserContext.Provider
+            value={{
+                profilePicture,
+                setProfilePicture,
+                retrieveImage,
+                setUserId,
+                userid,
+                username,
+                userrole,
+                authLoading,
+            }}
+        >
             {children}
         </UserContext.Provider>
     );

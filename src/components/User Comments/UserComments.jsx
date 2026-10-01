@@ -84,7 +84,8 @@ function UserComments({ userRole, userId, forumContent }) {
 
     const handleReportSubmit = async () => {
         try {
-            const response = await fetch(`${API}/commentreport`, {
+            // /commentreport requires a token, so this must go through authFetch
+            const response = await authFetch(API, `${API}/commentreport`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -466,7 +467,7 @@ function UserComments({ userRole, userId, forumContent }) {
                                         className="user-avatar comment-header-avatar"
                                     />
                                     <span className="comment-header-name-wrap">
-                                        <strong className="comment-header-username">{comment.username}</strong>
+                                        <strong className="comment-header-username">{comment.username} </strong>
                                         {(comment.role === 'admin' || comment.role === 'moderator') && (
                                             <span className={`comment-header-role-tag comment-header-role-tag--${comment.role}`}>
                                                 {comment.role === 'admin' ? 'ADMIN' : 'MOD'}

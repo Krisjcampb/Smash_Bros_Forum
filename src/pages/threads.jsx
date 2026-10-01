@@ -6,6 +6,7 @@ import UserComments from '../components/User Comments/UserComments';
 import TextMentionArea from '../components/User Comments/TextMentionArea';
 import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';
+import { useUserContext } from './usercontext';
 import { toast } from 'react-toastify';
 import { PiArrowFatUpFill, PiArrowFatDownFill, PiArrowFatUp, PiArrowFatDown } from "react-icons/pi";
 
@@ -14,9 +15,8 @@ function Threads() {
     const { threadId } = useParams();
     const location = useLocation();
     const [forumContent, setForumContent] = useState(location.state?.forumContent);
-    const [user, setUser] = useState("");
-    const [userid, setUserId] = useState("");
-    const [userrole, setUserRole] = useState("");
+    // Identity comes from the shared UserContext instead of a separate /userauthenticate call
+    const { userid, username: user, userrole, authLoading } = useUserContext();
     const [mentions, setMentions] = useState([]);
     const [showReportModal, setShowReportModal] = useState(false);
     const [reportReason, setReportReason] = useState('');
@@ -42,7 +42,7 @@ function Threads() {
         }
         setSubmitting(true);
         try {
-            const response = await fetch(`${API}/threadreport`, {
+            const response = await authFetch(API, `${API}/threadreport`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -104,36 +104,17 @@ function Threads() {
         }
     };
 
+    // Load the thread when we arrive without router state (direct link, refresh, guests).
+    // /forumcontent/:id is a public route, so this works whether or not you're logged in.
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            authFetch(API, `${API}/userauthenticate`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
+        if (forumContent) return;
+        fetch(`${API}/forumcontent/${thread_id}`)
+            .then(res => {
+                if (!res.ok) throw new Error('Thread not found');
+                return res.json();
             })
-            .then((response) => response.json())
-            .then((data) => {
-                const { id, name, role } = data;
-                setUser(name);
-                setUserId(id);
-                setUserRole(role);
-            })
-            .catch((error) => {
-                console.error('Error fetching user role:', error);
-            });
-
-            if (!forumContent) {
-                fetch(`${API}/forumcontent/${thread_id}`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    setForumContent(data);
-                })
-                .catch(err => console.error("Error fetching forum content:", err));
-            }
-        }
+            .then(setForumContent)
+            .catch(err => console.error("Error fetching forum content:", err));
     }, [forumContent, thread_id]);
 
     // ── Likes / Dislikes ──────────────────────────────────────────────────────
@@ -375,25 +356,29 @@ function Threads() {
                         </Form.Group>
                     </Form>
                 ) : (
-                    // Prompt guests to sign in before commenting
-                    <div className="text-center guest-signin-prompt mt-4 pb-8 pt-8 mx-auto">
-                        <p>You must be signed in to post a comment.</p>
-                        <NavLink to="/signin">
-                            <button type="button" className="guest-signin-button">
-                                Sign In
-                            </button>
-                        </NavLink>
-                    </div>
+                    // Prompt guests to sign in before commenting (not while auth is still loading)
+                    !authLoading && (
+                        <div className="text-center guest-signin-prompt mt-4 pb-8 pt-8 mx-auto">
+                            <p>You must be signed in to post a comment.</p>
+                            <NavLink to="/signin">
+                                <button type="button" className="guest-signin-button">
+                                    Sign In
+                                </button>
+                            </NavLink>
+                        </div>
+                    )
                 )}
             </div>
 
-            {/* Comments section */}
-            <UserComments
-                key={commentsKey}
-                userRole={userrole}
-                userId={userid}
-                forumContent={forumContent}
-            />
+            {/* Comments section: wait for auth so the first fetch includes the block filter */}
+            {!authLoading && (
+                <UserComments
+                    key={commentsKey}
+                    userRole={userrole}
+                    userId={userid}
+                    forumContent={forumContent}
+                />
+            )}
 
             <Modal show={showReportModal} onHide={() => setShowReportModal(false)} size="md" centered>
                 <div className="settings-modal-header">

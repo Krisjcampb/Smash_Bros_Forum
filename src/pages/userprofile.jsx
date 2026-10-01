@@ -15,12 +15,13 @@ const characterNameMap = {
     };
 
 function Userprofile() {
-    const { profilePicture, setProfilePicture } = useUserContext();
+    const { profilePicture, setProfilePicture, userid: ctxUserid } = useUserContext();
+    // Keep it a string so comparisons against the friendid route param still work
+    const userid = ctxUserid ? String(ctxUserid) : '';
     const initialProfileImage = getImageUrl(profilePicture.characterName, profilePicture.selectedSkin, 'userProfile')
     const [userProfileImageUrl, setUserProfileImageUrl] = useState(getImageUrl(profilePicture.characterName, profilePicture.selectedSkin, 'userProfile'));
     const [initiatedByCurrentUser, setInitiatedByCurrentUser] = useState(false)
     const [user, setUser] = useState('')
-    const [userid, setUserId] = useState('')
     const [friendshipStatus, setFriendshipStatus] = useState(null)
     const { friendid } = useParams();
     const [blockStatus, setBlockStatus] = useState({ blocked: false, blockedByMe: false, blockedByThem: false });
@@ -51,7 +52,6 @@ function Userprofile() {
     const commentsSentinelRef = useRef(null)
     const postsSentinelRef = useRef(null)
 
-    const token = localStorage.getItem('token');
     const navigate = useNavigate();
 
     const profileOpen = () => setShowProfile(true)
@@ -233,6 +233,9 @@ function Userprofile() {
 
     const handleProfileSave = async () => {
         try {
+            // Don't post to /change-pfp/ with an empty id if auth hasn't finished
+            if (!userid) return;
+
             const match1 = clickedImage.match(/\/chara_\d_([^_]+)_(\d+)\.png$/);
             const match2 = clickedImage.match(/Fighter Portraits\/([^/]+)/);
             const newCharacter = match2 ? match2[1] : 'Mario';
@@ -371,43 +374,33 @@ function Userprofile() {
         }
     };
 
+    // Load the profile owner's info. The logged-in user's id now comes from UserContext.
     useEffect(() => {
-        if (friendid) {
-            authFetch(API, `${API}/userauthenticate`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then((response) => response.json())
-            .then((data) => {
-                const { id } = data;
-                // Store as string so it matches the friendid param from useParams
-                const strid = String(id)
-                setUserId(strid)
-            })
+        if (!friendid) return;
 
-            authFetch(API, `${API}/forumusers/${friendid}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const { name, last_online, description, location, role } = data;
-                const lastOnlineDate = new Date(last_online);
-                const localTime = lastOnlineDate.toLocaleString();
-                setUsername(name)
-                setLocation(location)
-                setDescription(description)
-                setUser({ name, localTime, description, location, role });
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-            });
-        }
-    }, [token, friendid])
+        authFetch(API, `${API}/forumusers/${friendid}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then((response) => {
+            if (!response.ok) throw new Error('Failed to load user');
+            return response.json();
+        })
+        .then(data => {
+            const { name, last_online, description, location, role } = data;
+            const lastOnlineDate = new Date(last_online);
+            const localTime = lastOnlineDate.toLocaleString();
+            setUsername(name)
+            setLocation(location)
+            setDescription(description)
+            setUser({ name, localTime, description, location, role });
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+        });
+    }, [friendid])
 
     useEffect(() => {
         fetchFriendshipStatus();

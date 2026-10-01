@@ -10,6 +10,7 @@ import { SkeletonGrid } from '../Utilities/skeletoncard'
 import { getImageUrl } from '../Utilities/adjusturl'
 import { API } from '../Utilities/apiUrl';
 import { authFetch } from '../Utilities/authHelpers';
+import { useUserContext } from '../../pages/usercontext';
 
 const DefaultThumbnail = () => (
     <svg 
@@ -37,7 +38,9 @@ const ListContent = (props) => {
     const [loading, setLoading] = useState(true)
     const [initialLoad, setInitialLoad] = useState(true) // true only on first page load
     const [searchTerm, setSearchTerm] = useState('')
-    const [userid, setUserId] = useState("")
+    // Identity comes from the shared UserContext instead of a separate /userauthenticate call
+    const { userid: ctxUserid, authLoading } = useUserContext();
+    const userid = ctxUserid ?? "";
     const [likedStatus, setLikedStatus] = useState({})
     const [dislikedStatus, setDislikedStatus] = useState({})
     const [likesdislikes, setNetLikesDislikes] = useState([])
@@ -97,7 +100,7 @@ const ListContent = (props) => {
         if (submitting) return;
         setSubmitting(true);
         try {
-            const response = await fetch(`${API}/threadreport`, {
+            const response = await authFetch(API, `${API}/threadreport`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -144,7 +147,7 @@ const ListContent = (props) => {
     const handleEditAsModerator = async () => {
         if (!editModalContent || !editModalTitle) return;
         try {
-            const response = await fetch(`${API}/forumcontent/${currentThread.thread_id}`, {
+            const response = await authFetch(API, `${API}/forumcontent/${currentThread.thread_id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: editModalContent, title: editModalTitle }),
@@ -322,7 +325,10 @@ const ListContent = (props) => {
         setOriginalList(prev => [newThread, ...prev]);
     }, [newThread]);
 
+    // Wait for auth to finish so the first page load already includes userid
+    // (used by the server to hide posts from users you've blocked)
     useEffect(() => {
+        if (authLoading) return;
         if (searchTimeout.current) clearTimeout(searchTimeout.current);
         searchTimeout.current = setTimeout(() => {
             if (skipNextFetch.current) {
@@ -332,17 +338,7 @@ const ListContent = (props) => {
             fetchPostsWithImages(page, searchTerm, sortBy);
         }, 400);
         return () => clearTimeout(searchTimeout.current);
-    }, [page, searchTerm, sortBy, fetchPostsWithImages]);
-
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            authFetch(API, `${API}/userauthenticate`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            }).then(r => r.json()).then(data => { setUserId(data.id); });
-        }
-    }, []);
+    }, [page, searchTerm, sortBy, fetchPostsWithImages, authLoading]);
 
     useEffect(() => {
         const fetchInitialLikes = async () => {

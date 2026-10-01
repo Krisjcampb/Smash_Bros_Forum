@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Container, Alert, Form, InputGroup, Button } from 'react-bootstrap'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { BsEnvelopeFill, BsLockFill, BsEye, BsEyeSlash } from 'react-icons/bs'
 import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';
@@ -10,7 +10,6 @@ function SignIn() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState('')
-    const navigate = useNavigate();
 
     const userLogin = async (e) => {
         e.preventDefault()
@@ -29,11 +28,12 @@ function SignIn() {
                     method: 'GET',
                 });
 
+                // Use full page loads (not client-side navigate) so UserProvider and the
+                // socket both start fresh with the new token
                 if (keyResponse.status === 404) {
-                    navigate('/setup-keys');
+                    window.location.assign('/setup-keys');
                 } else {
-                    navigate('/');
-                    navigate(0);
+                    window.location.assign('/');
                 }
             } else {
                 setErrorMessage(data.message || 'Invalid username or password')
