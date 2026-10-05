@@ -579,13 +579,28 @@ footer {
       overflow: hidden;
     }
 
+    .comment-header-name-wrap {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;   // keeps the role on the same line
+      gap: 0.4rem;         // replaces the trailing space after the username
+      min-width: 0;        // lets the flex child shrink so the ellipsis can kick in
+    }
+
     .comment-header-username {
+      display: block;
+      flex: 0 1 auto;        // the only item allowed to shrink
       min-width: 0;
       max-width: 160px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      display: inline-block;
+      line-height: 1.2;
+    }
+
+    .comment-header-role-tag {
+      flex-shrink: 0;        // never gets squeezed or pushed off screen
+      white-space: nowrap;
     }
     
     .comment-meta {
@@ -1406,7 +1421,7 @@ footer {
 
   .messaging-page.has-selected-user .chat-area {
     display: flex;
-    padding: 0px, 0px;
+    padding: 0;
   }
 
   .chat-back-button {
@@ -1988,7 +2003,7 @@ footer {
     margin-bottom: 2rem;
 
     p {
-      color: '#ececec';
+      color: #ececec;
       line-height: 1.8;
       font-size: 0.95rem;
       margin: 0;
@@ -4667,6 +4682,10 @@ body.dark-theme {
     gap: 0.35rem;
   }
 
+  .comment-header-username {
+    max-width: 110px;
+  }
+
   .comment-header-role-tag {
     display: inline-block;
     flex-shrink: 0;
@@ -4676,7 +4695,6 @@ body.dark-theme {
     padding: 1px 4px;
     border-radius: 4px;
     line-height: 1.4;
-    margin-left: 5px;
 
     &--admin {
         color: #ff6b6b;

@@ -467,7 +467,7 @@ function UserComments({ userRole, userId, forumContent }) {
                                         className="user-avatar comment-header-avatar"
                                     />
                                     <span className="comment-header-name-wrap">
-                                        <strong className="comment-header-username">{comment.username} </strong>
+                                        <strong className="comment-header-username">{comment.username}</strong>
                                         {(comment.role === 'admin' || comment.role === 'moderator') && (
                                             <span className={`comment-header-role-tag comment-header-role-tag--${comment.role}`}>
                                                 {comment.role === 'admin' ? 'ADMIN' : 'MOD'}
