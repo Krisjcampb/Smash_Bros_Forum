@@ -1072,6 +1072,7 @@ footer {
   .fc-popover-close {
     color: #e0e0e0;
   }
+  
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2028,6 +2029,15 @@ footer {
     background: $secondary; // keep the yellow badge as-is, just confirming it stays visible
     color: $primary;
   }
+
+  .thread-byline { 
+    color: rgba($light, 0.6); 
+  }
+
+  .thread-byline__name { 
+    color: $light; &:hover { color: $secondary; 
+  } 
+}
 
   // ── Profile ───────────────────────────────────────────────────────────────
 
@@ -3003,6 +3013,35 @@ footer {
     border-radius: 10px;
     margin-bottom: 1.5rem;
     background: transparent;
+}
+
+.thread-byline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: rgba($primary, 0.6);
+}
+
+.thread-byline__name {
+  font-weight: 800;
+  color: $primary;
+  text-decoration: none;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    color: color.adjust($secondary, $lightness: -15%);
+    text-decoration: underline;
+  }
+}
+
+.thread-byline__dot {
+  opacity: 0.5;
 }
 
 .thread-comment-form-wrap {

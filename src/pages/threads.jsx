@@ -8,6 +8,7 @@ import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';
 import { useUserContext } from './usercontext';
 import { toast } from 'react-toastify';
+import { getImageUrl } from '../components/Utilities/adjusturl';
 import { PiArrowFatUpFill, PiArrowFatDownFill, PiArrowFatUp, PiArrowFatDown } from "react-icons/pi";
 
 function Threads() {
@@ -273,6 +274,27 @@ function Threads() {
                 <h2 className='thread-page-title'>
                     {forumContent.title}
                 </h2>
+
+                {forumContent.username && (
+                    <div className="thread-byline">
+                        <NavLink
+                            to={`/userprofile/${forumContent.username}/${forumContent.users_id}`}
+                            className="thread-byline__name"
+                        >
+                            {forumContent.username}
+                        </NavLink>
+                        {forumContent.postdate && (
+                            <>
+                                <span className="thread-byline__dot">·</span>
+                                <span className="thread-byline__date">
+                                    {new Date(forumContent.postdate).toLocaleDateString(undefined, {
+                                        month: 'short', day: 'numeric', year: 'numeric',
+                                    })}
+                                </span>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className='thread-page-background'>
