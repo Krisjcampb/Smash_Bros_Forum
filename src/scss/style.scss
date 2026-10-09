@@ -565,7 +565,7 @@ footer {
   .comment-header {
     background: linear-gradient(to right, $primary, color.adjust($primary, $lightness: -5%));
     color: $light;
-    padding: 0.75rem 1.25rem;
+    padding: 0.55rem 1.25rem;
     border-radius: 8px 8px 0 0;
     display: flex;
     justify-content: space-between;
@@ -582,9 +582,9 @@ footer {
     .comment-header-name-wrap {
       display: flex;
       align-items: center;
-      flex-wrap: nowrap;   // keeps the role on the same line
-      gap: 0.4rem;         // replaces the trailing space after the username
-      min-width: 0;        // lets the flex child shrink so the ellipsis can kick in
+      flex-wrap: nowrap;   
+      gap: 0.4rem;
+      min-width: 0;
     }
 
     .comment-header-username {
@@ -646,12 +646,6 @@ footer {
         object-fit: cover;
         border: 3px solid $secondary;
         margin-bottom: 0.5rem;
-        transition: all 0.3s ease;
-        
-        &:hover {
-          transform: scale(1.05);
-          border-color: color.adjust($secondary, $lightness: 10%);
-        }
       }
       
       .username {
@@ -682,11 +676,11 @@ footer {
   }
 
   .comment-footer {
-    padding: 0.5rem 1.25rem;
+    padding: 0.25rem 1.25rem;
     background: rgba($primary, 0.03);
     border-radius: 0 0 8px 8px;
     border-top: 1px solid rgba($primary, 0.1);
-    min-height: 44px;
+    min-height: 34px;
     display: flex;
     align-items: center;
 

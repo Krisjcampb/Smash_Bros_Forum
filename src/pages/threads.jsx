@@ -8,7 +8,6 @@ import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';
 import { useUserContext } from './usercontext';
 import { toast } from 'react-toastify';
-import { getImageUrl } from '../components/Utilities/adjusturl';
 import { PiArrowFatUpFill, PiArrowFatDownFill, PiArrowFatUp, PiArrowFatDown } from "react-icons/pi";
 
 function Threads() {
