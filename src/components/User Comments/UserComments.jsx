@@ -428,7 +428,15 @@ function UserComments({ userRole, userId, forumContent }) {
         }
     }, [showEditModal]);
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    const formatVotes = (n) => {
+        const num = Number(n) || 0;
+        const abs = Math.abs(num);
+        const sign = num < 0 ? '-' : '';
+        if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(1)}M`;
+        if (abs >= 10000) return `${sign}${Math.round(abs / 1000)}k`;
+        if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)}k`;
+        return `${num}`;
+    };
 
     return (
         <>
@@ -489,7 +497,9 @@ function UserComments({ userRole, userId, forumContent }) {
                                             : <PiArrowFatUp size={20} />
                                         }
                                     </button>
-                                    <span className="vote-count">{comment.net_likes ?? 0}</span>
+                                    <span className="vote-count" title={String(comment.net_likes ?? 0)}>
+                                        {formatVotes(comment.net_likes ?? 0)}
+                                    </span>
                                     <button
                                         className={`vote-button dislike-button ${dislikedStatus[comment.comment_id] ? 'active-dislike' : ''}`}
                                         onClick={() => handleDislike(comment.comment_id)}
