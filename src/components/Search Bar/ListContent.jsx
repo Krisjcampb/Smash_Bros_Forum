@@ -294,7 +294,7 @@ const ListContent = (props) => {
 
     const list = useMemo(() => [...originalList], [originalList]);
 
-    const fetchPostsWithImages = useCallback(async (pageNum, search = '', sort = 'newest') => {
+    const fetchPostsWithImages = useCallback(async (pageNum, search = '', sort = 'newest', tf = 'all') => {
         try {
             setLoading(true);
             const limit = 24;
@@ -344,7 +344,7 @@ const ListContent = (props) => {
                 skipNextFetch.current = false;
                 return;
             }
-            fetchPostsWithImages(page, searchTerm, sortBy);
+            fetchPostsWithImages(page, searchTerm, sortBy, timeframe);
         }, 400);
         return () => clearTimeout(searchTimeout.current);
     }, [page, searchTerm, sortBy, timeframe, fetchPostsWithImages, authLoading]);
