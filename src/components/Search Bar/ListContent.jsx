@@ -4,7 +4,7 @@ import Card from 'react-bootstrap/Card'
 import { NavLink } from 'react-router-dom'
 import { Row, Col, Button, Modal, Container, Image, InputGroup } from 'react-bootstrap'
 import Form from 'react-bootstrap/Form'
-import { BsArrowUp, BsArrowDown, BsThreeDotsVertical, BsChatFill, BsSearch, BsSortDownAlt } from 'react-icons/bs'
+import { BsArrowUp, BsArrowDown, BsThreeDotsVertical, BsChatFill, BsSearch, BsSortDownAlt, BsClock } from 'react-icons/bs'
 import { toast } from 'react-toastify'
 import { SkeletonGrid } from '../Utilities/skeletoncard'
 import { getImageUrl } from '../Utilities/adjusturl'
@@ -51,6 +51,7 @@ const ListContent = (props) => {
     const [editModalContent, setEditModalContent] = useState('')
     const [currentThread, setCurrentThread] = useState({})
     const [sortBy, setSortBy] = useState('newest')
+    const [timeframe, setTimeframe] = useState('all')
     const [showMenu, setShowMenu] = useState(null)
     const [page, setPage] = useState(1)
     const [hasMore, setHasMore] = useState(true)
@@ -284,6 +285,13 @@ const ListContent = (props) => {
         setOriginalList([]);
     };
 
+    const handleTimeframeChange = (e) => {
+        setTimeframe(e.target.value);
+        setPage(1);
+        setHasMore(true);
+        setOriginalList([]);
+    };
+
     const list = useMemo(() => [...originalList], [originalList]);
 
     const fetchPostsWithImages = useCallback(async (pageNum, search = '', sort = 'newest') => {
@@ -293,8 +301,9 @@ const ListContent = (props) => {
             const scrollPos = window.scrollY || document.documentElement.scrollTop;
             const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
             const sortParam = `&sort=${sort}`;
+            const timeParam = sort === 'Top' ? `&timeframe=${tf}` : '';
             const userParam = userid ? `&userid=${userid}` : '';
-            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}${userParam}`);
+            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}${timeParam}${userParam}`);
             const newPosts = await response.json();
             if (newPosts.length === 0 || newPosts.length < limit) setHasMore(false);
             setOriginalList(prev => {
@@ -338,7 +347,7 @@ const ListContent = (props) => {
             fetchPostsWithImages(page, searchTerm, sortBy);
         }, 400);
         return () => clearTimeout(searchTimeout.current);
-    }, [page, searchTerm, sortBy, fetchPostsWithImages, authLoading]);
+    }, [page, searchTerm, sortBy, timeframe, fetchPostsWithImages, authLoading]);
 
     useEffect(() => {
         const fetchInitialLikes = async () => {
@@ -443,7 +452,7 @@ const ListContent = (props) => {
             <div className="content-box">
                 <div className="feed-controls search-sort-wrapper">
                     <Row className="g-3 align-items-center">
-                        <Col xs={12} lg={7}>
+                        <Col xs={12} lg={sortBy === 'Top' ? 5 : 7}>
                             <InputGroup className="feed-control">
                                 <InputGroup.Text><BsSearch /></InputGroup.Text>
                                 <Form.Control
@@ -453,7 +462,7 @@ const ListContent = (props) => {
                                 />
                             </InputGroup>
                         </Col>
-                        <Col xs={12} lg={5}>
+                        <Col xs={12} lg={sortBy === 'Top' ? 4 : 5}>
                             <InputGroup className="feed-control">
                                 <InputGroup.Text><BsSortDownAlt /></InputGroup.Text>
                                 <Form.Select value={sortBy} onChange={handleSortChange}>
@@ -464,6 +473,20 @@ const ListContent = (props) => {
                                 </Form.Select>
                             </InputGroup>
                         </Col>
+                        {sortBy === 'Top' && (
+                            <Col xs={12} lg={3}>
+                                <InputGroup className="feed-control">
+                                    <InputGroup.Text><BsClock /></InputGroup.Text>
+                                    <Form.Select value={timeframe} onChange={handleTimeframeChange}>
+                                        <option value="day">Past 24 hours</option>
+                                        <option value="week">Past week</option>
+                                        <option value="month">Past month</option>
+                                        <option value="year">Past year</option>
+                                        <option value="all">All time</option>
+                                    </Form.Select>
+                                </InputGroup>
+                            </Col>
+                        )}
                     </Row>
                 </div>
 

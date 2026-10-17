@@ -991,7 +991,13 @@ app.get('/forumcontent', async (req, res) => {
         const offset = (page - 1) * limit;
         const search = req.query.search?.trim() || '';
         const sort = req.query.sort || 'newest';
+        const timeframe = req.query.timeframe || 'all';
+        const intervals = { day: '1 day', week: '7 days', month: '30 days', year: '365 days' };
         const requestingUserId = parseInt(req.query.userid) || null;
+
+        const timeFilter = sort === 'Top' && intervals[timeframe]
+            ? `AND fc.postdate >= NOW() - INTERVAL '${intervals[timeframe]}'`
+            : '';
 
         const orderBy = {
             newest: 'fc.postdate DESC',
@@ -1044,6 +1050,7 @@ app.get('/forumcontent', async (req, res) => {
                 ${baseFrom}
                 WHERE fu.is_banned = FALSE
                 AND fc.is_deleted = FALSE
+                ${timeFilter}
                 AND (fc.title ILIKE $3 OR fc.content ILIKE $3)
                 ${blockFilter}
                 ORDER BY ${orderBy}
@@ -1061,6 +1068,7 @@ app.get('/forumcontent', async (req, res) => {
                 ${baseFrom}
                 WHERE fu.is_banned = FALSE
                 AND fc.is_deleted = FALSE
+                ${timeFilter}
                 ${blockFilter}
                 ORDER BY ${orderBy}
                 LIMIT $1 OFFSET $2
