@@ -159,6 +159,7 @@ function Header() {
                     <button
                         type="button"
                         aria-label="Calendar"
+                        data-tooltip="Calendar"
                         onClick={() => navigate('/calendar')}
                         className={`site-header__icon-button ${location.pathname === '/calendar' ? 'is-active' : ''}`}
                     >
@@ -172,6 +173,7 @@ function Header() {
                             <button
                                 type="button"
                                 aria-label="Notifications"
+                                data-tooltip={showDropdown ? undefined : 'Notifications'}
                                 onClick={handleBellClick}
                                 className={`site-header__icon-button ${hasUnread || showDropdown ? 'is-active' : ''}`}
                             >
@@ -201,6 +203,7 @@ function Header() {
                             <button
                                 type="button"
                                 aria-label="Messages"
+                                data-tooltip="Messages"
                                 onClick={() => navigate(`/messaging/${user}/${userid}`)}
                                 className={`site-header__icon-button ${location.pathname.startsWith('/messaging') ? 'is-active' : ''}`}
                             >

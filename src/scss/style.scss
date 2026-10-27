@@ -3362,6 +3362,33 @@ body.dark-theme {
     color: $secondary;
     transform: translateY(-1px);
   }
+
+  &[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    padding: 0.3rem 0.6rem;
+    border-radius: 8px;
+    background: $secondary;
+    color: $primary;
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 2100;
+  }
+
+  @media (hover: hover) {
+    &[data-tooltip]:hover::after,
+    &[data-tooltip]:focus-visible::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
 }
 
 .site-header__avatar,
