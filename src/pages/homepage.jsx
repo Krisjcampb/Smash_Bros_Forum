@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { Container, InputGroup, Form } from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
 import { NavLink } from 'react-router-dom'
-import { BsTextLeft, BsCardHeading, BsImageFill } from 'react-icons/bs'
+import { BsTextLeft, BsCardHeading, BsImageFill, BsTagFill } from 'react-icons/bs'
 import ListContent from '../components/Search Bar/ListContent'
 import imageCompression from 'browser-image-compression';
 import { API } from '../components/Utilities/apiUrl';
 import { authFetch } from '../components/Utilities/authHelpers';
+import { THREAD_FLAIRS } from '../components/Utilities/flairs';
 
 function Homepage() {
     const [title, setTitle] = useState('')
@@ -19,9 +20,10 @@ function Homepage() {
     const [userRole, setUserRole] = useState('')
     const [isPosting, setIsPosting] = useState(false);
     const [newThread, setNewThread] = useState(null);
+    const [flair, setFlair] = useState('')
 
     const changeOpen = () => setShow(true)
-    const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); }
+    const changeClose = () => { setShow(false); setTitle(''); setContent(''); setFile(null); setFlair(''); }
 
     const handleFileChange = (event) => {
         setFile(event.target.files[0])
@@ -57,7 +59,8 @@ function Homepage() {
                 title,
                 content,
                 username,
-                usersId
+                usersId,
+                flair
             };
 
             const response = await authFetch(API, `${API}/forumcontent`, {
@@ -182,6 +185,17 @@ function Homepage() {
                             <div className={`thread-character-count ${title.length >= 55 ? 'is-warning' : ''}`}>
                                 {title.length}/69
                             </div>
+                        </Form.Group>
+                        
+                        <Form.Group className="thread-form-field">
+                            <Form.Label className="thread-form-label">Flair</Form.Label>
+                            <InputGroup className="thread-input-group">
+                                <InputGroup.Text><BsTagFill size={14} /></InputGroup.Text>
+                                <Form.Select value={flair} onChange={(e) => setFlair(e.target.value)} required>
+                                    <option value="" disabled>Choose a flair</option>
+                                    {THREAD_FLAIRS.map(f => <option key={f} value={f}>{f}</option>)}
+                                </Form.Select>
+                            </InputGroup>
                         </Form.Group>
 
                         <Form.Group className="thread-form-field">

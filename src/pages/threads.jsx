@@ -270,6 +270,9 @@ function Threads() {
                 <div className="thread-badge-label">
                     Thread
                 </div>
+                {forumContent.flair && (
+                    <span className="thread-flair thread-flair--inline">{forumContent.flair}</span>
+                )}
                 <h2 className='thread-page-title'>
                     {forumContent.title}
                 </h2>

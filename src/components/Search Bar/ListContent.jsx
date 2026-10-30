@@ -11,6 +11,7 @@ import { getImageUrl } from '../Utilities/adjusturl'
 import { API } from '../Utilities/apiUrl';
 import { authFetch } from '../Utilities/authHelpers';
 import { useUserContext } from '../../pages/usercontext';
+import { THREAD_FLAIRS } from '../Utilities/flairs';
 
 const DefaultThumbnail = () => (
     <svg 
@@ -51,6 +52,7 @@ const ListContent = (props) => {
     const [editModalContent, setEditModalContent] = useState('')
     const [currentThread, setCurrentThread] = useState({})
     const [sortBy, setSortBy] = useState('newest')
+    const [flairFilter, setFlairFilter] = useState('')
     const [timeframe, setTimeframe] = useState('all')
     const [showMenu, setShowMenu] = useState(null)
     const [page, setPage] = useState(1)
@@ -285,6 +287,13 @@ const ListContent = (props) => {
         setOriginalList([]);
     };
 
+    const handleFlairChange = (value) => {
+        setFlairFilter(value);
+        setPage(1);
+        setHasMore(true);
+        setOriginalList([]);
+    };
+
     const handleTimeframeChange = (e) => {
         setTimeframe(e.target.value);
         setPage(1);
@@ -294,7 +303,7 @@ const ListContent = (props) => {
 
     const list = useMemo(() => [...originalList], [originalList]);
 
-    const fetchPostsWithImages = useCallback(async (pageNum, search = '', sort = 'newest', tf = 'all') => {
+    const fetchPostsWithImages = useCallback(async (pageNum, search = '', sort = 'newest', tf = 'all', fl = '') => {
         try {
             setLoading(true);
             const limit = 24;
@@ -302,8 +311,9 @@ const ListContent = (props) => {
             const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
             const sortParam = `&sort=${sort}`;
             const timeParam = sort === 'Top' ? `&timeframe=${tf}` : '';
+            const flairParam = fl ? `&flair=${encodeURIComponent(fl)}` : '';
             const userParam = userid ? `&userid=${userid}` : '';
-            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}${timeParam}${userParam}`);
+            const response = await fetch(`${API}/forumcontent?page=${pageNum}&limit=${limit}${searchParam}${sortParam}${timeParam}${flairParam}${userParam}`);
             const newPosts = await response.json();
             if (newPosts.length === 0 || newPosts.length < limit) setHasMore(false);
             setOriginalList(prev => {
@@ -344,10 +354,10 @@ const ListContent = (props) => {
                 skipNextFetch.current = false;
                 return;
             }
-            fetchPostsWithImages(page, searchTerm, sortBy, timeframe);
+            fetchPostsWithImages(page, searchTerm, sortBy, timefram, flairFilter);
         }, 400);
         return () => clearTimeout(searchTimeout.current);
-    }, [page, searchTerm, sortBy, timeframe, fetchPostsWithImages, authLoading]);
+    }, [page, searchTerm, sortBy, timeframe, flairFilter, fetchPostsWithImages, authLoading]);
 
     useEffect(() => {
         const fetchInitialLikes = async () => {
@@ -488,9 +498,34 @@ const ListContent = (props) => {
                             </Col>
                         )}
                     </Row>
+                    <div className="flair-chips">
+                        <button
+                            type="button"
+                            className={`flair-chip ${flairFilter === '' ? 'is-active' : ''}`}
+                            onClick={() => handleFlairChange('')}
+                        >
+                            All
+                        </button>
+                        {THREAD_FLAIRS.map(f => (
+                            <button
+                                key={f}
+                                type="button"
+                                className={`flair-chip ${flairFilter === f ? 'is-active' : ''}`}
+                                onClick={() => handleFlairChange(f)}
+                            >
+                                {f}
+                            </button>
+                        ))}
+                    </div>
+
                 </div>
 
                 <div className="forum-grid">
+                    {!loading && list.length === 0 && (
+                        <div className="text-center text-muted py-5">
+                            No threads found{flairFilter ? ` for "${flairFilter}"` : ''}.
+                        </div>
+                    )}
                     {list.map((e, index) => (
                         <div key={index} className="position-relative thread-card-wrap">
 
@@ -498,7 +533,15 @@ const ListContent = (props) => {
                             <Card className="hover-card thread-card">
                                 {/* Yellow left border accent */}
                                 <div className="thread-card-accent" />
-
+                                {e.flair && (
+                                    <button
+                                        type="button"
+                                        className="thread-flair"
+                                        onClick={() => handleFlairChange(e.flair)}
+                                    >
+                                        {e.flair}
+                                    </button>
+                                )}
                                 <Card.Body className="d-flex flex-column">
                                     <NavLink
                                         to={`/threads/${e.thread_id}`}

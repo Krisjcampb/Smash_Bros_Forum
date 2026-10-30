@@ -54,6 +54,8 @@ const io = new Server(server, {
   }
 });
 
+const FLAIRS = ['Matchup Help', 'Tournament', 'Discussion', 'Clips'];
+
 const userSocketMap = new Map();
 
 const upload = multer({
@@ -937,7 +939,8 @@ app.post('/saveProfilePicture', async (req, res) => {
 
 app.post('/forumcontent', authenticateToken, async (req, res) => {
   try {
-    const {title, content, likes, comments, username, postdate, usersId} = req.body
+    const {title, content, likes, comments, username, postdate, usersId, flair} = req.body
+    const cleanFlair = FLAIRS.includes(flair) ? flair : null;
 
     if (!title || title.length > 200) return res.status(400).json({ error: 'Invalid title' });
     if (content && content.length > 50000) return res.status(400).json({ error: 'Invalid content' });
@@ -945,11 +948,11 @@ app.post('/forumcontent', authenticateToken, async (req, res) => {
     const inserted = await pool.query(
         `
         INSERT INTO forumcontent
-        (title, content, username, postdate, users_id)
-        VALUES($1, $2, $3, NOW(), $4)
+        (title, content, username, postdate, users_id, flair)
+        VALUES($1, $2, $3, NOW(), $4, $5)
         RETURNING *
         `,
-        [title, content, username, usersId]
+        [title, content, username, usersId, cleanFlair]
     );
 
     const threadId = inserted.rows[0].thread_id;
@@ -989,6 +992,8 @@ app.get('/forumcontent', async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 24;
         const offset = (page - 1) * limit;
+        const flairParam = req.query.flair;
+        const flairFilter = FLAIRS.includes(flairParam) ? `AND fc.flair = '${flairParam}'` : '';
         const search = req.query.search?.trim() || '';
         const sort = req.query.sort || 'newest';
         const timeframe = req.query.timeframe || 'all';
@@ -1052,6 +1057,7 @@ app.get('/forumcontent', async (req, res) => {
                 AND fc.is_deleted = FALSE
                 ${timeFilter}
                 AND (fc.title ILIKE $3 OR fc.content ILIKE $3)
+                ${flairFilter}
                 ${blockFilter}
                 ORDER BY ${orderBy}
                 LIMIT $1 OFFSET $2
@@ -1069,6 +1075,7 @@ app.get('/forumcontent', async (req, res) => {
                 WHERE fu.is_banned = FALSE
                 AND fc.is_deleted = FALSE
                 ${timeFilter}
+                ${flairFilter}
                 ${blockFilter}
                 ORDER BY ${orderBy}
                 LIMIT $1 OFFSET $2

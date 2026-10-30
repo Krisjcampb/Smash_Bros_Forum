@@ -1,0 +1,1 @@
+export const THREAD_FLAIRS = ['Matchup Help', 'Tournament', 'Discussion', 'Clips'];
